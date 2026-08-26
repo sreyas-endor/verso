@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  Placeholder. //go:embed all:dist in cmd/verso/static.go needs this directory
+  to exist and to contain index.html, so the server builds before the client
+  has ever been built. The release build overwrites this directory with the
+  contents of web/dist; do not add anything here worth keeping.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verso</title>
+  </head>
+  <body>
+    <main>
+      <h1>Verso</h1>
+      <p>
+        The client has not been built into this binary yet. Run
+        <code>npm run build</code> in <code>web/</code> and copy
+        <code>web/dist</code> over <code>cmd/verso/dist</code>, or start the
+        server with <code>-dev</code> to serve <code>web/dist</code> from disk.
+      </p>
+    </main>
+  </body>
+</html>

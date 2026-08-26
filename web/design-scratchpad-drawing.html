@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Paintress at Work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Nunito:wght@600;700;800;900&display=swap" />
+<style>
+/* ============================================================
+   Verso — drawing-phase motion specimens
+   Palette is web/src/styles/tokens.css, verbatim. One light
+   paper world on purpose: the app has no dark theme, so every
+   colour here is painted explicitly rather than inherited.
+   ============================================================ */
+:root {
+  --bg:#f4eddf; --surface:#fffdf7; --surface-2:#f8f0e3;
+  --border:#e5d9c6; --border-str:#cbbca6;
+  --ink:#263238; --ink-2:#69716c; --ink-3:#958d80;
+  --accent:#ef5d5a; --accent-sf:#ffe7df; --accent-dk:#bd4544;
+  --amber:#f5c744; --amber-dk:#a36c10; --amber-sf:#fff3cc;
+  --good:#3f966d; --good-sf:#e0f2e6;
+  --radius:18px; --radius-sm:11px;
+  --shadow:3px 4px 0 rgba(38,50,56,.12);
+  --shadow-lg:6px 8px 0 rgba(38,50,56,.16), 0 16px 35px rgba(88,65,37,.12);
+  --font:"Nunito", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  --mono:"DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --nib:#4f7cff;             /* stands in for the artist's pen ink */
+}
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:700 16px/1.55 var(--font);
+  background-image:
+    radial-gradient(circle at 18% 8%, rgba(255,253,247,.7) 0, transparent 42%),
+    radial-gradient(circle at 84% 4%, rgba(245,199,68,.14) 0, transparent 36%);
+}
+.wrap { max-width:1180px; margin:0 auto; padding:0 clamp(18px,4vw,34px); }
+.eyebrow {
+  display:inline-block; font:500 .7rem/1 var(--mono);
+  letter-spacing:.16em; text-transform:uppercase; color:var(--amber-dk);
+  background:var(--amber-sf); border:2px solid var(--amber);
+  padding:.42rem .6rem; transform:rotate(-1.2deg);
+}
+h1 {
+  margin:.9rem 0 0; font-size:clamp(2.3rem,6vw,3.9rem); font-weight:900;
+  letter-spacing:-.05em; line-height:.98; text-wrap:balance; max-width:22ch;
+}
+h1 mark { background:none; color:var(--accent); }
+.lede { max-width:62ch; margin:1rem 0 0; font-weight:600; color:var(--ink-2); font-size:1.06rem; }
+.head { padding:clamp(34px,6vw,62px) 0 0; }
+.head-rule { height:7px; width:min(320px,52%); margin:26px 0 0; border-radius:8px; background:var(--accent); transform:rotate(-.5deg); }
+
+/* ---- section framing ---- */
+section { padding:clamp(38px,6vw,64px) 0 0; }
+.sec-head { display:flex; align-items:baseline; gap:.9rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+h2 { margin:0; font-size:clamp(1.35rem,3vw,1.8rem); font-weight:900; letter-spacing:-.035em; }
+.sec-head p { margin:0; color:var(--ink-2); font-weight:600; font-size:.95rem; max-width:48ch; }
+.tag { font:500 .68rem/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+
+/* ---- specimen cards ---- */
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:20px; }
+.spec {
+  background:var(--surface); border:2px solid var(--border-str);
+  border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.spec-well {
+  position:relative; height:186px; display:grid; place-items:center;
+  background:var(--surface-2);
+  background-image:linear-gradient(rgba(203,188,166,.35) 1px, transparent 1px);
+  background-size:100% 26px;
+  border-bottom:2px solid var(--border);
+  overflow:hidden;
+}
+.spec-well::after {           /* paper ledge the sprite sits on */
+  content:""; position:absolute; left:0; right:0; bottom:0; height:16px;
+  background:var(--surface); border-top:2px solid var(--border-str);
+}
+.spec-body { padding:15px 17px 18px; display:flex; flex-direction:column; gap:.55rem; flex:1; }
+.spec-name { font-size:1.12rem; font-weight:900; letter-spacing:-.03em; }
+.spec-name span { display:inline-block; margin-right:.45rem; padding:.14rem .4rem; border-radius:5px;
+  background:var(--ink); color:var(--surface); font:500 .66rem/1.4 var(--mono); vertical-align:.18em; }
+.spec-body p { margin:0; font-size:.9rem; font-weight:600; color:var(--ink-2); }
+.spec-meta { margin-top:auto; padding-top:.7rem; border-top:2px dashed var(--border);
+  display:flex; gap:.4rem; flex-wrap:wrap; }
+.chip { font:500 .66rem/1 var(--mono); letter-spacing:.04em; padding:.34rem .48rem; border-radius:99px;
+  border:2px solid var(--border-str); background:var(--surface-2); color:var(--ink-2); }
+.chip-good { border-color:var(--good); background:var(--good-sf); color:var(--good); }
+.chip-warn { border-color:var(--accent); background:var(--accent-sf); color:var(--accent-dk); }
+
+/* ============ A. the paintress ============ */
+.pt { width:150px; height:auto; overflow:visible; }
+.pt-shadow { fill:rgba(38,50,56,.11); }
+.pt-hair   { fill:var(--ink); }
+.pt-smock  { fill:var(--amber); stroke:var(--ink); stroke-width:3; }
+.pt-skin   { fill:var(--surface); stroke:var(--ink); stroke-width:3; }
+.pt-beret  { fill:var(--accent); stroke:var(--ink); stroke-width:3; }
+.pt-eye    { fill:var(--ink); transform-box:fill-box; transform-origin:center;
+             animation:pt-blink 4.6s ease-in-out infinite; }
+.pt-cheek  { fill:var(--accent-sf); }
+.pt-smile  { fill:none; stroke:var(--ink); stroke-width:2.6; stroke-linecap:round; }
+.pt-sleeve-out { stroke:var(--ink); stroke-width:12; stroke-linecap:round; fill:none; }
+.pt-sleeve-in  { stroke:var(--amber); stroke-width:6; stroke-linecap:round; fill:none; }
+.pt-pen    { fill:var(--nib); stroke:var(--ink); stroke-width:2.4; }
+.pt-nib    { fill:var(--ink); }
+.pt-bob    { transform-box:view-box; transform-origin:center; animation:pt-bob 2.4s ease-in-out infinite; }
+.pt-arm    { transform-box:view-box; transform-origin:74px 78px; animation:pt-dab 1.9s cubic-bezier(.5,0,.4,1) infinite; }
+.pt-mark   { stroke:var(--nib); stroke-width:3.4; stroke-linecap:round; fill:none; opacity:0;
+             animation:pt-mark 1.9s ease-out infinite; }
+.pt-mark.m2 { animation-delay:.63s; }
+.pt-mark.m3 { animation-delay:1.26s; }
+@keyframes pt-bob   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2.5px)} }
+@keyframes pt-blink { 0%,92%,100%{transform:scaleY(1)} 96%{transform:scaleY(.12)} }
+@keyframes pt-dab {
+  0%   { transform:rotate(-13deg) translate(-1px,1px); }
+  38%  { transform:rotate(9deg)  translate(2px,-1px); }
+  55%  { transform:rotate(2deg)  translate(1px,0); }
+  78%  { transform:rotate(14deg) translate(3px,-2px); }
+  100% { transform:rotate(-13deg) translate(-1px,1px); }
+}
+@keyframes pt-mark { 0%{opacity:0;transform:translate(0,3px) scale(.7)} 18%{opacity:1;transform:none} 100%{opacity:0;transform:translate(2px,-3px)} }
+
+/* ============ B. marker in hand ============ */
+.mh { width:100%; height:100%; }
+.mh-body { fill:var(--nib); stroke:var(--ink); stroke-width:2.6; }
+.mh-nib  { fill:var(--ink); }
+.mh-hand { fill:var(--surface); stroke:var(--ink); stroke-width:2.6; }
+.mh-cuff { fill:var(--accent); stroke:var(--ink); stroke-width:2.6; }
+.mh-rig  { transform-box:view-box; animation:mh-glide 3.4s ease-in-out infinite; }
+.mh-trail{ fill:none; stroke:var(--nib); stroke-width:5; stroke-linecap:round;
+           stroke-dasharray:1; stroke-dashoffset:1; animation:mh-draw 3.4s ease-in-out infinite; }
+@keyframes mh-glide {
+  0%   { transform:translate(-6px,10px) rotate(-4deg); }
+  50%  { transform:translate(76px,-4px) rotate(3deg); }
+  70%  { transform:translate(126px,12px) rotate(-2deg); }
+  71%,100% { transform:translate(-6px,10px) rotate(-4deg); }
+}
+@keyframes mh-draw { 0%{stroke-dashoffset:1;opacity:1} 70%{stroke-dashoffset:0;opacity:1} 88%{opacity:0} 89%,100%{stroke-dashoffset:1;opacity:0} }
+
+/* ============ C. ink ghost ============ */
+.ig { width:100%; height:100%; }
+.ig-path { fill:none; stroke:var(--nib); stroke-width:6; stroke-linecap:round; opacity:.55;
+           stroke-dasharray:1; stroke-dashoffset:1; animation:ig-cycle 4s ease-in-out infinite; }
+.ig-path:nth-of-type(2) { animation-delay:.7s; stroke-width:4; }
+@keyframes ig-cycle { 0%{stroke-dashoffset:1;opacity:.55} 55%{stroke-dashoffset:0;opacity:.55} 85%{opacity:0} 86%,100%{stroke-dashoffset:1;opacity:0} }
+
+/* ============ D. marginalia ============ */
+.mg { width:100%; height:100%; }
+.mg-d { fill:none; stroke:var(--ink-3); stroke-width:3.2; stroke-linecap:round; stroke-linejoin:round;
+        stroke-dasharray:1; stroke-dashoffset:1; animation:mg-draw 9s linear infinite; }
+.mg-d:nth-of-type(2){animation-delay:1.1s} .mg-d:nth-of-type(3){animation-delay:2.2s}
+.mg-d:nth-of-type(4){animation-delay:3.3s} .mg-d:nth-of-type(5){animation-delay:4.4s}
+@keyframes mg-draw { 0%{stroke-dashoffset:1;opacity:1} 9%{stroke-dashoffset:0} 82%{opacity:1} 92%,100%{opacity:0;stroke-dashoffset:0} }
+
+/* ============ E. marker rack ============ */
+.rack { display:flex; align-items:flex-end; gap:9px; padding-bottom:24px; }
+.rack i {
+  display:block; width:26px; height:74px; border:2.5px solid var(--ink); border-radius:7px 7px 4px 4px;
+  position:relative; box-shadow:var(--shadow); animation:rk-idle 3.6s ease-in-out infinite;
+}
+.rack i::after { content:""; position:absolute; left:5px; right:5px; bottom:-9px; height:9px;
+  background:var(--ink); border-radius:0 0 3px 3px; }
+.rack i:nth-child(1){background:#14161f;animation-delay:0s}
+.rack i:nth-child(2){background:#ef4c4c;animation-delay:.2s}
+.rack i:nth-child(3){background:#ffb020;animation-delay:.4s}
+.rack i:nth-child(4){background:#2fbf71;animation-delay:.6s}
+.rack i:nth-child(5){background:#4f7cff;animation-delay:.8s}
+.rack i.on { animation:rk-live 1.5s ease-in-out infinite; box-shadow:var(--shadow-lg); }
+@keyframes rk-idle { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-3px) rotate(-1.5deg)} }
+@keyframes rk-live { 0%,100%{transform:translateY(-14px) rotate(-5deg)} 50%{transform:translateY(-20px) rotate(2deg)} }
+
+/* ============ F. baton pass ============ */
+.baton { width:210px; position:relative; padding-bottom:18px; }
+.baton-row { display:flex; align-items:center; gap:8px; padding:5px 7px; border-radius:9px; font-size:.82rem; font-weight:800; }
+.baton-row b { width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  color:#fff; font:800 .6rem var(--font); }
+.baton-row.r1 b{background:#4f7cff} .baton-row.r2 b{background:#ef4c4c}
+.baton-row.r3 b{background:#2fbf71} .baton-row.r4 b{background:#ff8a1f}
+.baton-row { position:relative; z-index:1; }
+.baton-hi { position:absolute; left:0; right:0; top:0; height:32px; border-radius:9px;
+  background:var(--accent-sf); border:2px solid var(--accent); z-index:0;
+  animation:bt-step 6.4s cubic-bezier(.6,0,.3,1) infinite; }
+.baton-mini .pt { width:46px; }
+.baton-mini { position:absolute; right:-6px; top:2px; width:46px; z-index:2; animation:bt-step 6.4s cubic-bezier(.6,0,.3,1) infinite; }
+@keyframes bt-step { 0%,20%{transform:translateY(0)} 25%,45%{transform:translateY(32px)}
+  50%,70%{transform:translateY(64px)} 75%,95%{transform:translateY(96px)} 100%{transform:translateY(0)} }
+
+/* ============ in-context mock ============ */
+.switch { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.switch button {
+  cursor:pointer; font:800 .82rem var(--font); color:var(--ink-2);
+  background:var(--surface); border:2px solid var(--border-str); border-radius:99px; padding:.5rem .85rem;
+}
+.switch button:hover { border-color:var(--ink-3); }
+.switch button[aria-pressed="true"] { background:var(--accent); border-color:var(--accent-dk); color:#fff; }
+.switch button:focus-visible { outline:3px solid var(--amber-dk); outline-offset:2px; }
+
+.mock { display:grid; grid-template-columns:200px 1fr 236px; gap:16px;
+  background:var(--bg); border:2px solid var(--border-str); border-radius:var(--radius);
+  padding:16px; box-shadow:var(--shadow-lg); }
+@media (max-width:900px){ .mock{grid-template-columns:1fr} }
+.card { background:var(--surface); border:2px solid var(--border-str); border-radius:var(--radius-sm);
+  box-shadow:var(--shadow); padding:12px 13px; }
+.card-title { font:500 .68rem/1 var(--mono); letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3); margin-bottom:.55rem; }
+.mock-col { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.prow { display:flex; align-items:center; gap:8px; padding:5px 0; font-size:.85rem; font-weight:800; }
+.prow b { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; color:#fff; font:800 .62rem var(--font); flex:0 0 auto; }
+.prow:nth-child(2) b{background:#4f7cff} .prow:nth-child(3) b{background:#ef4c4c}
+.prow:nth-child(4) b{background:#2fbf71} .prow:nth-child(5) b{background:#ff8a1f}
+.prow.now { background:var(--accent-sf); border-radius:8px; padding:5px 6px; box-shadow:inset 0 0 0 2px var(--accent); }
+.prow small { margin-left:auto; font:500 .62rem var(--mono); color:var(--ink-3); }
+.phasehead { display:flex; align-items:center; gap:1rem; }
+.kicker { display:inline-block; padding:.25rem .45rem; background:var(--amber); font:900 .7rem var(--font);
+  letter-spacing:.08em; text-transform:uppercase; transform:rotate(-1deg); }
+.ptitle { margin-top:.35rem; font-size:1.35rem; font-weight:900; letter-spacing:-.035em; }
+.ptitle em { font-style:normal; color:var(--accent-dk); }
+.clock { flex:0 0 auto; text-align:center; }
+.clock-num { font:500 1.9rem/1 var(--mono); letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+.clock small { font:500 .6rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+.stage { position:relative; height:330px; border-radius:var(--radius-sm); overflow:hidden;
+  background:var(--surface); border:2px solid var(--border-str); box-shadow:inset 0 0 0 6px var(--surface), inset 0 0 0 8px var(--border); }
+.stage-hint { position:absolute; inset:auto 0 0 0; padding:9px 12px; font:500 .68rem var(--mono);
+  color:var(--ink-3); background:linear-gradient(transparent,var(--surface) 60%); }
+.strokes { position:absolute; inset:0; width:100%; height:100%; }
+.motion { position:absolute; inset:0; display:none; pointer-events:none; }
+.mock[data-motion="paintress"]  .m-paintress  { display:block; }
+.mock[data-motion="hand"]       .m-hand       { display:block; }
+.mock[data-motion="ghost"]      .m-ghost      { display:block; }
+.mock[data-motion="marginalia"] .m-marginalia { display:block; }
+.m-paintress .pt { position:absolute; left:10px; bottom:2px; width:120px; }
+.rack-mock { display:flex; gap:7px; align-items:flex-end; height:96px; padding-bottom:14px; }
+.rack-mock i { width:22px; height:62px; }
+.note { display:flex; gap:9px; align-items:flex-start; font-size:.82rem; font-weight:700; color:var(--ink-2); }
+.note::before { content:""; flex:0 0 auto; width:9px; height:9px; margin-top:6px; border-radius:50%; background:var(--accent); }
+
+/* ---- closing notes ---- */
+.notes { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
+.nc { background:var(--surface); border:2px solid var(--border-str); border-radius:var(--radius); padding:18px 19px; box-shadow:var(--shadow); }
+.nc h3 { margin:0 0 .55rem; font-size:1.02rem; font-weight:900; letter-spacing:-.02em; }
+.nc p { margin:0 0 .6rem; font-size:.89rem; font-weight:600; color:var(--ink-2); }
+.nc p:last-child { margin-bottom:0; }
+.nc code { font:500 .8em var(--mono); background:var(--surface-2); border:1px solid var(--border); border-radius:4px; padding:.08em .3em; }
+.pick { border-color:var(--accent); background:linear-gradient(var(--accent-sf),var(--surface) 60%); }
+footer { padding:44px 0 60px; color:var(--ink-3); font:500 .74rem var(--mono); }
+
+@media (prefers-reduced-motion:reduce) {
+  .pt-bob,.pt-arm,.pt-eye,.pt-mark,.mh-rig,.mh-trail,.ig-path,.mg-d,.rack i,.baton-hi,.baton-mini {
+    animation:none !important;
+  }
+  .ig-path,.mg-d,.mh-trail { stroke-dashoffset:0; opacity:.5; }
+  .pt-mark { opacity:.8; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap head">
+  <span class="eyebrow">Verso · drawing phase</span>
+  <h1>Somebody is <mark>drawing</mark>. Show it.</h1>
+  <p class="lede">
+    Six ways to signal a live turn without touching the canvas bitmap. Everything below is
+    CSS and inline SVG on the existing tokens — no library, no new asset, nothing that reads
+    or renders a word. Each specimen is running at its real speed.
+  </p>
+  <div class="head-rule"></div>
+</div>
+
+<template id="tpl-pt">
+  <svg class="pt" viewBox="0 0 128 118" role="img" aria-label="A small artist dabbing a marker at the paper">
+    <ellipse class="pt-shadow" cx="54" cy="112" rx="33" ry="5"></ellipse>
+    <g class="pt-bob">
+      <circle class="pt-hair" cx="28" cy="30" r="12"></circle>
+      <path class="pt-hair" d="M22 40c-9 4-12 13-8 20 3 6 9 8 14 7"></path>
+      <rect class="pt-smock" x="28" y="60" width="52" height="52" rx="20"></rect>
+      <circle class="pt-skin" cx="54" cy="40" r="21"></circle>
+      <ellipse class="pt-beret" cx="55" cy="24" rx="25" ry="10.5"></ellipse>
+      <circle class="pt-beret" cx="55" cy="13.5" r="4.5"></circle>
+      <rect class="pt-eye" x="63" y="38" width="4.6" height="6.6" rx="2.2"></rect>
+      <circle class="pt-cheek" cx="70" cy="49" r="4"></circle>
+      <path class="pt-smile" d="M61 50q5.5 4.5 10-.5"></path>
+      <g class="pt-arm">
+        <path class="pt-sleeve-out" d="M74 78L96 60"></path>
+        <path class="pt-sleeve-in" d="M74 78L96 60"></path>
+        <circle class="pt-skin" cx="98" cy="59" r="7.5"></circle>
+        <g transform="rotate(-30 98 59)">
+          <rect class="pt-pen" x="93.5" y="57" width="9.5" height="28" rx="4.5"></rect>
+          <rect class="pt-nib" x="95.5" y="83" width="5.5" height="8" rx="2.5"></rect>
+        </g>
+        <path class="pt-mark" d="M112 92q5 3 9 1"></path>
+        <path class="pt-mark m2" d="M110 99q6 1 11-2"></path>
+        <path class="pt-mark m3" d="M114 85q4 4 8 3"></path>
+      </g>
+    </g>
+  </svg>
+</template>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>Six specimens</h2>
+    <p>Read the chips: where it lives in the app, and what it costs to build.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- A -->
+    <article class="spec">
+      <div class="spec-well" style="--nib:#4f7cff"><span data-pt></span></div>
+      <div class="spec-body">
+        <div class="spec-name"><span>A</span>The paintress</div>
+        <p>A beret-wearing artist perched on the paper's edge, dabbing in the artist's own pen ink.
+           Marker colour is bound to the live palette index, so the sprite recolours itself when
+           the artist switches pens.</p>
+        <div class="spec-meta">
+          <span class="chip">stage ledge, outside the bitmap</span>
+          <span class="chip">~70 lines SVG + 4 keyframes</span>
+          <span class="chip chip-good">has a face, reads instantly</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- B -->
+    <article class="spec">
+      <div class="spec-well" style="--nib:#ff7a1a">
+        <svg class="mh" viewBox="0 0 300 170" role="img" aria-label="A hand glides a marker across the page, leaving a stroke">
+          <path class="mh-trail" pathLength="1" d="M40 118c22-26 38 8 58-14s30 16 52-6 34 12 56-10"></path>
+          <g class="mh-rig">
+            <g transform="rotate(24 60 74)">
+              <rect class="mh-body" x="48" y="18" width="24" height="66" rx="10"></rect>
+              <rect class="mh-nib" x="53" y="82" width="14" height="16" rx="6"></rect>
+              <circle class="mh-hand" cx="60" cy="26" r="17"></circle>
+              <rect class="mh-cuff" x="40" y="-4" width="40" height="18" rx="8"></rect>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="spec-body">
+        <div class="spec-name"><span>B</span>Marker in hand</div>
+        <p>No character — a cuffed hand and a fat marker sweeping across the sheet, laying down a
+           stroke that draws itself and lifts. Same read as A, half the personality, none of the
+           cartoon risk if you ever want the game to feel grown-up.</p>
+        <div class="spec-meta">
+          <span class="chip">stage margin or phase header</span>
+          <span class="chip">~25 lines SVG</span>
+          <span class="chip chip-good">theme-neutral</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- C -->
+    <article class="spec">
+      <div class="spec-well" style="--nib:#9b5de5">
+        <svg class="ig" viewBox="0 0 300 170" role="img" aria-label="A squiggle draws itself and fades">
+          <path class="ig-path" pathLength="1" d="M52 108c14-46 44-52 62-22s10 52 32 46 32-44 54-36 24 34 44 28"></path>
+          <path class="ig-path" pathLength="1" d="M74 132c34 10 96 6 148-10"></path>
+        </svg>
+      </div>
+      <div class="spec-body">
+        <div class="spec-name"><span>C</span>Ink ghost</div>
+        <p>A phantom stroke that draws in the artist's ink at low opacity, then evaporates. Two paths,
+           one keyframe, <code>pathLength="1"</code> so nothing needs measuring. Cheapest thing on this page
+           and the only one that stays calm for a full six-round match.</p>
+        <div class="spec-meta">
+          <span class="chip">watermark behind an empty canvas</span>
+          <span class="chip">~8 lines CSS</span>
+          <span class="chip chip-warn">could be mistaken for a real stroke</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- D -->
+    <article class="spec">
+      <div class="spec-well">
+        <svg class="mg" viewBox="0 0 300 170" role="img" aria-label="Small doodles appear one at a time in the page margin">
+          <path class="mg-d" pathLength="1" d="M40 44l7 15 16 2-12 11 4 16-15-9-15 9 4-16-12-11 16-2z"></path>
+          <path class="mg-d" pathLength="1" d="M258 40c-16-8-26 8-16 16s24-2 18-16-28-14-32 6 20 34 38 20"></path>
+          <path class="mg-d" pathLength="1" d="M44 128c18-14 40-14 58 0m0 0-13-4m13 4-4 13"></path>
+          <path class="mg-d" pathLength="1" d="M226 126c-12 0-14-16 0-16 2-12 22-14 26 0 14-2 16 16 2 16z"></path>
+          <path class="mg-d" pathLength="1" d="M150 152c0-18 8-26 8-26m-8 26c0-18-8-26-8-26"></path>
+        </svg>
+      </div>
+      <div class="spec-body">
+        <div class="spec-name"><span>D</span>Marginalia</div>
+        <p>Idle doodles that draw themselves in the paper margin, one at a time, then clear. Fills the
+           dead first eight seconds of a turn when the canvas is still blank — which is exactly when
+           watchers are most likely to wonder if the app froze.</p>
+        <div class="spec-meta">
+          <span class="chip">margin strip, never inside the canvas</span>
+          <span class="chip">one path per doodle</span>
+          <span class="chip chip-warn">busy if it runs all turn</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- E -->
+    <article class="spec">
+      <div class="spec-well">
+        <div class="rack">
+          <i></i><i></i><i class="on"></i><i></i><i></i>
+        </div>
+      </div>
+      <div class="spec-body">
+        <div class="spec-name"><span>E</span>Live marker rack</div>
+        <p>Nothing new on screen: the twelve pens you already render start breathing, and the selected
+           one lifts out of the rack with its cap bobbing. The cheapest way to make the whole screen
+           feel alive, and it doubles as feedback for which pen is armed.</p>
+        <div class="spec-meta">
+          <span class="chip">web/src/ui/tools.ts</span>
+          <span class="chip">CSS only, no markup change</span>
+          <span class="chip chip-good">zero new elements</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- F -->
+    <article class="spec">
+      <div class="spec-well" style="--nib:#2fbf71">
+        <div class="baton">
+          <div class="baton-hi"></div>
+          <span class="baton-mini"><span data-pt></span></span>
+          <div class="baton-row r1"><b>RN</b>Rin</div>
+          <div class="baton-row r2"><b>AS</b>Asha</div>
+          <div class="baton-row r3"><b>KO</b>Ko</div>
+          <div class="baton-row r4"><b>YU</b>Yusuf</div>
+        </div>
+      </div>
+      <div class="spec-body">
+        <div class="spec-name"><span>F</span>Baton pass</div>
+        <p>The one that isn't ambient. When the turn advances the sprite walks down the roster to the
+           next artist and the highlight follows. Motion earned by a real state change, so it never
+           becomes wallpaper — and it answers "whose turn is it" before you read a name.</p>
+        <div class="spec-meta">
+          <span class="chip">web/src/ui/playerList.ts</span>
+          <span class="chip">fires on turnIndex change</span>
+          <span class="chip chip-good">meaningful, not decorative</span>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>In the real screen</h2>
+    <p>The watcher's view of <code>web/src/ui/screens/drawing.ts</code>. Swap the treatment and see it fight — or not — with the rest of the layout.</p>
+  </div>
+
+  <div class="switch" role="group" aria-label="Motion treatment">
+    <button type="button" aria-pressed="true"  data-set="paintress">A · Paintress</button>
+    <button type="button" aria-pressed="false" data-set="hand">B · Marker in hand</button>
+    <button type="button" aria-pressed="false" data-set="ghost">C · Ink ghost</button>
+    <button type="button" aria-pressed="false" data-set="marginalia">D · Marginalia</button>
+    <button type="button" aria-pressed="false" data-set="none">Nothing (today)</button>
+  </div>
+
+  <div class="mock" id="mock" data-motion="paintress" style="--nib:#4f7cff">
+
+    <div class="mock-col">
+      <div class="card">
+        <div class="card-title">Players</div>
+        <div class="prow"><b>RN</b>Rin <small>drawing</small></div>
+        <div class="prow now"><b>AS</b>Asha <small>next</small></div>
+        <div class="prow"><b>KO</b>Ko <small>done</small></div>
+        <div class="prow"><b>YU</b>Yusuf <small>done</small></div>
+      </div>
+    </div>
+
+    <div class="mock-col">
+      <div class="card phasehead">
+        <div style="flex:1 1 240px;min-width:0">
+          <span class="kicker">Round 2 of 4 · turn 1 of 4</span>
+          <div class="ptitle"><em>Rin</em> is drawing</div>
+        </div>
+        <div class="clock"><div class="clock-num">0:38</div><small>time left</small></div>
+      </div>
+
+      <div class="stage">
+        <!-- what Rin has actually drawn so far -->
+        <svg class="strokes" viewBox="0 0 520 330" aria-hidden="true">
+          <path d="M150 210c0-52 34-84 92-84s96 34 96 86-40 78-96 78-92-30-92-80z"
+                fill="none" stroke="#4f7cff" stroke-width="9" stroke-linecap="round"></path>
+          <path d="M206 176c14-30 42-40 60-22" fill="none" stroke="#4f7cff" stroke-width="6" stroke-linecap="round"></path>
+        </svg>
+
+        <div class="motion m-paintress"><span data-pt></span></div>
+
+        <div class="motion m-hand">
+          <svg class="mh" viewBox="0 0 520 330" preserveAspectRatio="xMidYMax slice" role="presentation">
+            <path class="mh-trail" pathLength="1" d="M60 286c40-22 62 10 96-10s52 18 86-4" style="stroke:#4f7cff"></path>
+            <g class="mh-rig">
+              <g transform="rotate(24 78 236)">
+                <rect class="mh-body" x="66" y="182" width="24" height="64" rx="10" style="fill:#4f7cff"></rect>
+                <rect class="mh-nib" x="71" y="244" width="14" height="16" rx="6"></rect>
+                <circle class="mh-hand" cx="78" cy="190" r="17"></circle>
+                <rect class="mh-cuff" x="58" y="160" width="40" height="18" rx="8"></rect>
+              </g>
+            </g>
+          </svg>
+        </div>
+
+        <div class="motion m-ghost">
+          <svg class="ig" viewBox="0 0 520 330" role="presentation">
+            <path class="ig-path" pathLength="1" d="M60 292c40-16 54 6 88-6s46 12 80 2" style="stroke:#4f7cff;opacity:.4"></path>
+          </svg>
+        </div>
+
+        <div class="motion m-marginalia">
+          <svg class="mg" viewBox="0 0 520 330" role="presentation">
+            <path class="mg-d" pathLength="1" d="M42 60l6 13 14 2-10 10 3 14-13-8-13 8 3-14-10-10 14-2z"></path>
+            <path class="mg-d" pathLength="1" d="M470 74c-14-7-22 7-14 14s21-2 16-14-25-12-28 6 18 30 34 18"></path>
+            <path class="mg-d" pathLength="1" d="M40 268c16-12 34-12 50 0m0 0-11-4m11 4-4 11"></path>
+            <path class="mg-d" pathLength="1" d="M452 276c-10 0-12-14 0-14 2-10 19-12 22 0 12-2 14 14 2 14z"></path>
+            <path class="mg-d" pathLength="1" d="M256 306c0-16 7-23 7-23m-7 23c0-16-7-23-7-23"></path>
+          </svg>
+        </div>
+
+        <div class="stage-hint">canvas locked — you are watching</div>
+      </div>
+    </div>
+
+    <div class="mock-col">
+      <div class="card">
+        <div class="card-title">Watching</div>
+        <div class="prow" style="padding:0"><b style="background:#4f7cff">RN</b>Rin is drawing.</div>
+        <p style="margin:.7rem 0 0;font-size:.82rem;font-weight:700;color:var(--accent-dk);background:var(--accent-sf);border:2px solid var(--accent);border-radius:8px;padding:.4rem .5rem">YOUR TURN IS NEXT</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Pens</div>
+        <div class="rack rack-mock"><i></i><i></i><i></i><i class="on"></i><i></i></div>
+        <p style="margin:0;font:500 .68rem var(--mono);color:var(--ink-3)">Specimen E, always on</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Your word</div>
+        <p style="margin:0;font-size:.82rem;font-weight:700;color:var(--ink-2)">Collapsed. No motion goes near this panel.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>What I'd ship</h2>
+    <p>And the two things that would go wrong if you shipped all six.</p>
+  </div>
+  <div class="notes">
+    <div class="nc pick">
+      <h3>A + E + F</h3>
+      <p>The paintress on the stage ledge for character, the marker rack alive because it's free,
+         and the baton pass on turn change because it's the only one that carries information.</p>
+      <p>Skip C and D once A is in — three ambient loops on one screen is noise, and A already
+         answers the question they answer.</p>
+    </div>
+    <div class="nc">
+      <h3>Keep motion off the bitmap</h3>
+      <p>Anything animated <em>inside</em> the canvas rect can be misread as a stroke Rin drew — which
+         actively hurts a deduction game where players are reading marks for intent.</p>
+      <p>So the sprite sits on the frame, in the margin, or in the chrome. Never composited over
+         the shared drawing.</p>
+    </div>
+    <div class="nc">
+      <h3>Tempo can follow the clock</h3>
+      <p>One custom property — <code>--dab:1.9s</code> on the sprite, driven from the same
+         <code>deadline</code> the timer already reads. Under ten seconds she goes frantic.</p>
+      <p>Free urgency, no new state, and it makes the character mean something instead of just idling.</p>
+    </div>
+    <div class="nc">
+      <h3>Invariant-safe by construction</h3>
+      <p>None of this reads <code>state.word</code> or any peer's word. It's driven by
+         <code>artistId</code>, <code>turnIndex</code>, palette index and <code>deadline</code> — all
+         already on every client.</p>
+      <p>The canary test is untouched. <code>prefers-reduced-motion</code> is honoured at the top of
+         the stylesheet, matching <code>web/src/styles/base.css:130</code>.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">Verso · drawing-phase motion study · palette from web/src/styles/tokens.css</footer>
+
+<script>
+  // one sprite definition, cloned wherever it's needed
+  var tpl = document.getElementById("tpl-pt");
+  document.querySelectorAll("[data-pt]").forEach(function (slot) {
+    slot.replaceWith(tpl.content.cloneNode(true));
+  });
+
+  var mock = document.getElementById("mock");
+  document.querySelectorAll(".switch button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".switch button").forEach(function (o) {
+        o.setAttribute("aria-pressed", String(o === b));
+      });
+      mock.dataset.motion = b.dataset.set;
+    });
+  });
+</script>
+</body>
+</html>

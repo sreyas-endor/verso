@@ -1,0 +1,33 @@
+/* The only place a colour literal may appear.
+   Exception, documented deliberately: web/src/ui/palette.ts holds the 12 pen
+   inks and the 10 avatar hues. Those are game data read by JavaScript (canvas
+   ink, deterministic avatars), not theme surfaces, so they cannot live here. */
+:root {
+  --bg:         #f4eddf;
+  --surface:    #fffdf7;
+  --surface-2:  #f8f0e3;
+  --border:     #e5d9c6;
+  --border-str: #cbbca6;
+  --ink:        #263238;
+  --ink-2:      #69716c;
+  --ink-3:      #958d80;
+  --accent:     #ef5d5a;
+  --accent-ink: #ffffff;
+  --accent-sf:  #ffe7df;
+  --accent-dk:  #bd4544;
+  --amber:      #f5c744;
+  --amber-dk:   #a36c10;
+  --amber-sf:   #fff3cc;
+  --good:       #3f966d;
+  --good-dk:    #256146;
+  --good-sf:    #e0f2e6;
+  --bad:        #df5553;
+  --bad-dk:     #a73535;
+  --bad-sf:     #fbe3dd;
+  --radius:     18px;
+  --radius-sm:  11px;
+  --shadow:     3px 4px 0 rgba(38,50,56,.12);
+  --shadow-lg:  6px 8px 0 rgba(38,50,56,.16), 0 16px 35px rgba(88,65,37,.12);
+  --font:       "Nunito Variable", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+  --mono:       ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}

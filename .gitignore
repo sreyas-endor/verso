@@ -1,0 +1,18 @@
+node_modules/
+web/dist/
+/verso
+*.test
+.DS_Store
+
+# Release build output. cmd/verso/dist/index.html is a committed placeholder —
+# //go:embed all:dist needs the directory to exist before the client has ever
+# been built — but the hashed assets `make build` copies over it are artifacts.
+cmd/verso/dist/assets/
+
+# Not published: every entry in this lockfile resolves through a private
+# corporate registry, so committing it would leak that hostname and tenant
+# namespace into a public repo. Nothing in the build reads it — the Dockerfile
+# copies a prebuilt web/dist — so `npm install` from web/package.json is enough
+# to develop. To publish it properly, re-resolve it against the public registry
+# first:  cd web && npm install --package-lock-only --registry=https://registry.npmjs.org/
+web/package-lock.json

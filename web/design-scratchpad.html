@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verso — visual directions</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800;900&display=swap");
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #243038; background: #e9e2d5; font-family: Nunito, sans-serif; }
+      .intro { max-width: 1180px; margin: 0 auto; padding: 38px 28px 22px; }
+      h1 { margin: 0; font: 700 clamp(2.2rem, 5vw, 4rem)/.95 Fredoka, sans-serif; letter-spacing: -.055em; }
+      .intro p { max-width: 670px; font-size: 1.05rem; line-height: 1.5; color: #536066; }
+      .directions { display: flex; flex-wrap: wrap; gap: 10px; }
+      button { cursor: pointer; font: 800 .88rem Nunito, sans-serif; }
+      .choice { border: 2px solid #bdb3a3; border-radius: 999px; background: #f7f3eb; padding: 9px 15px; color: #485257; }
+      .choice.active { color: #fff; border-color: var(--accent); background: var(--accent); }
+      .note { max-width: 1180px; margin: 0 auto; padding: 0 28px 24px; color: #6b736f; font-size: .88rem; }
+      .showcase { min-height: 720px; padding: 28px; background: var(--bg); color: var(--ink); transition: .25s ease; }
+      .app { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: .9fr 1.45fr; gap: 24px; }
+      .panel { background: var(--panel); border: var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+      .lobby { padding: clamp(24px, 4vw, 48px); position: relative; }
+      .brand { color: var(--ink); font: 700 clamp(2.6rem, 5vw, 4.8rem)/.8 var(--display); letter-spacing: var(--brand-spacing); }
+      .brand:after { content: ""; display: block; width: 68%; height: 8px; margin: 16px 0 40px; border-radius: 9px; background: var(--accent); transform: rotate(var(--underline-angle)); }
+      .eyebrow { display: block; color: var(--muted); font: 800 .7rem/1 DM Mono, monospace; letter-spacing: .12em; text-transform: uppercase; }
+      .code { margin: 10px 0 28px; padding: 17px 16px; border: var(--code-border); border-radius: var(--code-radius); background: var(--paper); font: 500 clamp(2.8rem, 6vw, 4.2rem)/1 DM Mono, monospace; letter-spacing: .12em; text-align: center; }
+      .players { display: flex; gap: 9px; margin: 12px 0 28px; }
+      .player { min-width: 0; flex: 1; padding: 8px 4px; border: var(--player-border); border-radius: var(--player-radius); background: var(--player-bg); text-align: center; }
+      .avatar { width: 39px; height: 39px; margin: 0 auto 5px; border-radius: 50%; background: var(--avatar); border: 3px solid var(--avatar-ring); }
+      .player:nth-child(2) .avatar { background: #f2bd61; } .player:nth-child(3) .avatar { background: #5a8bd6; } .player:nth-child(4) .avatar { background: #dc7b70; }
+      .player b { display: block; font-size: .67rem; overflow: hidden; text-overflow: ellipsis; }
+      .tag { display: inline-block; margin-top: 5px; padding: 3px 5px; border-radius: 99px; color: #fff; background: var(--good); font: 800 .55rem DM Mono, monospace; }
+      .share { display: flex; align-items: center; gap: 11px; padding: 13px; border: var(--share-border); border-radius: var(--card-radius); background: var(--card); font-size: .78rem; }
+      .linkdot { flex: 0 0 auto; display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; color: #fff; background: var(--cobalt); font-size: 1.2rem; }
+      .share strong { display:block; font: 800 .64rem DM Mono, monospace; letter-spacing:.07em; } .share span { font-weight: 800; }
+      .start { width: 100%; margin-top: 20px; padding: 16px; color: #fff; border: 0; border-radius: var(--button-radius); background: var(--accent); box-shadow: var(--button-shadow); font: 700 1.45rem var(--display); letter-spacing: .02em; }
+      .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 24px; }
+      .setting { padding: 10px; border: var(--setting-border); border-radius: var(--card-radius); background: var(--card); color: var(--muted); font-size: .72rem; }
+      .setting b { display: block; margin-top: 2px; color: var(--ink); font-size: .93rem; }
+      .draw { padding: 16px; display: grid; grid-template-rows: auto 1fr; gap: 14px; min-height: 620px; }
+      .draw-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+      .round, .timer { padding: 10px 13px; border-radius: var(--head-radius); background: var(--round-bg); color: var(--round-ink); font: 800 .75rem DM Mono, monospace; white-space: nowrap; }
+      .artist { padding: 9px; color: var(--artist-ink); background: var(--artist-bg); border-radius: var(--head-radius); text-align: center; font: 700 clamp(1rem, 2.4vw, 1.7rem)/1 var(--display); letter-spacing: .035em; }
+      .timer { color: #fff; background: var(--accent); font-size: 1.05rem; }
+      .draw-body { display: grid; grid-template-columns: 76px 1fr 88px; gap: 12px; min-height: 0; }
+      .queue { display: flex; flex-direction: column; gap: 10px; }.mini { padding: 8px 3px; border: var(--player-border); border-radius: var(--player-radius); background: var(--player-bg); text-align: center; font: 800 .65rem DM Mono, monospace; }.mini .avatar { width: 31px; height: 31px; }
+      .mini.active { outline: 3px solid var(--good); transform: scale(1.04); }
+      .canvas { position: relative; min-height: 450px; border: var(--canvas-border); border-radius: var(--canvas-radius); background: var(--paper); overflow: hidden; }
+      .doodle { position:absolute; border: 7px solid; border-radius: 45%; opacity:.95; }.cloud { width: 165px; height: 65px; top: 18%; left: 17%; color: #697379; border-color: currentColor; border-bottom: 0; }.cup { width: 105px; height: 130px; top: 52%; left: 19%; color: #3f7d63; border-color: currentColor; border-radius: 12px 12px 45% 45%; }.bowl { width: 172px; height: 75px; bottom: 15%; right: 15%; color: #ef615d; border-color: currentColor; border-top: 10px solid; }.drop { width: 20px; height: 39px; color: #476dce; border-color: currentColor; border-radius: 50% 50% 55% 55%; transform: rotate(45deg); }.drop.a { top: 32%; left: 39%; }.drop.b { top: 43%; left: 54%; }.drop.c { top: 45%; right: 26%; }
+      .secret { align-self: start; padding: 13px 8px; border: var(--share-border); border-radius: var(--card-radius); background: var(--card); text-align: center; }.secret b { display:block; margin-top:8px; padding:6px; border-radius:7px; background: var(--secret-bg); color:var(--secret-ink); font: 500 .85rem DM Mono,monospace; }
+      .caption { max-width: 1120px; margin: 25px auto 0; color: var(--caption); font: 600 1rem/1.5 Nunito, sans-serif; }
+      .caption b { color: var(--ink); }
+      .paper { --bg:#f7f0e4;--panel:#fbf6ec;--paper:#fffdfa;--ink:#263238;--muted:#707671;--accent:#f05d5e;--cobalt:#476dce;--good:#3f7d63;--display:Fredoka,sans-serif;--brand-spacing:-.05em;--underline-angle:-3deg;--border:2px solid #303a3c;--radius:25px;--shadow:7px 8px 0 #263238;--code-border:2px solid #d9d0bf;--code-radius:7px;--player-border:1px solid #e4dccf;--player-radius:13px;--player-bg:#fffdf8;--avatar:#5eaa85;--avatar-ring:#fff;--share-border:2px solid #e2d8c7;--card-radius:13px;--card:#fffdf8;--button-radius:16px;--button-shadow:0 6px 0 #b93d42;--setting-border:1px solid #e1d8c9;--round-bg:#f6c945;--round-ink:#263238;--artist-bg:#263238;--artist-ink:#fff;--head-radius:10px;--canvas-border:4px solid #263238;--canvas-radius:18px;--secret-bg:#263238;--secret-ink:#fff;--caption:#536066; }
+      .night { --bg:#131820;--panel:#1e2631;--paper:#fbf7ee;--ink:#eef4f7;--muted:#a5b4bd;--accent:#ff766d;--cobalt:#76a4ff;--good:#72c79a;--display:Fredoka,sans-serif;--brand-spacing:-.035em;--underline-angle:0deg;--border:1px solid #40505d;--radius:19px;--shadow:0 20px 70px #080c11;--code-border:1px solid #445562;--code-radius:12px;--player-border:1px solid #40505d;--player-radius:10px;--player-bg:#27323d;--avatar:#5eaa85;--avatar-ring:#c6d0d8;--share-border:1px solid #40505d;--card-radius:11px;--card:#27323d;--button-radius:11px;--button-shadow:0 4px 14px #0008;--setting-border:1px solid #40505d;--round-bg:#30404c;--round-ink:#eff8fa;--artist-bg:#30404c;--artist-ink:#fff;--head-radius:10px;--canvas-border:1px solid #c5d0d7;--canvas-radius:13px;--secret-bg:#e7eef1;--secret-ink:#263238;--caption:#b4c1c8; }
+      .pop { --bg:#fff3bf;--panel:#fffdf5;--paper:#fff;--ink:#17223b;--muted:#56617a;--accent:#5b4ddb;--cobalt:#1984e5;--good:#12a07a;--display:Fredoka,sans-serif;--brand-spacing:-.03em;--underline-angle:0deg;--border:4px solid #17223b;--radius:4px;--shadow:8px 8px 0 #17223b;--code-border:4px solid #17223b;--code-radius:2px;--player-border:3px solid #17223b;--player-radius:3px;--player-bg:#fff;--avatar:#f5687e;--avatar-ring:#17223b;--share-border:3px solid #17223b;--card-radius:3px;--card:#fff;--button-radius:3px;--button-shadow:6px 6px 0 #17223b;--setting-border:3px solid #17223b;--round-bg:#ffcf3b;--round-ink:#17223b;--artist-bg:#1984e5;--artist-ink:#fff;--head-radius:3px;--canvas-border:5px solid #17223b;--canvas-radius:2px;--secret-bg:#17223b;--secret-ink:#fff;--caption:#3e4960; }
+      @media (max-width:800px){.app{grid-template-columns:1fr}.showcase{padding:16px}.draw{min-height:520px}.draw-body{grid-template-columns:48px 1fr 58px}.queue{gap:6px}.mini{padding:4px 1px}.mini .avatar{width:24px;height:24px}.secret{font-size:.62rem}.canvas{min-height:370px}.draw-head{grid-template-columns:auto 1fr}.timer{grid-column:1/-1;text-align:center}.doodle{transform:scale(.7);transform-origin:top left}.caption{padding:0 8px}}
+    </style>
+  </head>
+  <body>
+    <section class="intro"><h1>Three visual directions for Verso</h1><p>Click a direction. These are deliberately different moods, but all preserve the same game structure: room code, player readiness, drawing as the hero, timer, and private word.</p><div class="directions"><button class="choice active" data-theme="paper">01 · Paper & marker</button><button class="choice" data-theme="night">02 · Night studio</button><button class="choice" data-theme="pop">03 · Playful print</button></div></section>
+    <p class="note">This is a throwaway decision tool—not production UI. Once you choose a direction, I’ll translate its useful parts into the actual responsive screens.</p>
+    <main id="showcase" class="showcase paper"><div class="app"><section class="panel lobby"><div class="brand">VERSO</div><span class="eyebrow">Room code</span><div class="code">GS8H8</div><span class="eyebrow">Players</span><div class="players"><div class="player"><div class="avatar"></div><b>CARA</b><i class="tag">READY</i></div><div class="player"><div class="avatar"></div><b>ALEX</b><i class="tag">READY</i></div><div class="player"><div class="avatar"></div><b>MAYA</b><i class="tag">READY</i></div><div class="player"><div class="avatar"></div><b>JORDAN</b><i class="tag">READY</i></div></div><div class="share"><i class="linkdot">↗</i><div><strong>SHARE LINK</strong><span>verso.game/GS8H8</span></div></div><button class="start">START MATCH</button><div class="settings"><div class="setting">DIFFICULTY<b>Medium</b></div><div class="setting">ROUNDS<b>2</b></div><div class="setting">DRAWING<b>15 sec</b></div><div class="setting">DISCUSS<b>120 sec</b></div></div></section><section class="panel draw"><div class="draw-head"><span class="round">ROUND 1 / 2</span><strong class="artist">CARA IS DRAWING</strong><span class="timer">00:12</span></div><div class="draw-body"><aside class="queue"><div class="mini active"><div class="avatar"></div>CARA</div><div class="mini"><div class="avatar"></div>ALEX</div><div class="mini"><div class="avatar"></div>MAYA</div></aside><div class="canvas"><i class="doodle cloud"></i><i class="doodle cup"></i><i class="doodle bowl"></i><i class="doodle drop a"></i><i class="doodle drop b"></i><i class="doodle drop c"></i></div><aside class="secret"><span class="eyebrow">Private word</span><b>LEAK</b></aside></div></section></div><p class="caption" id="caption"><b>Paper & marker:</b> warm, social, tactile. The strongest fit for a drawing party game—expressive without becoming noisy.</p></main>
+    <script>
+      const notes={paper:'<b>Paper & marker:</b> warm, social, tactile. The strongest fit for a drawing party game—expressive without becoming noisy.',night:'<b>Night studio:</b> calmer and more premium. It makes the white canvas glow and works especially well for evening voice-call games.',pop:'<b>Playful print:</b> loud, youthful, and unmistakable. Great for energy, but needs more restraint to keep a 10-player game readable.'};
+      document.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.choice').forEach(x=>x.classList.remove('active'));b.classList.add('active');showcase.className='showcase '+b.dataset.theme;caption.innerHTML=notes[b.dataset.theme]}));
+    </script>
+  </body>
+</html>

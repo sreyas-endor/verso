@@ -1,0 +1,396 @@
+// The observable store: one plain state object, one subscribe, and one reducer
+// keyed by event case.
+//
+// The `switch` in `reduce` is the client-side drift detector
+// (IMPLEMENTATION_PLAN.md §4.3). `body` is `ServerEventBody` — the generated
+// oneof with the `{ case: undefined }` member removed — so its `default` arm
+// assigns to `never`. Add a variant to game.proto and this file stops
+// compiling until somebody decides what the client does with it.
+
+import { ErrorCode, Phase } from "../../gen/verso/v1/game_pb.js";
+import type { PlayerInfo, Snapshot } from "../../gen/verso/v1/game_pb.js";
+import { ASSIGN_DURATION_MS, RESOLVE_DURATION_MS } from "../net/protocol.js";
+import type { ServerEventBody, ServerFrame } from "../net/protocol.js";
+import { joinUrlFor, screenFor } from "./routes.js";
+import { StrokeLog } from "./strokes.js";
+import { defaultSettings, initialState } from "./types.js";
+import type { GameState, StrokeEvent, StrokeRecord, VoteChoice } from "./types.js";
+
+/** Half of a round trip, capped: the lead time a deadline is aged by. */
+const MAX_LATENCY_LEAD_MS = 250;
+
+type Listener = (state: GameState) => void;
+
+export class GameStore {
+  private state: GameState = initialState();
+  private readonly listeners = new Set<Listener>();
+  private readonly log = new StrokeLog();
+  private readonly now: () => number;
+  private latencyLead = 0;
+
+  constructor(now: () => number = () => performance.now()) {
+    this.now = now;
+  }
+
+  // ---- reading ----------------------------------------------------------
+
+  getState(): GameState {
+    return this.state;
+  }
+
+  /** Fires immediately with the current state. Returns an unsubscribe. */
+  subscribe(fn: Listener): () => void {
+    this.listeners.add(fn);
+    fn(this.state);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
+  /** The canvas feed. Separate from `subscribe` on purpose — see strokes.ts. */
+  subscribeStrokes(fn: (event: StrokeEvent) => void): () => void {
+    return this.log.subscribe(fn);
+  }
+
+  strokes(): readonly StrokeRecord[] {
+    return this.log.all();
+  }
+
+  openStroke() {
+    return this.log.open();
+  }
+
+  // ---- writing ----------------------------------------------------------
+
+  /** Applies one decoded frame. Called by the session wiring, not by the UI. */
+  apply(frame: ServerFrame): void {
+    this.commit(this.reduce(this.state, frame.body));
+  }
+
+  /** Merges connection facts the socket owns and the reducer cannot see. */
+  patch(partial: Partial<GameState>): void {
+    this.commit({ ...this.state, ...partial });
+  }
+
+  /** Half the smoothed RTT, used to age every deadline the server sends. */
+  setLatency(rttMs: number): void {
+    this.latencyLead = Math.min(rttMs / 2, MAX_LATENCY_LEAD_MS);
+  }
+
+  private commit(next: GameState): void {
+    const screen = screenFor(next);
+    this.state = next.screen === screen ? next : { ...next, screen };
+    for (const fn of this.listeners) fn(this.state);
+  }
+
+  // ---- the reducer ------------------------------------------------------
+
+  private reduce(s: GameState, body: ServerEventBody): GameState {
+    switch (body.case) {
+      case "joined": {
+        const v = body.value;
+        return {
+          ...s,
+          selfId: v.playerId,
+          roomCode: v.roomCode,
+          isHost: v.isHost,
+          joinUrl: joinUrlFor(v.roomCode),
+          graceSeconds: 0,
+          failure: null,
+          lastError: null,
+          lastErrorCode: null,
+        };
+      }
+
+      case "lobbyState": {
+        const v = body.value;
+        const base = s.phase === Phase.LOBBY ? s : clearMatch(s);
+        this.log.reset([]);
+        return {
+          ...base,
+          roomCode: v.roomCode,
+          joinUrl: joinUrlFor(v.roomCode),
+          players: [...v.players],
+          settings: v.settings ?? base.settings,
+          phase: v.phase,
+          minPlayers: v.minPlayers,
+          maxPlayers: v.maxPlayers,
+          canStart: v.canStart,
+          ...selfFacts(v.players, s.selfId),
+        };
+      }
+
+      case "settingsChanged":
+        return { ...s, settings: body.value.settings ?? defaultSettings() };
+
+      case "roundStarted": {
+        const v = body.value;
+        return {
+          ...clearRound(s),
+          round: v.round,
+          totalRounds: v.totalRounds,
+          turnOrder: [...v.turnOrder],
+          turnIndex: 0,
+          activeCount: v.activeCount,
+        };
+      }
+
+      case "turnStarted": {
+        const v = body.value;
+        return {
+          ...s,
+          round: v.round,
+          turnIndex: v.turnIndex,
+          artistId: v.artistId,
+          nextArtistId: "",
+          durationMs: v.durationMs,
+          deadline: this.deadlineFrom(v.remainingMs),
+        };
+      }
+
+      case "phaseChanged": {
+        const v = body.value;
+        // The canvas is emptied by the server on exactly these two
+        // transitions, and neither carries a stroke event to say so.
+        if (v.phase === Phase.ASSIGNING || v.phase === Phase.LOBBY) this.log.reset([]);
+        const base =
+          v.phase === Phase.ASSIGNING || v.phase === Phase.LOBBY ? clearMatch(s) : s;
+        const leavingTurnSequence = v.phase !== Phase.DRAWING && v.phase !== Phase.INTERMISSION;
+        return {
+          ...base,
+          phase: v.phase,
+          round: v.round,
+          durationMs: v.durationMs,
+          deadline: this.deadlineFrom(v.remainingMs),
+          turnOrder: leavingTurnSequence ? [] : base.turnOrder,
+          turnIndex: leavingTurnSequence ? 0 : base.turnIndex,
+          artistId: v.phase === Phase.DRAWING ? base.artistId : "",
+          nextArtistId: v.nextArtistId,
+        };
+      }
+
+      case "strokeBegan": {
+        const v = body.value;
+        this.log.begin(
+          { strokeId: v.strokeId, colorIndex: v.colorIndex, width: v.width, points: v.points },
+          this.artistIsMe(s),
+        );
+        return s;
+      }
+
+      case "strokePoints":
+        this.log.extend(body.value.strokeId, body.value.points, this.artistIsMe(s));
+        return s;
+
+      case "strokeEnded": {
+        const v = body.value;
+        // Empty means "the streamed points stand"; non-empty is a simplified
+        // replacement for the whole stroke and must replace, never append.
+        this.log.end(v.strokeId, v.points.length > 0 ? v.points : null, this.artistIsMe(s));
+        return s;
+      }
+
+      case "voteCastCount": {
+        const v = body.value;
+        return { ...s, round: v.round, votesCast: v.votesCast, activeCount: v.activeCount };
+      }
+
+      case "voteAccepted": {
+        const v = body.value;
+        const choice: VoteChoice = v.skip
+          ? { case: "skip" }
+          : { case: "candidateId", value: v.candidateId };
+        return { ...s, youHaveVoted: true, yourVote: choice, busy: false };
+      }
+
+      case "voteTally":
+        return { ...s, tally: body.value, activeCount: body.value.activeCount };
+
+      case "playerEliminated": {
+        const v = body.value;
+        if (!v.eliminated) return { ...s, elimination: v };
+        return {
+          ...s,
+          elimination: v,
+          players: s.players.map((p) => (p.id === v.playerId ? { ...p, eliminated: true } : p)),
+          youAreEliminated: s.youAreEliminated || v.playerId === s.selfId,
+        };
+      }
+
+      case "spectatorInfo":
+        return { ...s, spectator: body.value };
+
+      case "matchEnded": {
+        const v = body.value;
+        const done = new Set(v.reveals.filter((r) => r.eliminated).map((r) => r.playerId));
+        return {
+          ...s,
+          matchEnd: v,
+          phase: Phase.ENDED,
+          deadline: null,
+          durationMs: 0,
+          players: s.players.map((p) => (done.has(p.id) ? { ...p, eliminated: true } : p)),
+        };
+      }
+
+      case "playerPresence": {
+        const v = body.value;
+        const info = v.player;
+        if (info === undefined) return s;
+        const players = mergePlayer(s.players, info);
+        return {
+          ...s,
+          players,
+          ...selfFacts(players, s.selfId),
+        };
+      }
+
+      case "yourWord":
+        return { ...s, word: body.value.word };
+
+      case "snapshot":
+        return this.fromSnapshot(s, body.value);
+
+      case "error": {
+        const v = body.value;
+        return {
+          ...s,
+          busy: false,
+          lastError: v.message,
+          lastErrorCode: v.code === ErrorCode.UNSPECIFIED ? null : v.code,
+        };
+      }
+
+      default: {
+        // Exhaustive: a new ServerEvent variant lands here and fails to build.
+        const unreachable: never = body;
+        void unreachable;
+        return s;
+      }
+    }
+  }
+
+  // ---- reducer helpers --------------------------------------------------
+
+  private fromSnapshot(s: GameState, v: Snapshot): GameState {
+    this.log.reset(
+      v.strokes.map((k) => ({
+        strokeId: k.strokeId,
+        colorIndex: k.colorIndex,
+        width: k.width,
+        points: k.points,
+      })),
+    );
+    const players = [...v.players];
+    return {
+      ...s,
+      selfId: v.playerId,
+      roomCode: v.roomCode,
+      joinUrl: joinUrlFor(v.roomCode),
+      phase: v.phase,
+      round: v.round,
+      totalRounds: v.totalRounds,
+      settings: v.settings ?? s.settings,
+      players,
+      turnOrder: [...v.turnOrder],
+      turnIndex: v.turnIndex,
+      artistId: v.artistId,
+      nextArtistId: v.nextArtistId,
+      deadline: this.deadlineFrom(v.remainingMs),
+      // Snapshot reports the time left but not the phase's full length, so the
+      // denominator is reconstructed from the settings the same snapshot
+      // carries. Never shorter than what remains.
+      durationMs: Math.max(v.remainingMs, phaseLength(v)),
+      word: v.yourWord,
+      youHaveVoted: v.youHaveVoted,
+      // A vote is anonymous: the server confirms THAT you voted, never again
+      // WHAT you voted, so a resync cannot restore the choice itself.
+      yourVote: v.youHaveVoted ? s.yourVote : null,
+      votesCast: v.votesCast,
+      activeCount: v.activeCount,
+      ...selfFacts(players, v.playerId),
+    };
+  }
+
+  /**
+   * Turns the server's relative "milliseconds left" into a monotonic local
+   * deadline, aged by half the measured round trip because the value was true
+   * when the server sent it, not when we parsed it.
+   */
+  private deadlineFrom(remainingMs: number): number | null {
+    if (remainingMs <= 0) return null;
+    return this.now() + remainingMs - this.latencyLead;
+  }
+
+  private artistIsMe(s: GameState): boolean {
+    return s.artistId !== "" && s.artistId === s.selfId;
+  }
+}
+
+function selfFacts(
+  players: readonly PlayerInfo[],
+  selfId: string,
+): Pick<GameState, "isHost" | "youAreEliminated"> {
+  const me = players.find((p) => p.id === selfId);
+  return {
+    isHost: me?.isHost ?? false,
+    youAreEliminated: me?.eliminated ?? false,
+  };
+}
+
+/**
+ * Applies one presence update. A presence carrying `isHost` is also the host
+ * migration announcement, and the server only sends the promoted player — so
+ * the old host's flag is cleared here rather than waited on.
+ */
+function mergePlayer(players: readonly PlayerInfo[], info: PlayerInfo): PlayerInfo[] {
+  const cleared = info.isHost
+    ? players.map((p) => (p.id === info.id || !p.isHost ? p : { ...p, isHost: false }))
+    : players;
+  const idx = cleared.findIndex((p) => p.id === info.id);
+  if (idx === -1) return [...cleared, info].sort((a, b) => a.seat - b.seat);
+  const next = [...cleared];
+  next[idx] = info;
+  return next;
+}
+
+/** Clears what belongs to one round. Survives: roster, settings, my word. */
+function clearRound(s: GameState): GameState {
+  return { ...s, tally: null, elimination: null, votesCast: 0, youHaveVoted: false, yourVote: null };
+}
+
+/** Clears everything that belongs to one match. */
+function clearMatch(s: GameState): GameState {
+  return {
+    ...clearRound(s),
+    round: 0,
+    turnOrder: [],
+    turnIndex: 0,
+    artistId: "",
+    nextArtistId: "",
+    deadline: null,
+    durationMs: 0,
+    word: "",
+    youAreEliminated: false,
+    activeCount: 0,
+    spectator: null,
+    matchEnd: null,
+  };
+}
+
+function phaseLength(v: Snapshot): number {
+  switch (v.phase) {
+    case Phase.ASSIGNING:
+      return ASSIGN_DURATION_MS;
+    case Phase.DRAWING:
+      return (v.settings?.drawSeconds ?? 0) * 1000;
+    case Phase.INTERMISSION:
+      return (v.settings?.intermissionSeconds ?? 0) * 1000;
+    case Phase.DISCUSSION:
+      return (v.settings?.discussSeconds ?? 0) * 1000;
+    case Phase.RESOLVING:
+      return RESOLVE_DURATION_MS;
+    default:
+      return 0;
+  }
+}

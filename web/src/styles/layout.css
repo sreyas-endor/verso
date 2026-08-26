@@ -1,0 +1,87 @@
+.app { min-height: 100%; display: flex; flex-direction: column; }
+
+/* Slim persistent header. */
+.appbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: .8rem;
+  padding: .5rem clamp(.7rem, 3vw, 1.5rem);
+  background: rgba(255,253,247,.94);
+  border-bottom: 2px solid var(--ink);
+  box-shadow: 0 3px 0 rgba(38,50,56,.08);
+}
+.appbar-brand { font-weight: 900; letter-spacing: -.05em; font-size: 1.35rem; transform: rotate(-2deg); }
+.appbar-brand span { color: var(--accent); }
+.appbar-code {
+  font-family: var(--mono); font-weight: 700; letter-spacing: .12em;
+  background: var(--amber-sf); border: 2px solid var(--ink);
+  border-radius: 999px; padding: .15rem .6rem; font-size: .85rem;
+}
+.appbar-meta { color: var(--ink-2); font-size: .85rem; font-weight: 700; }
+.appbar .grow { flex: 1 1 auto; }
+
+.conn { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; font-weight: 800; }
+.conn-dot { width: .6rem; height: .6rem; border-radius: 999px; background: var(--ink-3); flex: none; }
+.conn-connected    .conn-dot { background: var(--good); }
+.conn-connected    { color: var(--good-dk); }
+.conn-reconnecting .conn-dot { background: var(--amber); }
+.conn-reconnecting { color: var(--amber-dk); }
+.conn-dropped      .conn-dot { background: var(--bad); }
+.conn-dropped      { color: var(--bad-dk); }
+.conn-connecting   { color: var(--ink-2); }
+
+.banner {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .55rem clamp(.7rem, 3vw, 1.5rem);
+  font-weight: 700; font-size: .9rem;
+  background: var(--amber-sf); color: var(--amber-dk);
+  border-bottom: 1px solid var(--border);
+}
+.banner-bad { background: var(--bad-sf); color: var(--bad-dk); }
+
+.screen { flex: 1 1 auto; padding: clamp(1rem, 3vw, 1.8rem); }
+.screen-narrow { max-width: 720px; margin: 0 auto; width: 100%; }
+
+/* 3 columns on desktop: players | canvas | phase panel. */
+.cols {
+  display: grid;
+  grid-template-columns: minmax(200px, 250px) minmax(0, 1fr) minmax(230px, 310px);
+  gap: clamp(.9rem, 1.8vw, 1.35rem);
+  align-items: start;
+  max-width: 1500px; margin: 0 auto;
+}
+.col-main { min-width: 0; display: flex; flex-direction: column; gap: .8rem; }
+
+@media (max-width: 1100px) {
+  .cols { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); }
+  .col-right { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  /* Phone-first: canvas leads, everything else stacks under it. */
+  .cols { display: flex; flex-direction: column; }
+  .col-main  { order: 1; }
+  .col-right { order: 2; }
+  .col-left  { order: 3; }
+  .appbar-brand { display: none; }
+}
+
+.toasts {
+  position: fixed; z-index: 60; left: 50%; bottom: 1.2rem;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: .5rem; align-items: center;
+  width: min(92vw, 460px); pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  width: 100%; padding: .65rem .9rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700; font-size: .9rem;
+  background: var(--ink); color: var(--surface);
+  box-shadow: var(--shadow-lg);
+  display: flex; gap: .5rem; align-items: flex-start;
+}
+.toast-error { background: var(--bad); }
+/* Decorative marker; the toast text carries the meaning. */
+.toast-dot {
+  flex: none; width: .5rem; height: .5rem; margin-top: .42rem;
+  border-radius: 999px; background: currentColor; opacity: .65;
+}

@@ -1,0 +1,39 @@
+# What gets uploaded for `gcloud run deploy --source .`. Same set as
+# .dockerignore with one difference that matters: the Dockerfile itself must be
+# uploaded, because Cloud Build is what reads it. .dockerignore excludes it
+# (docker build already has it); excluding it here would make Cloud Build fall
+# back to buildpacks and silently produce a different image.
+.git
+.gitignore
+.DS_Store
+
+# Reinstalling these is what the image build cannot do (the lockfile points at
+# an authenticated registry), and copying a host-built tree in would ship
+# darwin-arm64 binaries into a linux stage.
+node_modules
+web/node_modules
+
+# The client sources are not compiled in the image any more — only web/dist is.
+web/src
+web/gen
+web/package.json
+web/package-lock.json
+web/tsconfig.json
+web/vite.config.ts
+web/index.html
+web/design-scratchpad*.html
+
+# The committed placeholder. web/dist is copied over the top of it, so letting
+# this in would leave a previous build's hashed assets in the embedded tree.
+cmd/verso/dist
+verso
+
+# Not part of the server.
+docs
+proto
+buf.yaml
+buf.gen.yaml
+Makefile
+README.md
+**/*_test.go
+**/testdata

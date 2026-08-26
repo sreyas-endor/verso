@@ -1,0 +1,248 @@
+/* ---- avatar ---- */
+.avatar {
+  flex: none; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 900; color: var(--accent-ink);
+  width: 2.1rem; height: 2.1rem; font-size: .8rem;
+  letter-spacing: .01em;
+}
+.avatar-lg { width: 3rem; height: 3rem; font-size: 1.05rem; }
+.avatar-sm { width: 1.6rem; height: 1.6rem; font-size: .62rem; }
+
+/* ---- player list ---- */
+.plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.pitem {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .35rem .45rem; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 2px solid transparent;
+}
+.pitem-name { font-weight: 800; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pitem-sub { font-size: .74rem; color: var(--ink-3); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pitem-artist { border-color: var(--good); background: var(--good-sf); box-shadow: 3px 3px 0 rgba(63,150,109,.2); }
+.pitem-out .pitem-name { text-decoration: line-through; color: var(--ink-3); }
+.pitem-out .avatar { filter: grayscale(1); opacity: .55; }
+.pitem-off { opacity: .62; }
+.pitem-marks { display: flex; gap: .25rem; align-items: center; margin-left: auto; flex: none; }
+
+/* ---- timer ---- */
+.timer { display: flex; flex-direction: column; gap: .35rem; min-width: 7rem; }
+.timer-num {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-weight: 800; font-size: clamp(1.9rem, 5vw, 2.7rem); line-height: 1;
+  color: var(--ink); letter-spacing: -.08em;
+}
+.timer-bar { height: .55rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.timer-fill { height: 100%; width: 100%; background: var(--accent); border-radius: 999px; transition: width .2s linear; }
+.timer-warn .timer-fill { background: var(--amber); }
+.timer-warn .timer-num  { color: var(--amber-dk); }
+.timer-crit .timer-fill { background: var(--bad); }
+.timer-crit .timer-num  { color: var(--bad-dk); animation: pulse .9s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .timer-crit .timer-num { animation: none; } }
+
+/* ---- phase header ---- */
+.phasehead { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.phasehead-main { flex: 1 1 240px; min-width: 0; }
+.phasehead-kicker { display:inline-block; padding:.25rem .45rem; background:var(--amber); font-size: .72rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); transform:rotate(-1deg); }
+.phasehead-title { margin-top:.35rem; font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 900; letter-spacing: -.035em; }
+.phasehead-title em { font-style: normal; color: var(--accent); }
+
+/* ---- canvas ---- */
+.stage {
+  background: #fffefb;
+  border: 4px solid var(--ink);
+  border-radius: calc(var(--radius) + 2px);
+  box-shadow: 5px 6px 0 rgba(38,50,56,.14);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  touch-action: none;
+}
+.stage > canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.stage-locked { border-style: dashed; }
+
+/* ---- pen palette: twelve markers standing in a tray ----
+   The armed pen lifts clear of the rack *and* keeps a hard ink ring, so the
+   selection never rests on colour or motion alone. */
+.swatches {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: .75rem .4rem; align-items: end;
+  padding: .8rem .45rem .85rem;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.swatch {
+  aspect-ratio: .52; cursor: pointer; padding: 0; position: relative;
+  border: 2px solid var(--ink);
+  border-radius: .34rem .34rem .1rem .1rem;
+  box-shadow: 2px 2px 0 rgba(38,50,56,.18);
+  animation: marker-idle 3.8s ease-in-out infinite;
+}
+/* cap band */
+.swatch::before {
+  content: ""; position: absolute; left: -2px; right: -2px; top: -2px; height: 32%;
+  background: rgba(255,253,247,.3);
+  border: 2px solid var(--ink); border-radius: .34rem .34rem 0 0;
+}
+/* nib, resting on the tray floor */
+.swatch::after {
+  content: ""; position: absolute; left: 30%; right: 30%; bottom: -5px; height: 5px;
+  background: var(--ink); border-radius: 0 0 2px 2px;
+}
+.swatch:nth-child(6n+1) { animation-delay: 0s; }
+.swatch:nth-child(6n+2) { animation-delay: .14s; }
+.swatch:nth-child(6n+3) { animation-delay: .28s; }
+.swatch:nth-child(6n+4) { animation-delay: .42s; }
+.swatch:nth-child(6n+5) { animation-delay: .56s; }
+.swatch:nth-child(6n+6) { animation-delay: .7s; }
+.swatch[aria-pressed="true"] {
+  z-index: 1;
+  outline: 3px solid var(--ink); outline-offset: 3px;
+  box-shadow: 3px 5px 0 rgba(38,50,56,.22);
+  animation: marker-live 1.6s ease-in-out infinite;
+}
+@keyframes marker-idle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50%      { transform: translateY(-2px) rotate(-1.5deg); }
+}
+@keyframes marker-live {
+  0%, 100% { transform: translateY(-9px) rotate(-4deg); }
+  50%      { transform: translateY(-13px) rotate(2deg); }
+}
+/* A rack you cannot reach should not be breathing. */
+.tools[aria-disabled="true"] .swatch { animation: none; }
+.tools[aria-disabled="true"] .swatch,
+.tools[aria-disabled="true"] .nib { cursor: not-allowed; opacity: .4; }
+.nibs { display: flex; gap: .45rem; align-items: center; }
+.nib {
+  flex: 1 1 0; height: 2.3rem; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--surface-2); border: 2px solid var(--border-str);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.nib[aria-pressed="true"] { background: var(--accent-sf); border-color: var(--accent); }
+.nib-dot { border-radius: 999px; background: var(--ink); display: block; }
+
+/* ---- vote picker ---- */
+.votegrid { display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.votecard {
+  display: flex; align-items: center; gap: .55rem; width: 100%;
+  padding: .45rem .55rem; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--surface-2); border: 2px solid transparent;
+  font: inherit; font-weight: 800; text-align: left; color: var(--ink);
+}
+.votecard:hover:not(:disabled) { background: var(--accent-sf); }
+.votecard[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-sf); }
+.votecard:disabled { cursor: not-allowed; opacity: .5; }
+.votecard-skip .avatar { background: var(--ink-3); }
+.confirmbox {
+  margin-top: .7rem; padding: .7rem; border-radius: var(--radius-sm);
+  background: var(--amber-sf); border: 2px solid var(--amber);
+}
+.confirmbox p { font-size: .88rem; font-weight: 700; color: var(--amber-dk); }
+
+/* ---- tally bars ---- */
+.tally { display: flex; flex-direction: column; gap: .5rem; }
+.tallyrow { display: grid; grid-template-columns: 1fr auto; gap: .2rem .5rem; align-items: center; }
+.tallyrow-label { display: flex; align-items: center; gap: .45rem; font-weight: 800; font-size: .9rem; min-width: 0; }
+.tallyrow-count { font-family: var(--mono); font-weight: 800; font-variant-numeric: tabular-nums; }
+.tallybar { grid-column: 1 / -1; height: .7rem; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.tallybar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.tallyrow-win .tallybar > i { background: var(--bad); }
+.tallyrow-skip .tallybar > i { background: var(--ink-3); }
+
+/* ---- word panel ---- */
+.wordpanel { border: 2px solid var(--ink); background: var(--amber-sf); box-shadow: 3px 3px 0 rgba(38,50,56,.12); }
+.wordpanel summary {
+  cursor: pointer; font-weight: 900; font-size: .9rem; color: var(--ink);
+  list-style: none; display: flex; align-items: center; gap: .4rem;
+}
+.wordpanel summary::-webkit-details-marker { display: none; }
+.wordpanel-value {
+  font-size: 1.5rem; font-weight: 900; margin-top: .4rem; word-break: break-word;
+}
+.wordpanel-label { font-weight: 900; font-size: .9rem; }
+.wordpanel-note { font-size: .78rem; color: var(--ink-2); font-weight: 700; }
+
+/* ---- spectator ---- */
+.spectator { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.spectator .card-title { color: var(--ink-3); }
+.spectator strong { color: var(--amber); }
+
+/* ---- the paintress ----
+   Ambient decoration on a floor strip *below* the stage. She paints up at the
+   canvas from outside the frame; nothing she draws is ever composited over the
+   shared bitmap, where a stray mark would read as a real stroke. */
+.easel {
+  position: relative;
+  height: 6rem; margin-top: -.6rem;
+  display: flex; align-items: flex-end;
+  pointer-events: none;
+  overflow: visible;
+}
+.easel::before {
+  content: ""; position: absolute; left: 0; right: 0; bottom: .5rem; height: 3px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, var(--border-str) 0 11px, transparent 11px 20px);
+}
+.pt { width: 7.4rem; height: auto; margin-left: clamp(.4rem, 4vw, 2.6rem); overflow: visible; }
+.pt-shadow { fill: rgba(38,50,56,.11); }
+.pt-hair   { fill: var(--ink); }
+.pt-smock  { fill: var(--amber); stroke: var(--ink); stroke-width: 3; }
+.pt-skin   { fill: var(--surface); stroke: var(--ink); stroke-width: 3; }
+.pt-beret  { fill: var(--accent); stroke: var(--ink); stroke-width: 3; }
+.pt-cheek  { fill: var(--accent-sf); }
+.pt-smile  { fill: none; stroke: var(--ink); stroke-width: 2.6; stroke-linecap: round; }
+.pt-eye    { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: pt-blink 4.6s ease-in-out infinite; }
+.pt-sleeve-out { fill: none; stroke: var(--ink); stroke-width: 12; stroke-linecap: round; }
+.pt-sleeve-in  { fill: none; stroke: var(--amber); stroke-width: 6; stroke-linecap: round; }
+.pt-pen { fill: var(--nib, var(--accent)); stroke: var(--ink); stroke-width: 2.4; }
+.pt-nib { fill: var(--ink); }
+.pt-cap { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+.pt-bob { transform-box: view-box; transform-origin: center; animation: pt-bob 2.4s ease-in-out infinite; }
+.pt-arm { transform-box: view-box; transform-origin: 74px 78px; animation: pt-dab 1.9s cubic-bezier(.5,0,.4,1) infinite; }
+.pt-mark {
+  fill: none; stroke: var(--nib, var(--accent)); stroke-width: 3.4; stroke-linecap: round;
+  opacity: 0; animation: pt-mark 1.9s ease-out infinite;
+}
+.pt-mark-2 { animation-delay: .63s; }
+.pt-mark-3 { animation-delay: 1.26s; }
+@keyframes pt-bob   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+@keyframes pt-blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.12); } }
+@keyframes pt-dab {
+  0%   { transform: rotate(-12deg); }
+  38%  { transform: rotate(8deg); }
+  55%  { transform: rotate(0deg); }
+  78%  { transform: rotate(11deg); }
+  100% { transform: rotate(-12deg); }
+}
+@keyframes pt-mark {
+  0%   { opacity: 0; transform: translate(0, 3px) scale(.7); }
+  18%  { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translate(2px, -3px); }
+}
+@media (max-width: 900px) {
+  .easel { height: 4.6rem; }
+  .pt { width: 5.6rem; }
+}
+
+/* ---- turn baton ----
+   A marker parked in the roster's left rail that slides to whoever is drawing.
+   The row highlight already carries the state; this only animates the change. */
+.plist-rail { position: relative; padding-left: 1.5rem; }
+.baton {
+  position: absolute; left: .1rem; top: 0;
+  width: 1.15rem; pointer-events: none;
+  filter: drop-shadow(1.5px 2px 0 rgba(38,50,56,.16));
+  transform: translateY(0) rotate(-13deg);
+}
+.baton-warm { transition: transform .42s cubic-bezier(.45,0,.2,1); }
+.baton[hidden] { display: none; }
+.baton-pen { display: block; width: 100%; height: auto; }
+
+/* base.css already flattens every animation under prefers-reduced-motion; these
+   two only exist so the still frame reads correctly rather than half-drawn. */
+@media (prefers-reduced-motion: reduce) {
+  .pt-mark { opacity: .75; }
+  .swatch[aria-pressed="true"] { transform: translateY(-9px) rotate(-4deg); }
+}

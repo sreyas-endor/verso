@@ -1,0 +1,96 @@
+/* ---- home ---- */
+.home { max-width: 590px; margin: clamp(1rem, 6vh, 4rem) auto 0; width: 100%; }
+.home-title { text-align: center; font-size: clamp(3.2rem, 13vw, 5rem); font-weight: 900; letter-spacing: -.075em; transform: rotate(-2deg); }
+.home-title span { color: var(--ink); }
+.home-title::after { content:""; display:block; width:58%; height:7px; margin:.22rem auto 0; border-radius:99px; background:var(--accent); transform:rotate(-2deg); }
+.home-tag { text-align: center; color: var(--ink-2); font-weight: 700; margin-bottom: 1.2rem; }
+.home-or {
+  display: flex; align-items: center; gap: .7rem;
+  color: var(--ink-3); font-weight: 800; font-size: .8rem; margin: .9rem 0;
+}
+.home-or::before, .home-or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.code-input {
+  font-family: var(--mono); font-size: 1.35rem; letter-spacing: .35em;
+  text-align: center; text-transform: uppercase;
+}
+.how { counter-reset: step; list-style: none; margin: .3rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.how li { display: flex; gap: .55rem; font-size: .9rem; color: var(--ink-2); }
+.how li::before {
+  counter-increment: step; content: counter(step);
+  flex: none; width: 1.35rem; height: 1.35rem; border-radius: 999px;
+  background: var(--accent-sf); color: var(--accent-dk);
+  font-weight: 900; font-size: .78rem;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ---- lobby ---- */
+.roomcode {
+  font-family: var(--mono); font-weight: 800;
+  font-size: clamp(2.2rem, 9vw, 3.4rem); letter-spacing: .22em;
+  text-align: center; color: var(--ink); padding: .5rem .2rem .3rem; background:var(--surface-2); border:2px dashed var(--border-str); border-radius:var(--radius-sm);
+  word-break: break-all;
+}
+.shareurl {
+  font-family: var(--mono); font-size: .82rem; color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .45rem .6rem;
+  overflow-wrap: anywhere; user-select: all;
+}
+.setting { margin-bottom: .8rem; }
+.setting:last-child { margin-bottom: 0; }
+.setting-head { display: flex; align-items: baseline; gap: .4rem; font-size: .82rem; font-weight: 800; color: var(--ink-2); }
+.setting-val { margin-left: auto; font-family: var(--mono); font-weight: 800; color: var(--ink); }
+.setting-rec { font-size: .72rem; color: var(--ink-3); font-weight: 700; }
+.stepper { display: flex; align-items: center; gap: .5rem; }
+.stepper > .stepper-val {
+  font-family: var(--mono); font-weight: 800; font-size: 1.1rem; min-width: 1.4rem; text-align: center;
+}
+.note {
+  background: var(--amber-sf); border: 1px solid var(--amber);
+  border-radius: var(--radius-sm); padding: .55rem .7rem;
+  font-size: .85rem; font-weight: 700; color: var(--amber-dk);
+}
+.blocker { font-size: .85rem; font-weight: 700; color: var(--bad-dk); text-align: center; }
+
+/* ---- word reveal ---- */
+.reveal { max-width: 620px; margin: clamp(.5rem, 4vh, 2.5rem) auto 0; width: 100%; }
+.reveal-card { text-align: center; padding: 2.2rem 1.5rem; border:3px solid var(--ink); box-shadow:6px 7px 0 rgba(38,50,56,.15); }
+.reveal-word { font-size: clamp(2.5rem, 11vw, 4rem); font-weight: 900; letter-spacing: -.05em; word-break: break-word; }
+.rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; font-size: .88rem; }
+.rules li { display: flex; gap: .5rem; }
+.rules-yes b { color: var(--good-dk); }
+.rules-no  b { color: var(--bad-dk); }
+
+/* ---- final reveal ---- */
+.winner { text-align: center; padding: 1.7rem 1.2rem; border-width: 3px; box-shadow:5px 6px 0 rgba(38,50,56,.13); }
+.winner-group   { background: var(--good-sf); border-color: var(--good); }
+.winner-outlier { background: var(--amber-sf); border-color: var(--amber); }
+.winner-side { font-size: clamp(1.8rem, 7vw, 2.6rem); font-weight: 900; letter-spacing: -.02em; }
+.winner-group .winner-side   { color: var(--good-dk); }
+.winner-outlier .winner-side { color: var(--amber-dk); }
+.winner-why { font-weight: 700; color: var(--ink-2); }
+
+.wordpair { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.wordbox { border-radius: var(--radius-sm); padding: .7rem; text-align: center; background: var(--surface-2); border: 2px solid var(--border); }
+.wordbox-outlier { background: var(--amber-sf); border-color: var(--amber); }
+.wordbox-label { font-size: .72rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); }
+.wordbox-value { font-size: 1.3rem; font-weight: 900; word-break: break-word; }
+
+.reveals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.reveal-row {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .4rem .5rem; border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.reveal-row-outlier { background: var(--amber-sf); }
+.reveal-word-cell { margin-left: auto; font-weight: 900; text-align: right; }
+
+/* ---- turn handoff ---- */
+.handoff-canvas { position: relative; isolation: isolate; }
+.handoff-canvas .stage { filter: saturate(.82) brightness(.78); transition: filter .25s ease; }
+.handoff-overlay { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: clamp(1rem, 4vw, 2.5rem); background: rgba(255,253,247,.22); }
+.handoff-badge { background: var(--amber); color: var(--ink); padding: .35rem .65rem; font-size: .78rem; font-weight: 900; letter-spacing: .1em; transform: rotate(-2deg); animation: handoff-pop .45s ease-out both; }
+.handoff-title { margin: 1rem 0 .65rem; padding: .25rem .5rem; font-size: clamp(1.65rem, 5vw, 3.5rem); line-height: .95; letter-spacing: -.06em; max-width: 14ch; background: rgba(255,253,247,.9); border-radius: var(--radius-sm); box-shadow: 4px 4px 0 rgba(38,50,56,.14); }
+.handoff-detail { display: flex; align-items: center; justify-content: center; gap: .65rem; padding: .4rem .65rem; font-weight: 800; color: var(--ink-2); background: rgba(255,253,247,.9); border-radius: var(--radius-sm); }
+.handoff-clock { margin-top: 1.25rem; min-width: min(100%, 220px); padding: .6rem; background: rgba(255,253,247,.9); border-radius: var(--radius-sm); }
+@keyframes handoff-pop { from { opacity: 0; transform: translateY(.75rem) rotate(-5deg) scale(.9); } to { opacity: 1; transform: translateY(0) rotate(-2deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .handoff-canvas .stage { transition: none; } .handoff-badge { animation: none; } }
