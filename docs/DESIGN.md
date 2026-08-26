@@ -133,6 +133,10 @@ This is deliberate. A disconnected player cannot vote, so leaving them in the de
 
 Difficulty is based on visual overlap, not word obscurity. Each pair should be easy to draw literally in a short turn and should not depend on text or symbols.
 
+Pairs are not authored one at a time. Each deck is a list of **clusters** of five mutually confusable words, and the server draws a pair by taking two members of one cluster. A cluster of five yields ten pairs, so the same authoring effort produces roughly ten times the deck.
+
+A cluster belongs to exactly one difficulty, and that is what keeps the host's choice honest: all five words must be confusable *at that tier*, so no combination of them can come out easier or harder than the tier selected. A cluster whose fifth word is confusable with three members but obvious against the fourth is miscalibrated even though four of its ten pairs look fine.
+
 ### Easy
 
 Pairs have a clear visual difference. Players can still make generic drawings to avoid giving away their word immediately.
@@ -183,8 +187,11 @@ Pairs have substantial overlap and reward deliberately ambiguous drawings. These
 - Include each pair in both directions through random role assignment; players must not know which word is common.
 - Avoid words that require text, flags, logos, or specialist knowledge to communicate.
 - Avoid pairs that are either nearly identical or unrelated.
+- Every cluster holds exactly five words, and **all ten of its combinations** must sit at the cluster's tier. Calibrate the set, not the individual words.
+- No word appears in two clusters of the same deck: a repeated word leaks from one match into the next. Words shared *within* a cluster are not a leak — that is how a cluster works.
+- No pair is duplicated in either direction, within or across decks.
 - Test every pair with short drawing turns before adding it to the production deck.
-- Remove pairs that consistently reveal the imposter after one drawing or remain unsolvable after the maximum round count.
+- Remove pairs that consistently reveal the imposter after one drawing or remain unsolvable after the maximum round count. If only one combination of a cluster is bad, replace the word it depends on rather than dropping the cluster.
 
 ## Browser Experience
 

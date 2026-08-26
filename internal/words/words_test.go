@@ -2,6 +2,7 @@ package words
 
 import (
 	mrand "math/rand/v2"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -12,17 +13,22 @@ import (
 
 // What these tests do and do not prove.
 //
-// Mechanically enforced below: the 40-pair floor per deck, canonical casing
-// and whitespace, the drawable-character set, a word never appearing in two
-// pairs of the same deck, no pair duplicated in either direction anywhere in
-// the catalogue, draw-without-replacement, graceful exhaustion, seeded
-// reproducibility, and the medium fallback.
+// Mechanically enforced below: the 40-cluster floor per deck, every cluster
+// holding exactly ClusterSize distinct words, canonical casing and whitespace,
+// the drawable-character set, a word never appearing in two clusters of the
+// same deck, no pair duplicated in either direction anywhere in the catalogue,
+// draw-without-replacement, graceful exhaustion, seeded reproducibility, and
+// the medium fallback.
 //
 // Left to human judgement, because no test can settle them:
 //
 //   - that a pair is neither nearly identical nor unrelated — the whole
 //     difficulty calibration is a play-testing result (DESIGN.md asks for
 //     exactly that), not a property of the strings;
+//   - that ALL TEN combinations of a cluster sit at that cluster's tier. This
+//     is the invariant clustering rests on and the one most easily broken by
+//     adding a fifth word that is confusable with three members but obvious
+//     against the fourth. Nothing here can catch that; read the combinations;
 //   - that a word is drawable in one short freehand turn without text;
 //   - that a word is concrete rather than abstract, and common rather than
 //     specialist. TestNoAbstractionsOrProperNouns is a canary for the obvious
@@ -37,11 +43,71 @@ func decks(t *testing.T) map[string][]Pair {
 	}
 }
 
+func clusterDecks(t *testing.T) map[string][]Cluster {
+	t.Helper()
+	return map[string][]Cluster{
+		"easy":   easyClusters,
+		"medium": mediumClusters,
+		"hard":   hardClusters,
+	}
+}
+
 func TestDecksMeetMinimumSize(t *testing.T) {
 	const min = 40
-	for name, deck := range decks(t) {
+	for name, deck := range clusterDecks(t) {
 		if len(deck) < min {
-			t.Errorf("%s deck has %d pairs, want at least %d", name, len(deck), min)
+			t.Errorf("%s deck has %d clusters, want at least %d", name, len(deck), min)
+		}
+	}
+}
+
+// The tier calibration is a property of the whole cluster, so a short or long
+// one has combinations nobody sized against the tier.
+func TestClustersAreTheDeclaredSize(t *testing.T) {
+	for name, deck := range clusterDecks(t) {
+		for i, cl := range deck {
+			if len(cl) != ClusterSize {
+				t.Errorf("%s cluster %d %v has %d words, want %d", name, i, cl, len(cl), ClusterSize)
+			}
+		}
+	}
+}
+
+// A word twice in one cluster would expand into a pair of a word with itself.
+func TestNoWordRepeatsWithinACluster(t *testing.T) {
+	for name, deck := range clusterDecks(t) {
+		for i, cl := range deck {
+			seen := make(map[string]bool, len(cl))
+			for _, w := range cl {
+				k := strings.ToLower(w)
+				if seen[k] {
+					t.Errorf("%s cluster %d %v repeats %q", name, i, cl, w)
+				}
+				seen[k] = true
+			}
+		}
+	}
+}
+
+// Expansion has to produce every combination and nothing else.
+func TestExpandProducesEveryCombination(t *testing.T) {
+	for name, deck := range clusterDecks(t) {
+		pairs, origin := expand(deck)
+		want := 0
+		for _, cl := range deck {
+			want += len(cl) * (len(cl) - 1) / 2
+		}
+		if len(pairs) != want {
+			t.Errorf("%s: expanded to %d pairs, want %d", name, len(pairs), want)
+		}
+		if len(origin) != len(pairs) {
+			t.Fatalf("%s: %d origins for %d pairs", name, len(origin), len(pairs))
+		}
+		for i, p := range pairs {
+			cl := deck[origin[i]]
+			if !slices.Contains(cl, p.A) || !slices.Contains(cl, p.B) {
+				t.Errorf("%s: pair %v attributed to cluster %v", name, p, cl)
+			}
 		}
 	}
 }
@@ -91,19 +157,20 @@ func checkWord(t *testing.T, deck string, p Pair, w string) {
 	}
 }
 
-// A word used by two pairs of the same deck leaks across matches: a player who
-// saw it last game recognises half of this game's pair.
+// A word used by two clusters of the same deck leaks across matches: a player
+// who saw it last game recognises half of this game's pair. Sharing a word
+// between the pairs of ONE cluster is not that — it is how a cluster works.
 func TestNoWordRepeatsWithinADeck(t *testing.T) {
-	for name, deck := range decks(t) {
-		seen := make(map[string]Pair, len(deck)*2)
-		for _, p := range deck {
-			for _, w := range []string{p.A, p.B} {
+	for name, deck := range clusterDecks(t) {
+		seen := make(map[string]int, len(deck)*ClusterSize)
+		for i, cl := range deck {
+			for _, w := range cl {
 				k := strings.ToLower(w)
 				if prev, dup := seen[k]; dup {
-					t.Errorf("%s: %q appears in both %v and %v", name, w, prev, p)
+					t.Errorf("%s: %q appears in cluster %d %v and cluster %d %v", name, w, prev, deck[prev], i, cl)
 					continue
 				}
-				seen[k] = p
+				seen[k] = i
 			}
 		}
 	}
@@ -320,6 +387,11 @@ func TestPairsReturnsACopy(t *testing.T) {
 	if easyPairs[0].A == "Mutated" {
 		t.Fatal("Pairs exposed the catalogue slice")
 	}
+	cls := Clusters(genpb.Difficulty_DIFFICULTY_EASY)
+	cls[0] = Cluster{"Mutated"}
+	if len(easyClusters[0]) == 1 {
+		t.Fatal("Clusters exposed the catalogue slice")
+	}
 }
 
 // A Deck shared between rooms is documented as safe. Run under -race.
@@ -359,13 +431,13 @@ func TestNewDeckRejectsAnEmptyTier(t *testing.T) {
 			t.Fatal("newDeck accepted an empty tier")
 		}
 	}()
-	newDeck(easyPairs, nil, hardPairs)
+	newDeck(easyClusters, nil, hardClusters)
 }
 
 // A one-pair tier has nothing else to hand out, so the back-to-back guard must
 // yield rather than deadlock or panic.
 func TestSinglePairTierRecyclesForever(t *testing.T) {
-	only := []Pair{{"Kite", "Balloon"}}
+	only := []Cluster{{"Kite", "Balloon"}}
 	d := newDeck(only, only, only)
 	rnd := seeded(2, 3)
 	for range 5 {
