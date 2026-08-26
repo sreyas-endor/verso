@@ -28,10 +28,12 @@ import type { Difficulty, MatchSettings } from "../../gen/verso/v1/game_pb.js";
 import {
   MAX_DISCUSS_SECONDS,
   MAX_DRAW_SECONDS,
+  MAX_INTERMISSION_SECONDS,
   MAX_ROUNDS,
   MAX_STROKE_WIDTH,
   MIN_DISCUSS_SECONDS,
   MIN_DRAW_SECONDS,
+  MIN_INTERMISSION_SECONDS,
   MIN_ROUNDS,
   MIN_STROKE_WIDTH,
   PROTOCOL_VERSION,
@@ -39,12 +41,13 @@ import {
 } from "./protocol.js";
 import type { ClientCommandBody } from "./protocol.js";
 
-/** The four host-configurable settings, as plain numbers. */
+/** The host-configurable settings, as plain numbers. */
 export interface SettingsInit {
   difficulty: Difficulty;
   maxRounds: number;
   drawSeconds: number;
   discussSeconds: number;
+  intermissionSeconds: number;
 }
 
 export function joinRoom(init: {
@@ -127,11 +130,20 @@ export function rematch(): ClientCommandBody {
   return { case: "rematch", value: create(RematchSchema) };
 }
 
+// Every field the server reads has to be set here. A missing one is not a
+// no-op: the wire default for a proto3 scalar is 0, the room reads 0 as "not
+// specified" (internal/room/api.go:830) and substitutes its own default, so a
+// dropped field silently resets that setting on every change to any other one.
 export function toSettings(init: SettingsInit): MatchSettings {
   return create(MatchSettingsSchema, {
     difficulty: init.difficulty,
     maxRounds: clamp(Math.round(init.maxRounds), MIN_ROUNDS, MAX_ROUNDS),
     drawSeconds: clamp(Math.round(init.drawSeconds), MIN_DRAW_SECONDS, MAX_DRAW_SECONDS),
     discussSeconds: clamp(Math.round(init.discussSeconds), MIN_DISCUSS_SECONDS, MAX_DISCUSS_SECONDS),
+    intermissionSeconds: clamp(
+      Math.round(init.intermissionSeconds),
+      MIN_INTERMISSION_SECONDS,
+      MAX_INTERMISSION_SECONDS,
+    ),
   });
 }

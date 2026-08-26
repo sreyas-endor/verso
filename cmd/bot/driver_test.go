@@ -63,10 +63,11 @@ func TestMain(m *testing.M) {
 // tests are as quick as the rules permit and not one millisecond quicker.
 func fastSettings(rounds int32) *genpb.MatchSettings {
 	return &genpb.MatchSettings{
-		Difficulty:     genpb.Difficulty_DIFFICULTY_MEDIUM,
-		MaxRounds:      rounds,
-		DrawSeconds:    room.MinDrawSeconds,
-		DiscussSeconds: room.MinDiscussSeconds,
+		Difficulty:          genpb.Difficulty_DIFFICULTY_MEDIUM,
+		MaxRounds:           rounds,
+		DrawSeconds:         room.MinDrawSeconds,
+		DiscussSeconds:      room.MinDiscussSeconds,
+		IntermissionSeconds: room.MinIntermissionSeconds,
 	}
 }
 

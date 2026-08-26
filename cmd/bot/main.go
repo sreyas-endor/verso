@@ -74,16 +74,17 @@ Run "bot play -h" for the flags.
 
 // commonFlags are shared by play and suite.
 type commonFlags struct {
-	url        string
-	rounds     int
-	draw       int
-	discuss    int
-	difficulty string
-	strategy   string
-	deck       string
-	seed       uint64
-	logLevel   string
-	verbose    bool
+	url          string
+	rounds       int
+	draw         int
+	discuss      int
+	intermission int
+	difficulty   string
+	strategy     string
+	deck         string
+	seed         uint64
+	logLevel     string
+	verbose      bool
 }
 
 func (c *commonFlags) bind(fs *flag.FlagSet) {
@@ -91,6 +92,7 @@ func (c *commonFlags) bind(fs *flag.FlagSet) {
 	fs.IntVar(&c.rounds, "rounds", 1, "max rounds (1..4)")
 	fs.IntVar(&c.draw, "draw", room.MinDrawSeconds, "drawing seconds per turn (5..60)")
 	fs.IntVar(&c.discuss, "discuss", room.MinDiscussSeconds, "discussion seconds (30..180)")
+	fs.IntVar(&c.intermission, "intermission", room.MinIntermissionSeconds, "handoff seconds between turns (3..30)")
 	fs.StringVar(&c.difficulty, "difficulty", "medium", "deck tier: easy, medium, hard")
 	fs.StringVar(&c.strategy, "strategy", "skip", "vote strategy: random, skip, self, gang, silent")
 	fs.StringVar(&c.deck, "deck", "canary", "in-process deck: canary (searchable words) or words (the real deck)")
@@ -112,10 +114,11 @@ func (c *commonFlags) settings() (*genpb.MatchSettings, error) {
 		return nil, fmt.Errorf("unknown difficulty %q", c.difficulty)
 	}
 	return &genpb.MatchSettings{
-		Difficulty:     d,
-		MaxRounds:      int32(c.rounds),
-		DrawSeconds:    int32(c.draw),
-		DiscussSeconds: int32(c.discuss),
+		Difficulty:          d,
+		MaxRounds:           int32(c.rounds),
+		DrawSeconds:         int32(c.draw),
+		DiscussSeconds:      int32(c.discuss),
+		IntermissionSeconds: int32(c.intermission),
 	}, nil
 }
 
