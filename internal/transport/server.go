@@ -247,13 +247,29 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 
 	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: s.cfg.OriginPatterns,
-		// Context takeover keeps the 32 KiB deflate window between messages,
-		// which matters because consecutive stroke frames are near-identical.
-		// It is also the mode that does NOT ask the peer to honour
-		// client_no_context_takeover — the negotiation iOS Safari has
-		// historically got wrong (IMPLEMENTATION_PLAN.md §8, open question 6).
-		CompressionMode:      websocket.CompressionContextTakeover,
-		CompressionThreshold: 256,
+		// Compression is off, and the stroke path is why. A StrokePoints frame
+		// is a stroke id, a seq and a handful of zigzag varint pairs — well
+		// under any useful deflate threshold, so it was never being compressed
+		// on the way out. What context takeover did buy was cost: the mode
+		// pins a ~1.2 MB flate.Writer per connection for the life of the
+		// socket (it is allocated on the first frame over the threshold, and
+		// every client gets a Snapshot right after joining, so every
+		// connection paid it). At the deployed --concurrency=200 that is
+		// ~240 MB of deflate state inside a 512 MiB container, which turns
+		// into GC pressure, which on a single-vCPU instance is time taken
+		// directly from the write pumps. The inbound half was worse: browsers
+		// compress every data frame once the extension is negotiated, and the
+		// read path inflates them regardless of size, so the threshold bought
+		// nothing there at all.
+		//
+		// The one thing that does compress well is Snapshot, and a snapshot is
+		// rare, bounded by the per-turn point caps, and already the burstiest
+		// thing the server does — paying for it in bandwidth is the better
+		// trade than paying for it in resident memory on every idle lobby
+		// socket. This also sidesteps the iOS Safari
+		// client_no_context_takeover negotiation noted in
+		// IMPLEMENTATION_PLAN.md §8, open question 6.
+		CompressionMode: websocket.CompressionDisabled,
 		// Both callbacks keep the liveness clock honest for a socket that is
 		// alive but has nothing to say — a lobby can sit silent for minutes.
 		OnPingReceived: func(context.Context, []byte) bool {

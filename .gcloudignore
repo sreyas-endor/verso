@@ -26,7 +26,7 @@ web/design-scratchpad*.html
 # The committed placeholder. web/dist is copied over the top of it, so letting
 # this in would leave a previous build's hashed assets in the embedded tree.
 cmd/verso/dist
-verso
+/verso
 
 # Not part of the server.
 docs

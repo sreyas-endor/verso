@@ -44,33 +44,6 @@ export type ScreenName = "home" | "lobby" | "word" | "intermission" | "drawing" 
  */
 export type VoteChoice = { case: "candidateId"; value: string } | { case: "skip" };
 
-/** One committed stroke on the shared canvas. Carries no artist id by design. */
-export interface StrokeRecord {
-  readonly strokeId: number;
-  readonly colorIndex: number;
-  readonly width: number;
-  /** Flat interleaved x,y pairs on the 4096x3072 signed wire grid. */
-  readonly points: readonly number[];
-}
-
-/** The in-progress stroke. There is at most one room-wide. */
-export interface OpenStroke extends StrokeRecord {
-  readonly mine: boolean;
-}
-
-/**
- * What the canvas engine consumes. Delivered on its own channel, not through
- * the state subscription: at 20 messages a second a stroke must not force the
- * whole UI to re-render.
- */
-export type StrokeEvent =
-  | { kind: "begin"; strokeId: number; colorIndex: number; width: number; points: readonly number[]; mine: boolean }
-  | { kind: "points"; strokeId: number; points: readonly number[]; mine: boolean }
-  /** `points` non-null is an RDP replacement: replace the stroke, do not append. */
-  | { kind: "end"; strokeId: number; points: readonly number[] | null; mine: boolean }
-  /** Full redraw: a Snapshot replay, a new match, or a return to the lobby. */
-  | { kind: "reset"; strokes: readonly StrokeRecord[] };
-
 export interface GameState {
   // -- connection ---------------------------------------------------------
   readonly connection: ConnectionStatus;

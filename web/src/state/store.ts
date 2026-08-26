@@ -12,9 +12,8 @@ import type { PlayerInfo, Snapshot } from "../../gen/verso/v1/game_pb.js";
 import { ASSIGN_DURATION_MS, RESOLVE_DURATION_MS } from "../net/protocol.js";
 import type { ServerEventBody, ServerFrame } from "../net/protocol.js";
 import { joinUrlFor, screenFor } from "./routes.js";
-import { StrokeLog } from "./strokes.js";
 import { defaultSettings, initialState } from "./types.js";
-import type { GameState, StrokeEvent, StrokeRecord, VoteChoice } from "./types.js";
+import type { GameState, VoteChoice } from "./types.js";
 
 /** Half of a round trip, capped: the lead time a deadline is aged by. */
 const MAX_LATENCY_LEAD_MS = 250;
@@ -24,7 +23,6 @@ type Listener = (state: GameState) => void;
 export class GameStore {
   private state: GameState = initialState();
   private readonly listeners = new Set<Listener>();
-  private readonly log = new StrokeLog();
   private readonly now: () => number;
   private latencyLead = 0;
 
@@ -45,19 +43,6 @@ export class GameStore {
     return () => {
       this.listeners.delete(fn);
     };
-  }
-
-  /** The canvas feed. Separate from `subscribe` on purpose — see strokes.ts. */
-  subscribeStrokes(fn: (event: StrokeEvent) => void): () => void {
-    return this.log.subscribe(fn);
-  }
-
-  strokes(): readonly StrokeRecord[] {
-    return this.log.all();
-  }
-
-  openStroke() {
-    return this.log.open();
   }
 
   // ---- writing ----------------------------------------------------------
@@ -105,7 +90,6 @@ export class GameStore {
       case "lobbyState": {
         const v = body.value;
         const base = s.phase === Phase.LOBBY ? s : clearMatch(s);
-        this.log.reset([]);
         return {
           ...base,
           roomCode: v.roomCode,
@@ -150,9 +134,6 @@ export class GameStore {
 
       case "phaseChanged": {
         const v = body.value;
-        // The canvas is emptied by the server on exactly these two
-        // transitions, and neither carries a stroke event to say so.
-        if (v.phase === Phase.ASSIGNING || v.phase === Phase.LOBBY) this.log.reset([]);
         const base =
           v.phase === Phase.ASSIGNING || v.phase === Phase.LOBBY ? clearMatch(s) : s;
         const leavingTurnSequence = v.phase !== Phase.DRAWING && v.phase !== Phase.INTERMISSION;
@@ -169,26 +150,14 @@ export class GameStore {
         };
       }
 
-      case "strokeBegan": {
-        const v = body.value;
-        this.log.begin(
-          { strokeId: v.strokeId, colorIndex: v.colorIndex, width: v.width, points: v.points },
-          this.artistIsMe(s),
-        );
-        return s;
-      }
-
+      // Stroke frames carry no game state. The canvas engine consumes them
+      // straight off the socket (see main.ts), so there is nothing to reduce
+      // here and nothing to store — a parallel copy in the store was pure
+      // per-message allocation with no reader.
+      case "strokeBegan":
       case "strokePoints":
-        this.log.extend(body.value.strokeId, body.value.points, this.artistIsMe(s));
+      case "strokeEnded":
         return s;
-
-      case "strokeEnded": {
-        const v = body.value;
-        // Empty means "the streamed points stand"; non-empty is a simplified
-        // replacement for the whole stroke and must replace, never append.
-        this.log.end(v.strokeId, v.points.length > 0 ? v.points : null, this.artistIsMe(s));
-        return s;
-      }
 
       case "voteCastCount": {
         const v = body.value;
@@ -273,14 +242,6 @@ export class GameStore {
   // ---- reducer helpers --------------------------------------------------
 
   private fromSnapshot(s: GameState, v: Snapshot): GameState {
-    this.log.reset(
-      v.strokes.map((k) => ({
-        strokeId: k.strokeId,
-        colorIndex: k.colorIndex,
-        width: k.width,
-        points: k.points,
-      })),
-    );
     const players = [...v.players];
     return {
       ...s,
@@ -322,9 +283,6 @@ export class GameStore {
     return this.now() + remainingMs - this.latencyLead;
   }
 
-  private artistIsMe(s: GameState): boolean {
-    return s.artistId !== "" && s.artistId === s.selfId;
-  }
 }
 
 function selfFacts(

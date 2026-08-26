@@ -48,6 +48,19 @@ docker: web
 #   --no-cpu-throttling   phase timers have to run between requests
 #   --concurrency         the default 80 caps the whole server at 80 sockets
 #   --timeout=3600        a WebSocket request lives as long as the match
+#
+# --cpu is 4, not 1, and that is the flag that matters most here. Go reads the
+# cgroup quota to pick GOMAXPROCS, so --cpu=1 makes the whole server
+# single-threaded: every write pump, every room actor and the garbage collector
+# timeshare one P, and any one slow operation — a Snapshot marshal, a GC cycle —
+# becomes head-of-line blocking for every player in every room. It is invisible
+# on a dev machine with 8-12 cores and very visible on a deployed instance.
+# --max-instances=1 is forced by the architecture, so vertical is the only
+# direction available.
+#
+# --session-affinity is deliberately absent: with exactly one instance there is
+# nothing to be affine to, and it costs a cookie and a proxy lookup per
+# handshake.
 # Depends on `web` for the same reason `docker` does: Cloud Build runs the same
 # Dockerfile and has no registry token either.
 deploy: web
@@ -57,14 +70,13 @@ deploy: web
 	  --region=$(REGION) \
 	  --source=. \
 	  --allow-unauthenticated \
-	  --cpu=1 \
-	  --memory=512Mi \
+	  --cpu=4 \
+	  --memory=2Gi \
 	  --min-instances=1 \
 	  --max-instances=1 \
 	  --no-cpu-throttling \
 	  --concurrency=200 \
-	  --timeout=3600 \
-	  --session-affinity
+	  --timeout=3600
 
 clean:
 	rm -rf $(EMBED_DIST) $(WEB_DIST) $(BIN)

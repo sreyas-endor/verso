@@ -75,6 +75,13 @@ interface Live {
   auth: number[];
   /** Local strokes only: the pointer is up, waiting for StrokeEnded. */
   ended: boolean;
+  /**
+   * Remote strokes only: points that have arrived but are not on screen yet.
+   * The frame loop drains this a few points at a time so a batch becomes
+   * motion instead of a jump. Always empty for a local stroke, whose ink is
+   * drawn from the pointer and never queued.
+   */
+  queue: number[];
 }
 
 /** Id held by a local stroke until the server's echo names it. */
@@ -83,6 +90,23 @@ const UNADOPTED = -1;
 const COMMIT_TIMEOUT_MS = 5_000;
 /** Minimum spacing between two RequestSnapshot commands. */
 const GAP_COOLDOWN_MS = 1_000;
+/**
+ * How long a viewer takes to play out the ink it is holding. Points arrive in
+ * STROKE_BATCH_MS clumps, and drawing each clump the instant it lands makes a
+ * remote stroke advance in visible steps — on a LAN the steps at least arrive
+ * on a metronome, but over a real network the jitter between them is what
+ * reads as "laggy", far more than the latency itself. Draining over roughly a
+ * batch's worth of frames converts that into continuous motion, at the cost of
+ * being one batch behind. That trade is only ever made for someone else's
+ * stroke; see the file header on why the artist's own ink is never delayed.
+ */
+const REMOTE_PLAYBACK_MS = STROKE_BATCH_MS;
+/**
+ * Backlog past which the buffer is emptied in one frame. Smoothing is worth a
+ * batch of delay and nothing more: after a stall the viewer should catch up,
+ * not replay the stall in slow motion.
+ */
+const MAX_PLAYBACK_LAG_PAIRS = 120;
 
 function appendAll(dst: number[], src: readonly number[]): void {
   for (let i = 0; i < src.length; i++) dst.push(src[i] as number);
@@ -210,6 +234,7 @@ export class CanvasEngine implements PointerSink {
       adopted: false,
       auth: [],
       ended: false,
+      queue: [],
     };
     this.pointsThisTurn++;
 
@@ -310,7 +335,10 @@ export class CanvasEngine implements PointerSink {
     };
     const pen = new StrokePen(this.surface.overlayCtx, rec.colorIndex, rec.width, false);
     pen.flush(rec.pts);
-    this.live = { rec, pen, local: false, adopted: true, auth: [], ended: false };
+    this.live = { rec, pen, local: false, adopted: true, auth: [], ended: false, queue: [] };
+    // A remote stroke needs the frame loop too, to drain its playback buffer.
+    // The local path starts it in begin().
+    this.startRaf();
   }
 
   applyStrokePoints(ev: StrokePoints): void {
@@ -324,8 +352,9 @@ export class CanvasEngine implements PointerSink {
         appendAll(live.auth, fromGrid(ev.points));
         return;
       }
-      appendAll(live.rec.pts, fromGrid(ev.points));
-      live.pen.flush(live.rec.pts);
+      // Queued, not drawn: the frame loop pays this out over the next few
+      // frames so the stroke moves instead of stepping.
+      appendAll(live.queue, fromGrid(ev.points));
       return;
     }
 
@@ -443,6 +472,7 @@ export class CanvasEngine implements PointerSink {
     const live = this.live;
     if (!live) return;
     this.clearCommitTimer();
+    this.flushPlayback(live);
     this.stopRaf();
     this.dirty = false;
 
@@ -470,6 +500,7 @@ export class CanvasEngine implements PointerSink {
   private forceCommitLive(): void {
     const live = this.live;
     if (!live) return;
+    this.flushPlayback(live);
     this.stopRaf();
     this.dirty = false;
     this.surface.clearOverlay();
@@ -552,14 +583,56 @@ export class CanvasEngine implements PointerSink {
 
   private startRaf(): void {
     if (this.raf !== null) return;
-    const tick = (): void => {
+    let last = 0;
+    const tick = (now: number): void => {
       this.raf = window.requestAnimationFrame(tick);
       const live = this.live;
-      if (!this.dirty || !live) return;
-      this.dirty = false;
-      live.pen.flush(live.rec.pts);
+      if (!live) return;
+
+      if (live.local) {
+        if (!this.dirty) return;
+        this.dirty = false;
+        live.pen.flush(live.rec.pts);
+        return;
+      }
+
+      // Clamped because a backgrounded tab resumes with an enormous delta, and
+      // that must not be read as "the buffer is hours behind".
+      const dt = last === 0 ? 16 : Math.min(now - last, 100);
+      last = now;
+      this.drainPlayback(live, dt);
     };
     this.raf = window.requestAnimationFrame(tick);
+  }
+
+  /**
+   * Move part of a remote stroke's buffer onto the canvas. The share taken is
+   * proportional to how much is waiting, which makes it self-correcting: a
+   * jitter burst leaves a deeper buffer and so drains faster, and the steady
+   * state settles at whatever rate the sender is actually drawing.
+   */
+  private drainPlayback(live: Live, dt: number): void {
+    const queued = live.queue.length >> 1;
+    if (queued === 0) return;
+
+    const pairs =
+      queued > MAX_PLAYBACK_LAG_PAIRS
+        ? queued
+        : Math.min(queued, Math.max(1, Math.ceil((queued * dt) / REMOTE_PLAYBACK_MS)));
+
+    appendAll(live.rec.pts, live.queue.splice(0, pairs * 2));
+    live.pen.flush(live.rec.pts);
+  }
+
+  /**
+   * Put every buffered point on the canvas at once. Called when a stroke is
+   * closing: smoothing the tail of a stroke that is already over would just be
+   * lag, and dropping it would lose ink the server has committed.
+   */
+  private flushPlayback(live: Live): void {
+    if (live.queue.length === 0) return;
+    appendAll(live.rec.pts, live.queue);
+    live.queue.length = 0;
   }
 
   private stopRaf(): void {
