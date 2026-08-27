@@ -182,6 +182,7 @@ export class CanvasEngine implements PointerSink {
     if (this.mounted) return;
     this.mounted = true;
     this.surface.mount(container, () => this.redrawAll());
+    this.surface.setPenWidth(this.width);
     this.input.attach();
   }
 
@@ -223,6 +224,9 @@ export class CanvasEngine implements PointerSink {
 
   setWidth(width: number): void {
     this.width = clampWidth(width);
+    // The pad's cursor ring is the nib's true diameter, so it has to follow the
+    // brush. See surface.ts on why the OS crosshair is not usable here.
+    this.surface.setPenWidth(this.width);
   }
 
   getWidth(): number {

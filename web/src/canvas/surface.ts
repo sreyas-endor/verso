@@ -76,7 +76,7 @@ const CSS = `
   background:${PAPER};border:2px solid var(--border-str,#c6cee0);border-radius:var(--radius,14px);
   overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .verso-pad canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
-.verso-pad[data-drawing="true"]{cursor:crosshair;box-shadow:0 0 0 3px var(--accent-sf,#e8eeff);}
+.verso-pad[data-drawing="true"]{cursor:var(--verso-pen-cursor,crosshair);box-shadow:0 0 0 3px var(--accent-sf,#e8eeff);}
 .verso-pad:focus-visible{outline:2px solid var(--accent,#4f7cff);outline-offset:2px;}
 @media (prefers-reduced-motion: reduce){.verso-pad{transition:none;}}
 `;
@@ -105,6 +105,87 @@ function context(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return ctx;
 }
 
+// The pen cursor is drawn here rather than delegated to `cursor: crosshair`.
+//
+// The OS crosshair is not a safe default over this surface. What it looks like
+// is the platform's and the user's choice, not ours: macOS draws a near-white
+// cross with a hairline core, and Windows' Precision Select follows the pointer
+// scheme, which is white-filled by default. PAPER is #ffffff in both themes, so
+// on both a white cursor camouflages and the artist draws blind — observed on a
+// Windows laptop and reproduced on macOS. Picking the other extreme does not
+// help either: a solid black cross disappears into a #14161f stroke. A cursor
+// legible on white paper AND on dark ink has to carry both tones itself, which
+// is something no system cursor and no accessibility scheme will guarantee.
+//
+// Owning the image also lets it state the nib: the ring is the actual stroke
+// diameter, so the weight of the line is visible before it is committed. That
+// matters most under a pen rule, where a stroke cannot be taken back.
+//
+// This is a CSS cursor, not a mark on either bitmap. Nothing is composited over
+// the paper — the canvas rect carries strokes and nothing else, or a decoration
+// reads as ink — and the PNG export never sees it.
+
+/** Halo tone, stroked underneath. Carries the cursor over ink. */
+const CURSOR_HALO = "#ffffff";
+const CURSOR_HALO_W = 3.5;
+/** Core tone, stroked on top. Carries it over paper. Matches palette index 0. */
+const CURSOR_CORE = "#14161f";
+const CURSOR_CORE_W = 1.6;
+/**
+ * Ring radius floor in CSS px. Deliberately small: the thinnest nib really is
+ * about two CSS pixels wide, and inflating the ring to a comfortable size would
+ * make the two smallest nibs draw the same cursor. Visibility at that size is
+ * the ticks' job, not the ring's.
+ */
+const CURSOR_MIN_RADIUS = 1.5;
+/** Gap between ring and ticks, and the tick length itself, in CSS px. */
+const CURSOR_GAP = 3;
+const CURSOR_TICK = 5;
+/**
+ * Total edge length ceiling in CSS px.
+ *
+ * Chrome ignores a cursor image past 128x128 outright — no cursor, no warning,
+ * the arrow stays — so the ring is clamped to fit well inside that rather than
+ * risk the silent failure on a very large pad or a very thick nib.
+ */
+const CURSOR_MAX_SIZE = 96;
+
+/**
+ * A ring at the nib's diameter plus four approach ticks, each stroked twice:
+ * a wide halo underneath, a narrow core on top.
+ *
+ * @param diameter the stroke width in CSS px, already mapped out of logical
+ *   space — a cursor is sized in CSS pixels, so this cannot be a logical unit.
+ */
+function penCursorValue(diameter: number): string {
+  const room = CURSOR_MAX_SIZE / 2 - CURSOR_GAP - CURSOR_TICK - 2;
+  const r = Math.min(room, Math.max(CURSOR_MIN_RADIUS, diameter / 2));
+  const half = Math.ceil(r + CURSOR_GAP + CURSOR_TICK + 2);
+  const size = half * 2;
+  const inner = r + CURSOR_GAP;
+  const outer = inner + CURSOR_TICK;
+  const near = (half - outer).toFixed(2);
+  const nearIn = (half - inner).toFixed(2);
+  const farIn = (half + inner).toFixed(2);
+  const far = (half + outer).toFixed(2);
+  const ticks =
+    `M${half} ${near}V${nearIn}M${half} ${farIn}V${far}` +
+    `M${near} ${half}H${nearIn}M${farIn} ${half}H${far}`;
+  const shapes = `<circle cx="${half}" cy="${half}" r="${r.toFixed(2)}"/><path d="${ticks}"/>`;
+  // width/height as well as viewBox: Firefox will not render an SVG cursor
+  // sized only by its viewBox.
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
+    `<g fill="none" stroke-linecap="round">` +
+    `<g stroke="${CURSOR_HALO}" stroke-width="${CURSOR_HALO_W}" stroke-opacity=".95">${shapes}</g>` +
+    `<g stroke="${CURSOR_CORE}" stroke-width="${CURSOR_CORE_W}">${shapes}</g>` +
+    `</g></svg>`;
+  // encodeURIComponent, not a raw string: the stroke colours carry '#', which
+  // would truncate the data URI at a fragment. The trailing keyword is the
+  // fallback for a browser that refuses the image outright.
+  return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}") ${half} ${half}, crosshair`;
+}
+
 export class Surface {
   readonly stage: HTMLDivElement;
   readonly pad: HTMLDivElement;
@@ -121,6 +202,10 @@ export class Surface {
   private lastW = 0;
   private lastH = 0;
   private resizeRaf: number | null = null;
+  /** Nominal nib width in logical units, mirrored here to size the cursor. */
+  private penWidth = 0;
+  /** Last cursor value written, so a resize that changes nothing costs no DOM. */
+  private penCursor = "";
 
   constructor() {
     installStyle();
@@ -249,7 +334,30 @@ export class Surface {
     this.baseCtx.setTransform(w / LOGICAL_W, 0, 0, h / LOGICAL_H, 0, 0);
     this.overlayCtx.setTransform(w / LOGICAL_W, 0, 0, h / LOGICAL_H, 0, 0);
 
+    // The cursor is sized off the CSS box, not the backing store, so it is
+    // refreshed on every measurement — a pad that changed width without
+    // changing its device-pixel size still needs a new ring.
+    this.applyPenCursor(rect.width);
+
     if (changed) this.onResize();
+  }
+
+  /**
+   * Tell the surface what the nib is, in logical units, so the cursor ring can
+   * show its true diameter. Safe to call before mount and safe to repeat.
+   */
+  setPenWidth(width: number): void {
+    if (width === this.penWidth) return;
+    this.penWidth = width;
+    this.applyPenCursor(this.pad.getBoundingClientRect().width);
+  }
+
+  private applyPenCursor(cssWidth: number): void {
+    if (cssWidth <= 0 || this.penWidth <= 0) return;
+    const value = penCursorValue((this.penWidth * cssWidth) / LOGICAL_W);
+    if (value === this.penCursor) return;
+    this.penCursor = value;
+    this.pad.style.setProperty("--verso-pen-cursor", value);
   }
 
   /**
