@@ -5,7 +5,7 @@
 // sound toggle in the app chrome is handed a SoundToggle from the UI contract
 // instead, the same way the canvas is handed a CanvasHandle.
 
-import { CUES, endOfTurnCountdown, preTurnCountdown, type Cue, type CueName } from "./cues.js";
+import { CUES, endOfTurnCountdown, preTurnCountdown, voteCountdown, type Cue, type CueName } from "./cues.js";
 import { createEngine, type Engine } from "./synth.js";
 import { cueFor, tickPlanFor, type AudioFacts, type TickPlan } from "./transitions.js";
 
@@ -24,7 +24,11 @@ const TICK_TOLERANCE_MS = 900;
 export interface Audio {
   /** Plays a cue now. Silent when muted, or before the first user gesture. */
   play(cue: CueName): void;
-  /** Plays a run of one-second ticks counting into, or out of, your turn. */
+  /**
+   * Plays a countdown: into your turn, out of your turn, or out of the vote.
+   * `ticks` sizes the two turn runs, which vary with the phase they sit in;
+   * the vote run has a fixed shape and ignores it.
+   */
   playTicks(kind: TickPlan["kind"], ticks: number): void;
   enabled(): boolean;
   /** Persists the choice. Turning it on from a click also unlocks the context. */
@@ -75,7 +79,17 @@ export function createAudio(engine: Engine = createEngine()): Audio {
 
     playTicks(kind, ticks) {
       if (!on) return;
-      sound(kind === "preTurn" ? preTurnCountdown(ticks) : endOfTurnCountdown(ticks));
+      switch (kind) {
+        case "preTurn":
+          sound(preTurnCountdown(ticks));
+          return;
+        case "endOfTurn":
+          sound(endOfTurnCountdown(ticks));
+          return;
+        case "vote":
+          sound(voteCountdown());
+          return;
+      }
     },
 
     enabled() {

@@ -154,10 +154,18 @@ export const CUES: Record<CueName, Cue> = {
 // intermission. Every tick of a run is scheduled inside one cue, so the audio
 // clock spaces them rather than setTimeout, which drifts.
 //
-// Nothing cancels a run once it is scheduled. Both are bounded by a
-// server-timed phase, and the only way either phase ends early is a socket
-// dropping — a stray tick into the next screen is not worth tracking live
-// audio nodes to prevent.
+// Nothing cancels a run once it is scheduled. The two turn countdowns are
+// bounded by a server-timed phase, and the only way either phase ends early is
+// a socket dropping — a stray tick into the next screen is not worth tracking
+// live audio nodes to prevent.
+//
+// The vote countdown is the one place that costs something real: casting a
+// vote while it is already sounding does NOT silence the rest of the run, so a
+// player who votes with six seconds left still hears the last few ticks. That
+// is why its early ticks are sparse and quiet — the residue is a couple of
+// soft taps, not a klaxon that keeps going after you have done what it asked.
+// Cancelling properly means holding the oscillators of a live cue, which is a
+// bigger change to the engine than this cue is worth.
 // ---------------------------------------------------------------------------
 
 /** Ticking into your own turn: the last tick lands one second before the pen. */
@@ -173,6 +181,45 @@ export function endOfTurnCountdown(ticks: number): Cue {
   return {
     level: 0.5,
     notes: run(ticks, D6, D6),
+  };
+}
+
+/**
+ * Ticking the vote out: the last ten seconds of DISCUSSION, for anyone who has
+ * not voted yet.
+ *
+ * The other two countdowns are three and five even ticks aimed at one player.
+ * This one is longer, plays in several pairs of ears at once, and interrupts
+ * people who are mid-argument — so it is shaped rather than metronomic. It
+ * opens sparse and low, closes tight and loud, and steps up a fourth for the
+ * last three seconds. That gear change at three is the part people actually
+ * react to; everything before it is there to make the change mean something.
+ *
+ * Low on purpose. A5-C6 and D6 are spoken for by the turn countdowns, which
+ * are personal, and this is the room's clock rather than yours.
+ */
+const VOTE_PATTERN: ReadonlyArray<{ at: number; freq: number; gain: number }> = [
+  { at: 0, freq: G4, gain: 0.7 }, // 10s left
+  { at: 2, freq: G4, gain: 0.7 }, //  8s
+  { at: 4, freq: G4, gain: 0.8 }, //  6s
+  { at: 6, freq: G4, gain: 0.9 }, //  4s
+  { at: 7, freq: C5, gain: 1.05 }, //  3s — up a fourth, and now every second
+  { at: 8, freq: C5, gain: 1.2 }, //  2s
+  { at: 9, freq: C5, gain: 1.5 }, //  1s
+];
+
+/** How many ticks a vote countdown is, for the plan that schedules it. */
+export const VOTE_TICKS = VOTE_PATTERN.length;
+
+export function voteCountdown(): Cue {
+  return {
+    level: 0.55,
+    notes: VOTE_PATTERN.map((t, i) => ({
+      freq: t.freq,
+      at: t.at,
+      dur: i === VOTE_PATTERN.length - 1 ? 0.22 : 0.12,
+      gain: t.gain,
+    })),
   };
 }
 

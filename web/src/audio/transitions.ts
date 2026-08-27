@@ -10,12 +10,20 @@
 
 import { Phase, WinnerSide } from "../../gen/verso/v1/game_pb.js";
 import type { GameState } from "../state/types.js";
-import type { CueName } from "./cues.js";
+import { VOTE_TICKS, type CueName } from "./cues.js";
 
 /** Exactly the state the cue rules read. */
 export type AudioFacts = Pick<
   GameState,
-  "selfId" | "phase" | "artistId" | "nextArtistId" | "deadline" | "durationMs" | "matchEnd"
+  | "selfId"
+  | "phase"
+  | "artistId"
+  | "nextArtistId"
+  | "deadline"
+  | "durationMs"
+  | "matchEnd"
+  | "youHaveVoted"
+  | "youAreEliminated"
 >;
 
 /**
@@ -28,6 +36,21 @@ export const PRE_TURN_TICKS = 5;
 /** Ticks before your own turn *expires*, and how far ahead they start. */
 export const END_OF_TURN_TICKS = 3;
 export const END_OF_TURN_LEAD_MS = END_OF_TURN_TICKS * 1000;
+
+/**
+ * How long before voting closes the vote countdown starts.
+ *
+ * Ten seconds rather than the three a turn gets. A turn ending is a thing that
+ * happens *to* the artist and needs no more than a warning; voting closing is
+ * something a player still has to act on, and a vote takes reading the roster
+ * and making up your mind. Ten seconds is enough to finish an argument and
+ * still press a name.
+ *
+ * MIN_DISCUSS_SECONDS is 30 (web/src/net/protocol.ts:47), so this always fits
+ * inside the phase. tickPlanFor still checks, because that bound belongs to
+ * the settings validator and not to this file.
+ */
+export const VOTE_LEAD_MS = 10_000;
 
 /**
  * Clear air a handoff needs between "you are next" and the countdown's first
@@ -90,20 +113,29 @@ export function cueFor(prev: AudioFacts, next: AudioFacts): CueName | null {
 export interface TickPlan {
   /** `performance.now()` reading at which the first tick sounds. */
   readonly at: number;
-  /** Counting down to your turn starting, or to it expiring. */
-  readonly kind: "preTurn" | "endOfTurn";
+  /** Counting down to your turn starting, to it expiring, or to voting closing. */
+  readonly kind: "preTurn" | "endOfTurn" | "vote";
   readonly ticks: number;
 }
 
 /**
  * The countdown this state calls for, or null for silence.
  *
- * Both countdowns are for one player only — the one who can act on them. A run
- * of ticks in ten pairs of ears, ten times a round, is noise; and a player
- * watching somebody else draw has nothing to do when that turn runs out.
+ * Every countdown here is for players who can act on it, and silent for
+ * everyone else. A run of ticks in ten pairs of ears, ten times a round, is
+ * noise: a player watching somebody else draw has nothing to do when that turn
+ * runs out. The two turn countdowns therefore narrow to one player.
  *
- * The two can never overlap: one belongs to the handoff, the other to the turn
- * itself, so one pending timer is enough for both.
+ * The vote countdown is the exception, and deliberately so — voting is the one
+ * deadline every active player has to beat, so it plays for all of them at
+ * once. It still narrows: a player who has already voted, or who was
+ * eliminated and is only watching, has nothing left to do and hears nothing.
+ * That makes it self-silencing, which is the property that keeps it from
+ * becoming the noise the other two avoid by being personal.
+ *
+ * The three can never overlap. They belong to INTERMISSION, DRAWING and
+ * DISCUSSION respectively, so one pending timer is still enough for all of
+ * them.
  */
 export function tickPlanFor(s: AudioFacts): TickPlan | null {
   if (s.deadline === null) return null;
@@ -122,6 +154,16 @@ export function tickPlanFor(s: AudioFacts): TickPlan | null {
   if (s.phase === Phase.DRAWING) {
     if (s.artistId === "" || s.artistId !== s.selfId) return null;
     return { kind: "endOfTurn", ticks: END_OF_TURN_TICKS, at: s.deadline - END_OF_TURN_LEAD_MS };
+  }
+
+  // Counting the vote out, for everyone still able to cast one. youHaveVoted
+  // going true is what cancels a pending run — the driver re-derives this on
+  // every state, and the vote acknowledgement is a state change like any
+  // other.
+  if (s.phase === Phase.DISCUSSION) {
+    if (s.youAreEliminated || s.youHaveVoted) return null;
+    if (s.durationMs <= VOTE_LEAD_MS) return null;
+    return { kind: "vote", ticks: VOTE_TICKS, at: s.deadline - VOTE_LEAD_MS };
   }
 
   return null;
