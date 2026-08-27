@@ -495,9 +495,13 @@ export class VersoSocket {
         // refusal arrives at once instead of the Snapshot that clears
         // `resyncing` — so without this the socket discards every stroke event
         // until the ladder's next rung, having asked for nothing. Re-arm at the
-        // refill period rather than the ladder delay, and do not spend an
-        // attempt: the request never reached the room, so it is no evidence
-        // that asking again will not work.
+        // refill period instead, which is shorter than the ladder's own delay.
+        //
+        // The attempt still counts, because onResyncTimeout spends one. That is
+        // deliberate: a connection refused this many times in a row is not
+        // going to be talked round, and the ladder's terminal move is a
+        // reconnect, whose Snapshot comes out of Attach and never meets this
+        // bucket at all (internal/room/reconnect.go).
         if (
           this.resyncing &&
           frame.cid !== "" &&
