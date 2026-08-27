@@ -127,6 +127,17 @@ input[type="range"]:disabled { accent-color: var(--border-str); }
 .badge-out   { background: var(--bad-sf);    color: var(--bad-dk); }
 .badge-you   { background: var(--accent-sf); color: var(--accent-dk); }
 
+/* The pen-rule chip. A badge that rides beside a card title, so the handicap is
+   legible to everyone at the table and not only to whoever is holding the pen. */
+.rulechip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font: 800 .68rem/1 var(--font); letter-spacing: .04em; text-transform: uppercase;
+  padding: .24rem .45rem; border-radius: 999px;
+  border: 2px solid var(--amber); background: var(--amber-sf); color: var(--amber-dk);
+}
+.card-title.with-chip { display: flex; align-items: center; gap: .5rem; margin-bottom: .55rem; }
+.card-title.with-chip .rulechip { margin-left: auto; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }

@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { Difficulty, type MatchSettings, MatchSettingsSchema } from "../../gen/verso/v1/game_pb.js";
+import { Difficulty, type MatchSettings, MatchSettingsSchema, PenRule } from "../../gen/verso/v1/game_pb.js";
 import { LIMITS, RECOMMENDED } from "./context.js";
 import { Disposers, el, setText } from "./dom.js";
 
@@ -13,6 +13,18 @@ const DIFFICULTIES: ReadonlyArray<[Difficulty, string]> = [
   [Difficulty.EASY, "Easy"],
   [Difficulty.MEDIUM, "Medium"],
   [Difficulty.HARD, "Hard"],
+];
+
+/**
+ * The pen handicap, as a fixed three-way choice rather than a stroke count to
+ * tune: the whole point is a rule everybody at the table can hold in their head
+ * while they judge a drawing. The hint under the control carries the rule in
+ * full, so no other screen has to explain it before the match starts.
+ */
+const PEN_RULES: ReadonlyArray<[PenRule, string, string]> = [
+  [PenRule.FREE, "Free", "Draw as much as the clock allows."],
+  [PenRule.ONE_LINE, "One line", "One unbroken stroke. Lift the pen and your turn's drawing is done."],
+  [PenRule.MAX_FIVE, "Max 5", "Five strokes for the whole turn. Spend them well."],
 ];
 
 function labelled(head: string, recommended: string, control: HTMLElement, value: HTMLElement | null): HTMLElement {
@@ -38,6 +50,7 @@ export function settingsPanel(onChange: (next: MatchSettings) => void): Settings
   const d = new Disposers();
   let current: MatchSettings = create(MatchSettingsSchema, {
     difficulty: RECOMMENDED.difficulty,
+    penRule: RECOMMENDED.penRule,
     maxRounds: RECOMMENDED.maxRounds,
     drawSeconds: RECOMMENDED.drawSeconds,
     discussSeconds: RECOMMENDED.discussSeconds,
@@ -49,12 +62,23 @@ export function settingsPanel(onChange: (next: MatchSettings) => void): Settings
     if (!editable) return;
     onChange(create(MatchSettingsSchema, {
       difficulty: patch.difficulty ?? current.difficulty,
+      penRule: patch.penRule ?? current.penRule,
       maxRounds: patch.maxRounds ?? current.maxRounds,
       drawSeconds: patch.drawSeconds ?? current.drawSeconds,
       discussSeconds: patch.discussSeconds ?? current.discussSeconds,
       intermissionSeconds: patch.intermissionSeconds ?? current.intermissionSeconds,
     }));
   };
+
+  // Pen rule — segmented control, above Difficulty because it changes how the
+  // game plays more than the deck does.
+  const penBtns = PEN_RULES.map(([value, text]) => {
+    const b = el("button", { type: "button", "aria-pressed": "false", text }) as HTMLButtonElement;
+    d.on(b, "click", () => emit({ penRule: value }));
+    return b;
+  });
+  const penSeg = el("div", { class: "seg", role: "group", "aria-label": "Pen rule" }, ...penBtns);
+  const penHint = el("p", { class: "hint", style: "margin:.35rem 0 0", text: PEN_RULES[0]?.[2] ?? "" });
 
   // Difficulty — segmented control.
   const diffBtns = DIFFICULTIES.map(([value, text]) => {
@@ -93,16 +117,22 @@ export function settingsPanel(onChange: (next: MatchSettings) => void): Settings
   d.on(discussRange, "input", () => emit({ discussSeconds: Number(discussRange.value) }));
   d.on(intermissionRange, "input", () => emit({ intermissionSeconds: Number(intermissionRange.value) }));
 
+  const penVal = el("span", { class: "setting-val", text: "Free" });
   const diffVal = el("span", { class: "setting-val", text: "Medium" });
   const drawVal = el("span", { class: "setting-val", text: "15s" });
   const discussVal = el("span", { class: "setting-val", text: "120s" });
   const intermissionVal = el("span", { class: "setting-val", text: "10s" });
   const hostNote = el("p", { class: "hint", text: "Only the host can change these." });
 
+  // The hint rides inside the setting block, under the control it explains.
+  const penSetting = labelled("Pen rule", "Free", penSeg, penVal);
+  penSetting.appendChild(penHint);
+
   const root = el(
     "section",
     { class: "card col-right" },
     el("div", { class: "card-title", text: "Match settings" }),
+    penSetting,
     labelled("Difficulty", "Medium", seg, diffVal),
     labelled("Rounds", "2", stepper, null),
     labelled("Drawing turn", "15s", drawRange, drawVal),
@@ -116,6 +146,15 @@ export function settingsPanel(onChange: (next: MatchSettings) => void): Settings
     update(settings, canEdit) {
       current = settings;
       editable = canEdit;
+      penBtns.forEach((b, i) => {
+        const [value] = PEN_RULES[i] ?? [PenRule.UNSPECIFIED, "", ""];
+        b.setAttribute("aria-pressed", String(settings.penRule === value));
+        b.disabled = !canEdit;
+      });
+      // An unspecified rule is FREE to the server, so it reads as FREE here.
+      const rule = PEN_RULES.find(([v]) => v === settings.penRule) ?? PEN_RULES[0];
+      setText(penVal, rule ? rule[1] : "Free");
+      setText(penHint, rule ? rule[2] : "");
       diffBtns.forEach((b, i) => {
         const [value] = DIFFICULTIES[i] ?? [Difficulty.UNSPECIFIED, ""];
         b.setAttribute("aria-pressed", String(settings.difficulty === value));

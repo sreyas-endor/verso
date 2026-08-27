@@ -80,6 +80,8 @@ type commonFlags struct {
 	discuss      int
 	intermission int
 	difficulty   string
+	penRule      string
+	strokes      int
 	strategy     string
 	deck         string
 	seed         uint64
@@ -94,6 +96,8 @@ func (c *commonFlags) bind(fs *flag.FlagSet) {
 	fs.IntVar(&c.discuss, "discuss", room.MinDiscussSeconds, "discussion seconds (30..180)")
 	fs.IntVar(&c.intermission, "intermission", room.MinIntermissionSeconds, "handoff seconds between turns (3..30)")
 	fs.StringVar(&c.difficulty, "difficulty", "medium", "deck tier: easy, medium, hard")
+	fs.StringVar(&c.penRule, "pen-rule", "free", "per-turn pen handicap: free, one-line, max5")
+	fs.IntVar(&c.strokes, "strokes", 0, "strokes each bot attempts per turn; 0 uses the default plan. Set it above a pen rule's ceiling to watch the server drop the rest")
 	fs.StringVar(&c.strategy, "strategy", "skip", "vote strategy: random, skip, self, gang, silent")
 	fs.StringVar(&c.deck, "deck", "canary", "in-process deck: canary (searchable words) or words (the real deck)")
 	fs.Uint64Var(&c.seed, "seed", 0, "client-side seed; 0 picks one")
@@ -113,12 +117,27 @@ func (c *commonFlags) settings() (*genpb.MatchSettings, error) {
 	default:
 		return nil, fmt.Errorf("unknown difficulty %q", c.difficulty)
 	}
+	// The pen rule is a per-turn stroke ceiling, so a canary run under one-line
+	// exercises the server dropping everything the bot draws past it — which is
+	// the only way to see that path without a browser.
+	var pr genpb.PenRule
+	switch strings.ToLower(c.penRule) {
+	case "free", "":
+		pr = genpb.PenRule_PEN_RULE_FREE
+	case "one-line", "oneline":
+		pr = genpb.PenRule_PEN_RULE_ONE_LINE
+	case "max5", "max-5":
+		pr = genpb.PenRule_PEN_RULE_MAX_FIVE
+	default:
+		return nil, fmt.Errorf("unknown pen rule %q", c.penRule)
+	}
 	return &genpb.MatchSettings{
 		Difficulty:          d,
 		MaxRounds:           int32(c.rounds),
 		DrawSeconds:         int32(c.draw),
 		DiscussSeconds:      int32(c.discuss),
 		IntermissionSeconds: int32(c.intermission),
+		PenRule:             pr,
 	}, nil
 }
 
@@ -200,7 +219,7 @@ func cmdPlay(args []string) error {
 		Players:      *players,
 		Settings:     settings,
 		Strategy:     c.strategy,
-		Draw:         DrawPlan{ClampProbe: *clampProbe},
+		Draw:         DrawPlan{Strokes: c.strokes, ClampProbe: *clampProbe},
 		DropImposter: *dropImposter,
 		Timeout:      *timeout,
 		Logger:       log,

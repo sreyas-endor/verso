@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pen rules — settings &amp; drawing UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Nunito:wght@600;700;800;900&display=swap" />
+<style>
+/* ============================================================
+   Verso — pen-rule UI specimens.
+   Tokens and component rules are lifted verbatim from
+   web/src/styles/{tokens,base,screens,components}.css so what
+   is on screen here is what the real screens would render.
+   Everything under "mock only" is scaffolding for this page.
+   ============================================================ */
+:root {
+  --bg:#f4eddf; --surface:#fffdf7; --surface-2:#f8f0e3;
+  --border:#e5d9c6; --border-str:#cbbca6;
+  --ink:#263238; --ink-2:#69716c; --ink-3:#958d80;
+  --accent:#ef5d5a; --accent-ink:#fff; --accent-sf:#ffe7df; --accent-dk:#bd4544;
+  --amber:#f5c744; --amber-dk:#a36c10; --amber-sf:#fff3cc;
+  --good:#3f966d; --good-dk:#256146; --good-sf:#e0f2e6;
+  --bad:#df5553; --bad-dk:#a73535; --bad-sf:#fbe3dd;
+  --radius:18px; --radius-sm:11px;
+  --shadow:3px 4px 0 rgba(38,50,56,.12);
+  --font:"Nunito", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  --mono:"DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:700 16px/1.55 var(--font); }
+
+/* ---------- real app components ---------- */
+.card { background:var(--surface); border:2px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:1rem 1.1rem; }
+.card-title { font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:.6rem; }
+.hint { color:var(--ink-3); font-size:.85rem; }
+.row { display:flex; gap:.6rem; align-items:center; }
+.stack { display:flex; flex-direction:column; gap:.7rem; }
+.btn { font:inherit; font-weight:900; padding:.7rem 1.4rem; border-radius:var(--radius-sm); border:2px solid var(--border-str); background:var(--surface); color:var(--ink); cursor:pointer; }
+.btn-sm { padding:.4rem .8rem; font-size:.88rem; }
+.btn:disabled { cursor:not-allowed; opacity:.55; background:var(--surface-2); }
+input[type=range] { width:100%; margin:.35rem 0; accent-color:var(--accent); background:transparent; }
+input[type=range]:disabled { accent-color:var(--border-str); }
+.seg { display:flex; gap:0; border:2px solid var(--border-str); border-radius:var(--radius-sm); overflow:hidden; }
+.seg > button { font:inherit; font-weight:800; flex:1 1 0; padding:.45rem .2rem; border:none; background:var(--surface); color:var(--ink-2); cursor:pointer; }
+.seg > button + button { border-left:2px solid var(--border-str); }
+.seg > button[aria-pressed=true] { background:var(--accent); color:var(--accent-ink); }
+.seg > button:disabled { cursor:default; }
+.seg > button:disabled:not([aria-pressed=true]) { color:var(--ink-3); }
+.badge { display:inline-flex; align-items:center; gap:.25rem; font-size:.72rem; font-weight:800; letter-spacing:.04em; padding:.1rem .45rem; border-radius:999px; background:var(--surface-2); color:var(--ink-2); }
+.badge-you { background:var(--accent-sf); color:var(--accent-dk); }
+.badge-out { background:var(--bad-sf); color:var(--bad-dk); }
+.badge-ready { background:var(--good-sf); color:var(--good-dk); }
+.setting { margin-bottom:.8rem; }
+.setting:last-child { margin-bottom:0; }
+.setting-head { display:flex; align-items:baseline; gap:.4rem; font-size:.82rem; font-weight:800; color:var(--ink-2); }
+.setting-val { margin-left:auto; font-family:var(--mono); font-weight:800; color:var(--ink); }
+.setting-rec { font-size:.72rem; color:var(--ink-3); font-weight:700; }
+.stepper { display:flex; align-items:center; gap:.5rem; }
+.stepper > .stepper-val { font-family:var(--mono); font-weight:800; font-size:1.1rem; min-width:1.4rem; text-align:center; }
+.phasehead { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+.phasehead-main { flex:1 1 240px; min-width:0; }
+.phasehead-kicker { display:inline-block; padding:.25rem .45rem; background:var(--amber); font-size:.72rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:var(--ink); transform:rotate(-1deg); }
+.phasehead-title { margin-top:.35rem; font-size:clamp(1.2rem,3vw,1.7rem); font-weight:900; letter-spacing:-.035em; }
+.phasehead-title em { font-style:normal; color:var(--accent); }
+.swatches { display:grid; grid-template-columns:repeat(6,1fr); gap:.75rem .4rem; align-items:end; padding:.8rem .45rem .85rem; background:var(--surface-2); border:2px solid var(--border); border-radius:var(--radius-sm); }
+.swatch { aspect-ratio:.52; cursor:pointer; padding:0; position:relative; border:2px solid var(--ink); border-radius:.34rem .34rem .1rem .1rem; box-shadow:2px 2px 0 rgba(38,50,56,.18); }
+.swatch::before { content:""; position:absolute; left:-2px; right:-2px; top:-2px; height:32%; background:rgba(255,253,247,.3); border:2px solid var(--ink); border-radius:.34rem .34rem 0 0; }
+.swatch::after { content:""; position:absolute; left:30%; right:30%; bottom:-5px; height:5px; background:var(--ink); border-radius:0 0 2px 2px; }
+.swatch[aria-pressed=true] { z-index:1; outline:3px solid var(--ink); outline-offset:3px; box-shadow:3px 5px 0 rgba(38,50,56,.22); }
+.tools[aria-disabled=true] .swatch, .tools[aria-disabled=true] .nib { cursor:not-allowed; opacity:.4; }
+.nibs { display:flex; gap:.45rem; align-items:center; }
+.nib { flex:1 1 0; height:2.3rem; border-radius:var(--radius-sm); cursor:pointer; background:var(--surface-2); border:2px solid var(--border-str); display:inline-flex; align-items:center; justify-content:center; }
+.nib[aria-pressed=true] { background:var(--accent-sf); border-color:var(--accent); }
+.nib-dot { border-radius:999px; background:var(--ink); display:block; }
+
+/* ---------- NEW: the pen-rule pieces this page is proposing ---------- */
+
+/* Rule chip. Rides beside a card title so the handicap is legible to
+   everyone at the table, not only to whoever is holding the pen. */
+.rulechip { display:inline-flex; align-items:center; gap:.3rem; font:800 .68rem/1 var(--font); letter-spacing:.04em; text-transform:uppercase; padding:.24rem .45rem; border-radius:999px; border:2px solid var(--amber); background:var(--amber-sf); color:var(--amber-dk); }
+.rulechip svg { width:.9em; height:.9em; }
+.card-title.with-chip { display:flex; align-items:center; gap:.5rem; margin-bottom:.55rem; }
+.card-title.with-chip .rulechip { margin-left:auto; }
+
+/* Ink gauge: strokes left, drawn as marker ticks rather than a number.
+   Spent ticks stay visible — a used stroke is not recoverable, and the
+   canvas is append-only, so the gauge never counts back up. */
+.gauge { display:flex; align-items:center; gap:.5rem; margin-bottom:.7rem; padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--surface-2); border:2px solid var(--border); }
+.gauge-ticks { display:flex; gap:.28rem; }
+.gauge-tick { width:.62rem; height:1.5rem; border-radius:.2rem .2rem .1rem .1rem; border:2px solid var(--ink); background:var(--accent); box-shadow:1px 1px 0 rgba(38,50,56,.2); }
+.gauge-tick.spent { background:var(--surface); border-color:var(--border-str); box-shadow:none; }
+.gauge-tick.live  { animation:tick-live 1.4s ease-in-out infinite; }
+.gauge-label { font:800 .82rem/1.2 var(--font); color:var(--ink-2); }
+.gauge-label b { display:block; font-family:var(--mono); font-size:.95rem; color:var(--ink); }
+.gauge.spent .gauge-label b { color:var(--bad-dk); }
+.gauge.oneline .gauge-tick { width:1.9rem; }
+@keyframes tick-live { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-3px) rotate(-4deg)} }
+
+/* Pen card when the budget is gone: the rack is inert and says why. */
+.spent-note { margin:.7rem 0 0; padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--bad-sf); border:1px solid var(--bad); color:var(--bad-dk); font-size:.83rem; font-weight:800; }
+.live-note  { margin:.7rem 0 0; padding:.5rem .6rem; border-radius:var(--radius-sm); background:var(--good-sf); border:1px solid var(--good); color:var(--good-dk); font-size:.83rem; font-weight:800; }
+
+/* ---------- mock only ---------- */
+.wrap { max-width:1240px; margin:0 auto; padding:0 clamp(18px,4vw,34px); }
+.eyebrow { display:inline-block; font:500 .7rem/1 var(--mono); letter-spacing:.16em; text-transform:uppercase; color:var(--amber-dk); background:var(--amber-sf); border:2px solid var(--amber); padding:.42rem .6rem; transform:rotate(-1.2deg); }
+h1 { margin:.9rem 0 0; font-size:clamp(2.1rem,5.5vw,3.4rem); font-weight:900; letter-spacing:-.05em; line-height:1; max-width:20ch; }
+h1 mark { background:none; color:var(--accent); }
+.lede { max-width:64ch; margin:1rem 0 0; font-weight:600; color:var(--ink-2); font-size:1.04rem; }
+.head { padding:clamp(30px,5vw,54px) 0 0; }
+.head-rule { height:7px; width:min(320px,52%); margin:24px 0 0; border-radius:8px; background:var(--accent); transform:rotate(-.5deg); }
+section { padding:clamp(34px,5vw,58px) 0 0; }
+.sec-head { display:flex; align-items:baseline; gap:.9rem; flex-wrap:wrap; margin-bottom:1.3rem; }
+h2 { margin:0; font-size:clamp(1.3rem,3vw,1.75rem); font-weight:900; letter-spacing:-.035em; }
+.sec-head p { margin:0; color:var(--ink-2); font-weight:600; font-size:.95rem; max-width:52ch; }
+.tag { font:500 .68rem/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+.specs { display:grid; grid-template-columns:repeat(auto-fit,minmax(292px,1fr)); gap:20px; align-items:start; }
+.spec { display:flex; flex-direction:column; gap:.6rem; }
+.spec-cap { font:500 .68rem/1.5 var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+.spec-cap b { display:block; font:900 .95rem/1.35 var(--font); letter-spacing:-.01em; text-transform:none; color:var(--ink); }
+.spec-cap.is-new b::after { content:"NEW"; margin-left:.4rem; font:800 .6rem/1 var(--font); letter-spacing:.08em; vertical-align:.22em; padding:.14rem .3rem; border-radius:4px; background:var(--accent); color:#fff; }
+.stagemock { aspect-ratio:4/3; width:100%; background:#fffefb; border:4px solid var(--ink); border-radius:calc(var(--radius) + 2px); box-shadow:5px 6px 0 rgba(38,50,56,.14); position:relative; overflow:hidden; }
+.stagemock.locked { filter:saturate(.7); }
+.stagemock svg { position:absolute; inset:0; width:100%; height:100%; }
+.cols2 { display:grid; grid-template-columns:1.5fr 1fr; gap:20px; align-items:start; }
+.notes { margin-top:1.2rem; padding:1rem 1.2rem; background:var(--surface); border:2px dashed var(--border-str); border-radius:var(--radius); }
+.notes h3 { margin:0 0 .5rem; font-size:1rem; font-weight:900; letter-spacing:-.02em; }
+.notes ul { margin:0; padding-left:1.15rem; }
+.notes li { font-weight:600; color:var(--ink-2); font-size:.92rem; margin-bottom:.35rem; }
+.notes li b { color:var(--ink); font-weight:900; }
+.notes code { font:500 .85em var(--mono); background:var(--surface-2); border:1px solid var(--border); border-radius:5px; padding:.05rem .3rem; }
+footer { padding:48px 0 60px; color:var(--ink-3); font-weight:600; font-size:.86rem; }
+@media (max-width:820px){ .cols2 { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; } }
+</style>
+</head>
+<body>
+
+<header class="head wrap">
+  <span class="eyebrow">Scratchpad · pen rules</span>
+  <h1>One line, <mark>five strokes</mark>, or free.</h1>
+  <p class="lede">
+    A host-set handicap on how the artist may use their turn. Three fixed choices — no stepper, no number
+    to tune. Everything below is drawn with the real tokens and the real component classes; the only new CSS
+    is the rule chip, the ink gauge, and the two note bars.
+  </p>
+  <div class="head-rule"></div>
+</header>
+
+<!-- ============================ SETTINGS ============================ -->
+<section class="wrap">
+  <div class="sec-head">
+    <h2>1 · Lobby settings panel</h2>
+    <p>One new row, sitting directly above Difficulty because it changes how the game plays more than the deck does.</p>
+    <span class="tag">web/src/ui/settingsPanel.ts</span>
+  </div>
+
+  <div class="specs">
+
+    <!-- Free -->
+    <div class="spec">
+      <section class="card">
+        <div class="card-title">Match settings</div>
+
+        <div class="setting">
+          <div class="setting-head">
+            <span>Pen rule</span><span class="setting-rec">rec. Free</span>
+            <span class="setting-val">Free</span>
+          </div>
+          <div class="seg" role="group" aria-label="Pen rule">
+            <button type="button" aria-pressed="true">Free</button>
+            <button type="button" aria-pressed="false">One line</button>
+            <button type="button" aria-pressed="false">Max 5</button>
+          </div>
+          <p class="hint" style="margin:.35rem 0 0">Draw as much as the clock allows.</p>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span>Difficulty</span><span class="setting-rec">rec. Medium</span><span class="setting-val">Medium</span></div>
+          <div class="seg" role="group" aria-label="Word-pair difficulty">
+            <button type="button" aria-pressed="false">Easy</button>
+            <button type="button" aria-pressed="true">Medium</button>
+            <button type="button" aria-pressed="false">Hard</button>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span>Rounds</span><span class="setting-rec">rec. 2</span></div>
+          <div class="stepper" role="group" aria-label="Maximum rounds">
+            <button type="button" class="btn btn-sm" aria-label="Fewer rounds">−</button>
+            <span class="stepper-val">2</span>
+            <button type="button" class="btn btn-sm" aria-label="More rounds">+</button>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span>Drawing turn</span><span class="setting-rec">rec. 15s</span><span class="setting-val">15s</span></div>
+          <input type="range" min="5" max="60" value="15" aria-label="Drawing time per turn in seconds" />
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span>Discussion</span><span class="setting-rec">rec. 120s</span><span class="setting-val">120s</span></div>
+          <input type="range" min="30" max="180" step="5" value="120" aria-label="Discussion and decision time in seconds" />
+        </div>
+
+        <div class="setting">
+          <div class="setting-head"><span>Between turns</span><span class="setting-rec">rec. 10s</span><span class="setting-val">10s</span></div>
+          <input type="range" min="3" max="30" value="10" aria-label="Handoff time between turns in seconds" />
+        </div>
+      </section>
+      <div class="spec-cap is-new"><b>Free — the default</b>The panel as it ships today, plus one row. Hint line under the control carries the whole rule, so nothing else on the screen has to explain it.</div>
+    </div>
+
+    <!-- One line -->
+    <div class="spec">
+      <section class="card">
+        <div class="card-title">Match settings</div>
+        <div class="setting">
+          <div class="setting-head">
+            <span>Pen rule</span><span class="setting-rec">rec. Free</span>
+            <span class="setting-val">One line</span>
+          </div>
+          <div class="seg" role="group" aria-label="Pen rule">
+            <button type="button" aria-pressed="false">Free</button>
+            <button type="button" aria-pressed="true">One line</button>
+            <button type="button" aria-pressed="false">Max 5</button>
+          </div>
+          <p class="hint" style="margin:.35rem 0 0">One unbroken stroke. Lift the pen and your turn's drawing is done.</p>
+        </div>
+        <div class="setting">
+          <div class="setting-head"><span>Difficulty</span><span class="setting-rec">rec. Medium</span><span class="setting-val">Hard</span></div>
+          <div class="seg" role="group" aria-label="Word-pair difficulty">
+            <button type="button" aria-pressed="false">Easy</button>
+            <button type="button" aria-pressed="false">Medium</button>
+            <button type="button" aria-pressed="true">Hard</button>
+          </div>
+        </div>
+        <div class="setting">
+          <div class="setting-head"><span>Drawing turn</span><span class="setting-rec">rec. 15s</span><span class="setting-val">20s</span></div>
+          <input type="range" min="5" max="60" value="20" aria-label="Drawing time per turn in seconds" />
+        </div>
+        <p class="hint" style="margin:.2rem 0 0">…remaining rows unchanged.</p>
+      </section>
+      <div class="spec-cap is-new"><b>One line selected</b>The hint text is the only thing that changes. No extra control appears, so the panel never reflows under the host's thumb.</div>
+    </div>
+
+    <!-- Max 5, non-host -->
+    <div class="spec">
+      <section class="card">
+        <div class="card-title">Match settings</div>
+        <div class="setting">
+          <div class="setting-head">
+            <span>Pen rule</span><span class="setting-rec">rec. Free</span>
+            <span class="setting-val">Max 5</span>
+          </div>
+          <div class="seg" role="group" aria-label="Pen rule">
+            <button type="button" aria-pressed="false" disabled>Free</button>
+            <button type="button" aria-pressed="false" disabled>One line</button>
+            <button type="button" aria-pressed="true" disabled>Max 5</button>
+          </div>
+          <p class="hint" style="margin:.35rem 0 0">Five strokes for the whole turn. Spend them well.</p>
+        </div>
+        <div class="setting">
+          <div class="setting-head"><span>Difficulty</span><span class="setting-rec">rec. Medium</span><span class="setting-val">Medium</span></div>
+          <div class="seg" role="group" aria-label="Word-pair difficulty">
+            <button type="button" aria-pressed="false" disabled>Easy</button>
+            <button type="button" aria-pressed="true" disabled>Medium</button>
+            <button type="button" aria-pressed="false" disabled>Hard</button>
+          </div>
+        </div>
+        <div class="setting">
+          <div class="setting-head"><span>Drawing turn</span><span class="setting-rec">rec. 15s</span><span class="setting-val">15s</span></div>
+          <input type="range" min="5" max="60" value="15" disabled aria-label="Drawing time per turn in seconds" />
+        </div>
+        <p class="hint">Only the host can change these.</p>
+      </section>
+      <div class="spec-cap"><b>Max 5, seen by a non-host</b>Identical panel, every control inert — the existing rule. A joiner still reads the handicap before they ready up.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ DRAWING ============================ -->
+<section class="wrap">
+  <div class="sec-head">
+    <h2>2 · Drawing screen, artist's right column</h2>
+    <p>The status card names the rule; the pen card owns the budget. Nothing is painted over the canvas itself.</p>
+    <span class="tag">web/src/ui/screens/drawing.ts · tools.ts</span>
+  </div>
+
+  <div class="specs">
+
+    <!-- Free -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title">You are drawing</div>
+          <p style="margin:0 0 .4rem">Freehand clues only. No letters, numbers, arrows or symbols.</p>
+          <p class="hint" style="margin:0">There is no eraser and no undo — every mark stays on the canvas.</p>
+        </section>
+        <section class="card tools" aria-disabled="false">
+          <div class="card-title">Your pen</div>
+          <div class="swatches" role="group" aria-label="Pen colour">
+            <button class="swatch" style="background:#263238" aria-pressed="true"></button>
+            <button class="swatch" style="background:#5b6b73" aria-pressed="false"></button>
+            <button class="swatch" style="background:#8a5a3b" aria-pressed="false"></button>
+            <button class="swatch" style="background:#ef5d5a" aria-pressed="false"></button>
+            <button class="swatch" style="background:#f08c3a" aria-pressed="false"></button>
+            <button class="swatch" style="background:#f5c744" aria-pressed="false"></button>
+            <button class="swatch" style="background:#3f966d" aria-pressed="false"></button>
+            <button class="swatch" style="background:#2fa4a0" aria-pressed="false"></button>
+            <button class="swatch" style="background:#4f7cff" aria-pressed="false"></button>
+            <button class="swatch" style="background:#2c4a8f" aria-pressed="false"></button>
+            <button class="swatch" style="background:#7b56c9" aria-pressed="false"></button>
+            <button class="swatch" style="background:#dd6ba0" aria-pressed="false"></button>
+          </div>
+          <div style="height:.6rem"></div>
+          <div class="nibs" role="group" aria-label="Brush size">
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:5px;height:5px"></span></button>
+            <button class="nib" aria-pressed="true"><span class="nib-dot" style="width:7px;height:7px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:11px;height:11px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:19px;height:19px"></span></button>
+          </div>
+        </section>
+      </div>
+      <div class="spec-cap"><b>Free — unchanged</b>No gauge, no chip. The default game looks exactly as it does today.</div>
+    </div>
+
+    <!-- Max 5, 3 left -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title with-chip">
+            <span>You are drawing</span>
+            <span class="rulechip">Max 5 strokes</span>
+          </div>
+          <p style="margin:0 0 .4rem">Freehand clues only. No letters, numbers, arrows or symbols.</p>
+          <p class="hint" style="margin:0">There is no eraser and no undo — every mark stays on the canvas.</p>
+        </section>
+        <section class="card tools" aria-disabled="false">
+          <div class="card-title">Your pen</div>
+          <div class="gauge">
+            <span class="gauge-ticks" role="img" aria-label="3 of 5 strokes left">
+              <i class="gauge-tick spent"></i><i class="gauge-tick spent"></i>
+              <i class="gauge-tick live"></i><i class="gauge-tick"></i><i class="gauge-tick"></i>
+            </span>
+            <span class="gauge-label"><b>3 left</b>of 5 strokes</span>
+          </div>
+          <div class="swatches" role="group" aria-label="Pen colour">
+            <button class="swatch" style="background:#263238" aria-pressed="false"></button>
+            <button class="swatch" style="background:#5b6b73" aria-pressed="false"></button>
+            <button class="swatch" style="background:#8a5a3b" aria-pressed="false"></button>
+            <button class="swatch" style="background:#ef5d5a" aria-pressed="true"></button>
+            <button class="swatch" style="background:#f08c3a" aria-pressed="false"></button>
+            <button class="swatch" style="background:#f5c744" aria-pressed="false"></button>
+            <button class="swatch" style="background:#3f966d" aria-pressed="false"></button>
+            <button class="swatch" style="background:#2fa4a0" aria-pressed="false"></button>
+            <button class="swatch" style="background:#4f7cff" aria-pressed="false"></button>
+            <button class="swatch" style="background:#2c4a8f" aria-pressed="false"></button>
+            <button class="swatch" style="background:#7b56c9" aria-pressed="false"></button>
+            <button class="swatch" style="background:#dd6ba0" aria-pressed="false"></button>
+          </div>
+          <div style="height:.6rem"></div>
+          <div class="nibs" role="group" aria-label="Brush size">
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:5px;height:5px"></span></button>
+            <button class="nib" aria-pressed="true"><span class="nib-dot" style="width:7px;height:7px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:11px;height:11px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:19px;height:19px"></span></button>
+          </div>
+        </section>
+      </div>
+      <div class="spec-cap is-new"><b>Max 5 · two spent</b>Marker ticks, not a numeral counting down — spent ticks stay on screen because a used stroke never comes back. The next one bobs.</div>
+    </div>
+
+    <!-- Max 5, spent -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title with-chip">
+            <span>You are drawing</span>
+            <span class="rulechip">Max 5 strokes</span>
+          </div>
+          <p style="margin:0 0 .4rem">Freehand clues only. No letters, numbers, arrows or symbols.</p>
+          <p class="hint" style="margin:0">There is no eraser and no undo — every mark stays on the canvas.</p>
+        </section>
+        <section class="card tools" aria-disabled="true">
+          <div class="card-title">Your pen</div>
+          <div class="gauge spent">
+            <span class="gauge-ticks" role="img" aria-label="No strokes left">
+              <i class="gauge-tick spent"></i><i class="gauge-tick spent"></i><i class="gauge-tick spent"></i>
+              <i class="gauge-tick spent"></i><i class="gauge-tick spent"></i>
+            </span>
+            <span class="gauge-label"><b>Spent</b>all 5 used</span>
+          </div>
+          <div class="swatches" role="group" aria-label="Pen colour">
+            <button class="swatch" style="background:#263238" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#5b6b73" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#8a5a3b" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#ef5d5a" aria-pressed="true" disabled></button>
+            <button class="swatch" style="background:#f08c3a" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#f5c744" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#3f966d" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#2fa4a0" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#4f7cff" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#2c4a8f" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#7b56c9" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#dd6ba0" aria-pressed="false" disabled></button>
+          </div>
+          <div style="height:.6rem"></div>
+          <div class="nibs" role="group" aria-label="Brush size">
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:5px;height:5px"></span></button>
+            <button class="nib" aria-pressed="true" disabled><span class="nib-dot" style="width:7px;height:7px"></span></button>
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:11px;height:11px"></span></button>
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:19px;height:19px"></span></button>
+          </div>
+          <p class="spent-note">Out of strokes. The clock keeps running — sit on your hands.</p>
+        </section>
+      </div>
+      <div class="spec-cap is-new"><b>Max 5 · budget gone</b>The rack goes inert through the existing <code style="font:500 .82em var(--mono)">aria-disabled</code> path, so it dims exactly the way a non-artist's does. Canvas stops taking input at the same instant.</div>
+    </div>
+
+    <!-- One line, pen still down -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title with-chip">
+            <span>You are drawing</span>
+            <span class="rulechip">One line</span>
+          </div>
+          <p style="margin:0 0 .4rem">Freehand clues only. No letters, numbers, arrows or symbols.</p>
+          <p class="hint" style="margin:0">There is no eraser and no undo — every mark stays on the canvas.</p>
+        </section>
+        <section class="card tools" aria-disabled="false">
+          <div class="card-title">Your pen</div>
+          <div class="gauge oneline">
+            <span class="gauge-ticks" role="img" aria-label="Your one line is in progress"><i class="gauge-tick live"></i></span>
+            <span class="gauge-label"><b>Pen down</b>keep it down</span>
+          </div>
+          <div class="swatches" role="group" aria-label="Pen colour">
+            <button class="swatch" style="background:#263238" aria-pressed="false"></button>
+            <button class="swatch" style="background:#5b6b73" aria-pressed="false"></button>
+            <button class="swatch" style="background:#8a5a3b" aria-pressed="false"></button>
+            <button class="swatch" style="background:#ef5d5a" aria-pressed="false"></button>
+            <button class="swatch" style="background:#f08c3a" aria-pressed="false"></button>
+            <button class="swatch" style="background:#f5c744" aria-pressed="false"></button>
+            <button class="swatch" style="background:#3f966d" aria-pressed="false"></button>
+            <button class="swatch" style="background:#2fa4a0" aria-pressed="false"></button>
+            <button class="swatch" style="background:#4f7cff" aria-pressed="true"></button>
+            <button class="swatch" style="background:#2c4a8f" aria-pressed="false"></button>
+            <button class="swatch" style="background:#7b56c9" aria-pressed="false"></button>
+            <button class="swatch" style="background:#dd6ba0" aria-pressed="false"></button>
+          </div>
+          <div style="height:.6rem"></div>
+          <div class="nibs" role="group" aria-label="Brush size">
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:5px;height:5px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:7px;height:7px"></span></button>
+            <button class="nib" aria-pressed="true"><span class="nib-dot" style="width:11px;height:11px"></span></button>
+            <button class="nib" aria-pressed="false"><span class="nib-dot" style="width:19px;height:19px"></span></button>
+          </div>
+          <p class="live-note">Your line is live. Lift and it's finished.</p>
+        </section>
+      </div>
+      <div class="spec-cap is-new"><b>One line · pen still down</b>A single wide tick instead of five. Colour and nib are frozen mid-stroke anyway, so the rack could equally go inert here — worth deciding.</div>
+    </div>
+
+    <!-- One line, finished -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title with-chip">
+            <span>You are drawing</span>
+            <span class="rulechip">One line</span>
+          </div>
+          <p style="margin:0 0 .4rem">Freehand clues only. No letters, numbers, arrows or symbols.</p>
+          <p class="hint" style="margin:0">There is no eraser and no undo — every mark stays on the canvas.</p>
+        </section>
+        <section class="card tools" aria-disabled="true">
+          <div class="card-title">Your pen</div>
+          <div class="gauge oneline spent">
+            <span class="gauge-ticks" role="img" aria-label="Your line is finished"><i class="gauge-tick spent"></i></span>
+            <span class="gauge-label"><b>Line done</b>pen up</span>
+          </div>
+          <div class="swatches" role="group" aria-label="Pen colour">
+            <button class="swatch" style="background:#263238" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#5b6b73" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#8a5a3b" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#ef5d5a" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#f08c3a" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#f5c744" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#3f966d" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#2fa4a0" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#4f7cff" aria-pressed="true" disabled></button>
+            <button class="swatch" style="background:#2c4a8f" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#7b56c9" aria-pressed="false" disabled></button>
+            <button class="swatch" style="background:#dd6ba0" aria-pressed="false" disabled></button>
+          </div>
+          <div style="height:.6rem"></div>
+          <div class="nibs" role="group" aria-label="Brush size">
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:5px;height:5px"></span></button>
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:7px;height:7px"></span></button>
+            <button class="nib" aria-pressed="true" disabled><span class="nib-dot" style="width:11px;height:11px"></span></button>
+            <button class="nib" aria-pressed="false" disabled><span class="nib-dot" style="width:19px;height:19px"></span></button>
+          </div>
+          <p class="spent-note">Pen lifted — your line is on the canvas for good.</p>
+        </section>
+      </div>
+      <div class="spec-cap is-new"><b>One line · lifted</b>Per the decision: the pen locks, the clock keeps running, the turn ends on the timer. A stray <code style="font:500 .82em var(--mono)">pointercancel</code> costs the stroke, never the turn.</div>
+    </div>
+
+    <!-- Watcher -->
+    <div class="spec">
+      <div class="stack">
+        <section class="card">
+          <div class="card-title with-chip">
+            <span>Watching</span>
+            <span class="rulechip">One line</span>
+          </div>
+          <p class="row" style="margin:0 0 .5rem">
+            <span style="width:2rem;height:2rem;border-radius:50%;background:#5eaa85;border:3px solid #fff;box-shadow:0 0 0 2px var(--border-str);flex:0 0 auto"></span>
+            <span style="font-weight:800">Cara is drawing.</span>
+          </p>
+          <p class="badge badge-you" style="margin:0">YOUR TURN IS NEXT</p>
+        </section>
+        <section class="card">
+          <div class="card-title">The rule this match</div>
+          <div class="gauge oneline">
+            <span class="gauge-ticks"><i class="gauge-tick"></i></span>
+            <span class="gauge-label"><b>One line</b>nobody lifts the pen</span>
+          </div>
+          <p class="hint" style="margin:0">Every artist gets a single unbroken stroke. Judge the drawing accordingly.</p>
+        </section>
+      </div>
+      <div class="spec-cap is-new"><b>Watcher, rule visible</b>The pen card is hidden for non-artists today, so the rule rides in the status card instead — a handicap nobody can see is a handicap nobody can read into a vote.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================ CANVAS CONTEXT ============================ -->
+<section class="wrap">
+  <div class="sec-head">
+    <h2>3 · What the canvas looks like under each rule</h2>
+    <p>Same word, same 15 seconds. The rule is the whole difference in what lands on the paper.</p>
+    <span class="tag">illustrative only</span>
+  </div>
+
+  <div class="specs">
+    <div class="spec">
+      <div class="stagemock">
+        <svg viewBox="0 0 400 300" fill="none" stroke="#263238" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M120 96c-22 0-34 16-34 32 0 22 20 34 42 34h84c26 0 44-16 44-36s-18-32-40-32c-6-24-26-36-48-36-24 0-40 14-48 38z" stroke="#5b6b73"/>
+          <path d="M150 190v46M200 186v54M250 192v44" stroke="#4f7cff"/>
+          <path d="M96 252h208" stroke="#8a5a3b"/>
+          <circle cx="318" cy="70" r="24" stroke="#f5c744"/>
+          <path d="M318 32v-14M318 122v14M356 70h14M266 70h-14" stroke="#f5c744"/>
+        </svg>
+      </div>
+      <div class="spec-cap"><b>Free</b>Nine strokes, lifted whenever. Detail is cheap, so the imposter can hide inside it.</div>
+    </div>
+
+    <div class="spec">
+      <div class="stagemock">
+        <svg viewBox="0 0 400 300" fill="none" stroke="#263238" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M120 96c-22 0-34 16-34 32 0 22 20 34 42 34h84c26 0 44-16 44-36s-18-32-40-32c-6-24-26-36-48-36-24 0-40 14-48 38z" stroke="#5b6b73"/>
+          <path d="M150 190v46" stroke="#4f7cff"/>
+          <path d="M200 186v54" stroke="#4f7cff"/>
+          <path d="M250 192v44" stroke="#4f7cff"/>
+          <path d="M96 252h208" stroke="#8a5a3b"/>
+        </svg>
+      </div>
+      <div class="spec-cap"><b>Max 5</b>Cloud, three drops, ground line. Every stroke has to say something — the tell is what you chose to leave out.</div>
+    </div>
+
+    <div class="spec">
+      <div class="stagemock">
+        <svg viewBox="0 0 400 300" fill="none" stroke="#4f7cff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M120 96c-22 0-34 16-34 32 0 22 20 34 42 34h20l-12 42 22-38 10 40 12-42 6 44 16-46h20c26 0 44-16 44-36s-18-32-40-32c-6-24-26-36-48-36-24 0-40 14-48 38z"/>
+        </svg>
+      </div>
+      <div class="spec-cap"><b>One line</b>Cloud and rain in a single unbroken path, drops hung off the underside on the way past. Loops and doubling back are the only vocabulary left.</div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h3>What this implies underneath</h3>
+    <ul>
+      <li><b>One field on the wire.</b> <code>MatchSettings.pen_rule</code>, an enum of <code>FREE</code> / <code>ONE_LINE</code> / <code>MAX_FIVE</code>, clamped server-side like every other setting. No numeric limit field, so nothing new to validate a range on.</li>
+      <li><b>The server already has the enforcement point.</b> <code>internal/room/strokes.go</code> drops a <code>StrokeBegin</code> past <code>MaxStrokesPerTurn</code>; the rule just makes that ceiling 1 or 5 instead of 128. The client-side gauge is a courtesy — authority stays in the room.</li>
+      <li><b>The lift never ends the turn.</b> Per your call: pen locks, clock runs on. <code>pointercancel</code> fires on app switch, orientation change and palm rejection, and none of those should cost somebody their turn.</li>
+      <li><b>The budget resets where the point budget already resets</b> — <code>beginTurn()</code> on the server, <code>setDrawingEnabled(true)</code> on the client. One place each, no new lifecycle.</li>
+      <li><b>Open question in the mock:</b> under One line, should the colour and nib rack go inert the moment the pen touches down? The width and ink are frozen for the stroke either way, so leaving them live is a control that lies.</li>
+    </ul>
+  </div>
+</section>
+
+<footer class="wrap">Scratchpad · not production markup. Real classes, real tokens, fake data.</footer>
+
+</body>
+</html>

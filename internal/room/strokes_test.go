@@ -6,7 +6,8 @@ package room
 //
 //  1. A stroke command from anyone who is not the current artist is rejected.
 //  2. Brush width is clamped server-side.
-//  3. Total points per turn are capped.
+//  3. Total points per turn are capped, and the stroke ceiling is whatever the
+//     host's pen rule allows (DESIGN.md:104).
 //
 // Plus the two properties that make the canvas evidence rather than a sabotage
 // tool: coordinates are validated but NOT clipped to the grid, and nothing a
@@ -167,13 +168,21 @@ func strkHas(codes []genpb.ErrorCode, want genpb.ErrorCode) bool {
 // drawing turn. Call inside synctest.Test.
 func strkStart(t *testing.T, n int) *strkMatch {
 	t.Helper()
+	return strkStartRule(t, n, genpb.PenRule_PEN_RULE_UNSPECIFIED)
+}
+
+// strkStartRule is strkStart with the host's pen rule supplied. UNSPECIFIED
+// leaves the field unset, which is what a client that has never heard of the
+// setting sends.
+func strkStartRule(t *testing.T, n int, rule genpb.PenRule) *strkMatch {
+	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	r := New("STRK", "host", Options{
 		Deck: strkDeck{},
 		Rand: mrand.New(mrand.NewPCG(5, 9)),
 		Settings: &genpb.MatchSettings{
-			MaxRounds: 2, DrawSeconds: 30, DiscussSeconds: 30,
+			MaxRounds: 2, DrawSeconds: 30, DiscussSeconds: 30, PenRule: rule,
 		},
 	})
 	hostID, hostTok := r.HostSeat()
@@ -236,6 +245,33 @@ func strkPoints(n int, x0 int32) []int32 {
 		out = append(out, x0+int32(i%1000), int32(i%700))
 	}
 	return out
+}
+
+// stroke draws one complete stroke: down, one batch, up. A single coordinate
+// pair per stroke keeps the point budget out of the way, so only the stroke
+// ceiling can ever be what stops a caller.
+func (m *strkMatch) stroke(i int, x int32) {
+	m.submit(i, &genpb.ClientCommand{
+		Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
+			ColorIndex: 1, Width: 4, Points: []int32{x, x}}}})
+	m.submit(i, &genpb.ClientCommand{
+		Cmd: &genpb.ClientCommand_StrokeEnd{StrokeEnd: &genpb.StrokeEnd{}}})
+}
+
+// nextTurn runs the live turn's clock out and lands on the following one. The
+// per-turn budget is zeroed in beginTurn, on the far side of the intermission
+// handoff, so both clocks have to run out before the reset is observable.
+func (m *strkMatch) nextTurn(t *testing.T) {
+	t.Helper()
+	draw := strkGet(m.r, func(r *Room) int32 { return r.settings.GetDrawSeconds() })
+	time.Sleep(time.Duration(draw)*time.Second + time.Millisecond)
+	synctest.Wait()
+	time.Sleep(strkIntermission(m.r))
+	synctest.Wait()
+	if ph := strkGet(m.r, func(r *Room) genpb.Phase { return r.phase }); ph != genpb.Phase_PHASE_DRAWING {
+		t.Fatalf("nextTurn: phase = %v, want DRAWING", ph)
+	}
+	m.drainAll()
 }
 
 // ---------------------------------------------------------------------------
@@ -450,6 +486,158 @@ func TestPerTurnStrokeCapIsEnforced(t *testing.T) {
 		}
 		if st.strokes > MaxStrokesPerTurn {
 			t.Fatalf("committed %d strokes, cap is %d", st.strokes, MaxStrokesPerTurn)
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Pen rules — the host's per-turn stroke handicap (DESIGN.md:104)
+// ---------------------------------------------------------------------------
+
+// TestOneLinePenRuleAllowsExactlyOneStroke — "lifting the pen finishes their
+// drawing" (DESIGN.md:110). The second pointerdown of the turn buys nothing,
+// and what the artist already committed is not touched by the refusal: the
+// rule locks the pen, it does not roll the canvas back.
+func TestOneLinePenRuleAllowsExactlyOneStroke(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStartRule(t, 3, genpb.PenRule_PEN_RULE_ONE_LINE)
+		artist, _ := m.artist(t)
+
+		m.stroke(artist, 10)
+		synctest.Wait()
+		m.drainAll()
+		before := strkSnap(m.r)
+		if before.strokes != 1 || before.perTurnS != 1 {
+			t.Fatalf("first stroke: %d committed / %d charged, want 1 / 1",
+				before.strokes, before.perTurnS)
+		}
+
+		m.stroke(artist, 20)
+		synctest.Wait()
+
+		after := strkSnap(m.r)
+		if after.strokes != 1 {
+			t.Fatalf("committed %d strokes under ONE_LINE, want %d", after.strokes, OneLineStrokes)
+		}
+		if after.perTurnS != OneLineStrokes {
+			t.Fatalf("strokesThisTurn = %d, want the ceiling %d", after.perTurnS, OneLineStrokes)
+		}
+		if string(after.log) != string(before.log) {
+			t.Fatal("the refused stroke rewrote the committed log")
+		}
+		if after.openLen != -1 {
+			t.Fatalf("a stroke is open after the budget was spent: %d points", after.openLen)
+		}
+		// The pen is locked, not the turn: nobody was moved along by running out.
+		if after.phase != genpb.Phase_PHASE_DRAWING || after.artist != before.artist {
+			t.Fatalf("spending the budget ended the turn: phase %v, artist %q",
+				after.phase, after.artist)
+		}
+		// A dropped StrokeBegin is fire-and-forget, so the artist is told nothing.
+		if codes := strkErrors(m.socks[artist].drain()); len(codes) != 0 {
+			t.Fatalf("the dropped stroke sent errors: %v", codes)
+		}
+	})
+}
+
+// TestMaxFivePenRuleStopsAtTheSixthStroke — five strokes for the whole turn
+// (DESIGN.md:112). The sixth is dropped, not trimmed to fit.
+func TestMaxFivePenRuleStopsAtTheSixthStroke(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStartRule(t, 3, genpb.PenRule_PEN_RULE_MAX_FIVE)
+		artist, _ := m.artist(t)
+
+		for i := range MaxFiveStrokes {
+			m.stroke(artist, int32(i))
+		}
+		synctest.Wait()
+		m.drainAll()
+		before := strkSnap(m.r)
+		if before.strokes != MaxFiveStrokes {
+			t.Fatalf("committed %d of %d allowed strokes", before.strokes, MaxFiveStrokes)
+		}
+
+		m.stroke(artist, 99)
+		synctest.Wait()
+
+		after := strkSnap(m.r)
+		if after.strokes != MaxFiveStrokes {
+			t.Fatalf("committed %d strokes under MAX_FIVE, want %d", after.strokes, MaxFiveStrokes)
+		}
+		if after.perTurnS != MaxFiveStrokes {
+			t.Fatalf("strokesThisTurn = %d, want the ceiling %d", after.perTurnS, MaxFiveStrokes)
+		}
+		if string(after.log) != string(before.log) {
+			t.Fatal("the sixth stroke rewrote the committed log")
+		}
+		if after.phase != genpb.Phase_PHASE_DRAWING {
+			t.Fatalf("the sixth stroke ended the turn: phase = %v", after.phase)
+		}
+	})
+}
+
+// TestPenRuleBudgetResetsEveryTurn — the handicap is per turn, not per match.
+// The next artist inherits a fresh allowance however thoroughly the previous
+// one spent theirs, and the canvas they inherit still holds every earlier mark.
+func TestPenRuleBudgetResetsEveryTurn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStartRule(t, 3, genpb.PenRule_PEN_RULE_ONE_LINE)
+		first, _ := m.artist(t)
+
+		m.stroke(first, 10)
+		m.stroke(first, 20) // spent: dropped
+		synctest.Wait()
+		m.drainAll()
+		if st := strkSnap(m.r); st.strokes != 1 {
+			t.Fatalf("first turn committed %d strokes, want 1", st.strokes)
+		}
+
+		m.nextTurn(t)
+		st := strkSnap(m.r)
+		if st.perTurnS != 0 {
+			t.Fatalf("the new turn inherited a spent budget: strokesThisTurn = %d", st.perTurnS)
+		}
+		if st.artist == m.ids[first] {
+			t.Fatal("the pen never left the first artist")
+		}
+		second := m.idx(st.artist)
+
+		m.stroke(second, 30)
+		synctest.Wait()
+		if got := strkSnap(m.r); got.strokes != 2 {
+			t.Fatalf("the fresh allowance did not land: %d strokes on the log, want 2", got.strokes)
+		}
+
+		// And it is one stroke again, not one more than last time.
+		m.stroke(second, 40)
+		synctest.Wait()
+		if got := strkSnap(m.r); got.strokes != 2 || got.perTurnS != OneLineStrokes {
+			t.Fatalf("the reset handed out extra strokes: %d on the log, %d charged",
+				got.strokes, got.perTurnS)
+		}
+	})
+}
+
+// TestFreePenRuleDrawsUpToTheAntiAbuseCeiling — FREE is the absence of a rule,
+// not the absence of a cap. MaxStrokesPerTurn is anti-abuse and still holds
+// (IMPLEMENTATION_PLAN.md §4.7).
+func TestFreePenRuleDrawsUpToTheAntiAbuseCeiling(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStartRule(t, 3, genpb.PenRule_PEN_RULE_FREE)
+		artist, _ := m.artist(t)
+
+		for i := range MaxStrokesPerTurn + 20 {
+			m.stroke(artist, int32(i%1000))
+		}
+		synctest.Wait()
+		m.drainAll()
+
+		st := strkSnap(m.r)
+		if st.perTurnS != MaxStrokesPerTurn {
+			t.Fatalf("strokesThisTurn = %d, want the anti-abuse cap %d", st.perTurnS, MaxStrokesPerTurn)
+		}
+		if st.strokes != MaxStrokesPerTurn {
+			t.Fatalf("committed %d strokes, want exactly the cap %d", st.strokes, MaxStrokesPerTurn)
 		}
 	})
 }

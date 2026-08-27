@@ -101,6 +101,18 @@ The canvas is append-only evidence, not a sabotage tool.
 - Players may draw an ambiguous clue that fits more than one possible word.
 - The game should prevent erase tools and text tools; intentional overpainting remains a player-conduct rule.
 
+### Pen Rules
+
+The host may hand every artist the same handicap on how the turn may be spent. It constrains the pen, never the word, so it is not a second difficulty knob — a harder pen makes every clue sparser, which is precisely what makes an imposter easier to spot and a nervous informed player easier to mistake for one.
+
+| Pen rule | The artist gets |
+| --- | --- |
+| **Free** (default) | As much drawing as the clock allows. |
+| **One line** | One unbroken stroke. Lifting the pen finishes their drawing. |
+| **Max 5** | Five strokes for the whole turn. |
+
+A spent budget locks the pen for the rest of the turn; it never ends the turn early. Pointer cancellation is routine on touch devices — an app switch, a rotation, or a palm resting on the screen all fire it — and none of those should cost a player their turn. The rule is enforced on the server as a per-turn stroke ceiling; the client's gauge is a courtesy so nobody draws ink that will be dropped.
+
 ## Discussion Rules
 
 Players may defend their drawing choices, question suspicious marks, and accuse or support other players. They may not reveal private-word information directly or indirectly.
@@ -284,6 +296,7 @@ turn changes are carried by sound as well as by the screen.
 | --- | ---: | ---: |
 | Players | 3–10 | 3–10 |
 | Difficulty | Medium | Easy, Medium, Hard |
+| Pen rule | Free | Free, One line, Max 5 |
 | Maximum rounds | 2 | 1–4 |
 | Drawing turn | 15 seconds | 5–60 seconds |
 | Discussion and decision | 120 seconds | 30–180 seconds |

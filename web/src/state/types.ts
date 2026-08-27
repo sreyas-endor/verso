@@ -8,7 +8,7 @@
 // Everything here is read-only by convention: the store replaces the whole
 // object on every change and never mutates one it has already published.
 
-import { Difficulty, Phase } from "../../gen/verso/v1/game_pb.js";
+import { Difficulty, PenRule, Phase } from "../../gen/verso/v1/game_pb.js";
 import { MatchSettingsSchema } from "../../gen/verso/v1/game_pb.js";
 import type {
   ErrorCode,
@@ -123,6 +123,7 @@ export interface GameState {
 export function defaultSettings(): MatchSettings {
   return create(MatchSettingsSchema, {
     difficulty: Difficulty.MEDIUM,
+    penRule: PenRule.FREE,
     maxRounds: DEFAULT_ROUNDS,
     drawSeconds: DEFAULT_DRAW_SECONDS,
     discussSeconds: DEFAULT_DISCUSS_SECONDS,

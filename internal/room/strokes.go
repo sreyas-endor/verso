@@ -9,8 +9,12 @@ package room
 //  1. Stroke commands from anyone who is not the current artist are rejected.
 //  2. Brush width is clamped, so one client cannot lag every other with an
 //     absurdly thick line.
-//  3. Total points per turn are capped. An append-only log with no cap is a
-//     trivial memory-exhaustion vector.
+//  3. Total points per turn are capped, and so is the number of strokes. An
+//     append-only log with no cap is a trivial memory-exhaustion vector, so
+//     MaxStrokesPerTurn always holds. The effective stroke ceiling is now
+//     settings-derived: the host's pen rule (DESIGN.md:104) lowers it further
+//     and never raises it, and a spent budget only locks the pen for the rest
+//     of the turn — it never ends the turn early (DESIGN.md:114).
 //
 // Colours are palette indices validated against the server-owned palette, never
 // CSS strings. Coordinates keep their full signed int16 range on purpose: a
@@ -37,6 +41,21 @@ func (r *Room) artistGate(p *Player, cid string) bool {
 	return true
 }
 
+// strokeCeiling is authority (3)'s stroke half: how many strokes this turn may
+// hold under the host's pen rule (DESIGN.md:104). MaxStrokesPerTurn remains the
+// anti-abuse ceiling for every rule; a handicap only ever cuts below it, and an
+// unset or unknown rule draws freely.
+func (r *Room) strokeCeiling() int {
+	switch r.settings.GetPenRule() {
+	case genpb.PenRule_PEN_RULE_ONE_LINE:
+		return OneLineStrokes
+	case genpb.PenRule_PEN_RULE_MAX_FIVE:
+		return MaxFiveStrokes
+	default:
+		return MaxStrokesPerTurn
+	}
+}
+
 func (r *Room) onStrokeBegin(p *Player, cid string, c *genpb.StrokeBegin) {
 	if !r.artistGate(p, cid) {
 		return
@@ -51,7 +70,10 @@ func (r *Room) onStrokeBegin(p *Player, cid string, c *genpb.StrokeBegin) {
 	// what is open rather than losing it.
 	r.commitOpen(nil)
 
-	if r.strokesThisTurn >= MaxStrokesPerTurn {
+	if r.strokesThisTurn >= r.strokeCeiling() {
+		// Fire-and-forget command, so this stays quiet: the artist's own gauge
+		// already knows the budget is gone, and an error frame per dropped
+		// pointerdown would be noise, not news.
 		r.log.Debug("per-turn stroke cap reached, dropping", "player", p.ID)
 		return
 	}

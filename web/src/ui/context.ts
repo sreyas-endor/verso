@@ -3,6 +3,7 @@
 // Nothing under web/src/ui/ imports from those modules directly, so the three
 // halves can be built in parallel and adapted at wiring time.
 
+import { PenRule } from "../../gen/verso/v1/game_pb.js";
 import type {
   Difficulty,
   ErrorCode,
@@ -118,6 +119,19 @@ export interface CanvasHandle {
   setInteractive(on: boolean): void;
   setColorIndex(index: number): void;
   setWidth(width: number): void;
+  /**
+   * The per-turn stroke ceiling for the current artist's turn, from the match's
+   * pen rule. Unlimited is `Infinity`; the count itself resets wherever the
+   * per-turn point budget does, so this is a setting and never a lifecycle.
+   */
+  setStrokeLimit(limit: number): void;
+  /**
+   * The state of that ceiling right now: the limit, how much of it is gone, and
+   * whether a stroke is open under the pointer. Read cheaply, per frame, by the
+   * drawing screen — a stroke starting or ending is a purely local event that
+   * the store never republishes, so the gauge polls rather than subscribes.
+   */
+  strokeBudget(): { limit: number; used: number; penDown: boolean };
   /** Re-renders the vectors at 2x and hands the viewer a PNG. */
   savePng(): Promise<void>;
 
@@ -172,6 +186,7 @@ export interface Screen {
 /** DESIGN.md:224 — the recommended defaults, marked in the lobby sliders. */
 export const RECOMMENDED = {
   difficulty: 2 as Difficulty,
+  penRule: PenRule.FREE,
   maxRounds: 2,
   drawSeconds: 15,
   discussSeconds: 120,

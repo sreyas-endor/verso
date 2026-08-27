@@ -147,6 +147,18 @@ export class CanvasEngine implements PointerSink {
   private width = DEFAULT_WIDTH;
   private enabled = false;
   private pointsThisTurn = 0;
+  /**
+   * Per-turn stroke ceiling from the match's pen rule (ONE_LINE = 1,
+   * MAX_FIVE = 5) and how much of it this turn has spent.
+   *
+   * Infinity, not the server's FREE ceiling of 128: the room enforces that one
+   * as anti-abuse, and mirroring a number the point budget above reaches first
+   * would only give the client a second cap to keep in sync. The server is the
+   * authority either way — this gate exists so the artist is not laying down
+   * ink that the room will silently drop.
+   */
+  private strokeLimit = Number.POSITIVE_INFINITY;
+  private strokesThisTurn = 0;
 
   private pending: number[] = [];
   private batchTimer: number | null = null;
@@ -218,12 +230,15 @@ export class CanvasEngine implements PointerSink {
   }
 
   /**
-   * Only the current artist draws. Enabling starts a fresh per-turn point
-   * budget; disabling closes any stroke still under the pointer, which is what
-   * makes a turn that expires mid-stroke end cleanly on both sides.
+   * Only the current artist draws. Enabling starts a fresh per-turn point and
+   * stroke budget; disabling closes any stroke still under the pointer, which
+   * is what makes a turn that expires mid-stroke end cleanly on both sides.
    */
   setDrawingEnabled(enabled: boolean): void {
-    if (enabled && !this.enabled) this.pointsThisTurn = 0;
+    if (enabled && !this.enabled) {
+      this.pointsThisTurn = 0;
+      this.strokesThisTurn = 0;
+    }
     this.enabled = enabled;
     this.surface.setDrawingAffordance(enabled);
     this.input.setEnabled(enabled);
@@ -233,6 +248,30 @@ export class CanvasEngine implements PointerSink {
     return this.enabled;
   }
 
+  /**
+   * The pen rule's per-turn stroke ceiling. A courtesy gate, not enforcement:
+   * internal/room/strokes.go drops a StrokeBegin past its own ceiling, so a
+   * client that never called this still cannot draw more than the room allows.
+   * Anything that is not a finite count means unlimited.
+   */
+  setStrokeLimit(limit: number): void {
+    this.strokeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : Number.POSITIVE_INFINITY;
+  }
+
+  /**
+   * The stroke budget as the UI draws it. `used` counts strokes started this
+   * turn — including the one under the pointer, which `penDown` separates out
+   * so the gauge can show it as in progress rather than already spent.
+   */
+  strokeBudget(): { limit: number; used: number; penDown: boolean } {
+    const live = this.live;
+    return {
+      limit: this.strokeLimit,
+      used: this.strokesThisTurn,
+      penDown: live !== null && live.local && !live.ended,
+    };
+  }
+
   // -------------------------------------------------------------------------
   // PointerSink — the local artist's path. Nothing here waits on the network.
   // -------------------------------------------------------------------------
@@ -240,6 +279,9 @@ export class CanvasEngine implements PointerSink {
   begin(x: number, y: number, widthScale: number): void {
     if (!this.enabled) return;
     if (this.pointsThisTurn >= MAX_POINTS_PER_TURN) return;
+    // Out of strokes locks the pen for the rest of the turn; it never ends the
+    // turn early, so the clock simply runs out with the canvas as it stands.
+    if (this.strokesThisTurn >= this.strokeLimit) return;
     this.forceCommitLive();
 
     const width = scaledWidth(this.width, widthScale);
@@ -255,6 +297,7 @@ export class CanvasEngine implements PointerSink {
     };
     this.live = live;
     this.pointsThisTurn++;
+    this.strokesThisTurn++;
 
     // Synchronously, before the socket and before the frame loop. The rAF path
     // only paints on a `dirty` flag that the first point does not set, so
@@ -466,6 +509,7 @@ export class CanvasEngine implements PointerSink {
     this.log = [];
     this.byId.clear();
     this.pointsThisTurn = 0;
+    this.strokesThisTurn = 0;
     this.surface.clearBase();
     this.surface.clearOverlay();
     this.onInkChanged?.(0);

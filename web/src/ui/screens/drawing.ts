@@ -1,3 +1,4 @@
+import { PenRule } from "../../../gen/verso/v1/game_pb.js";
 import type { ScreenCtx, ViewState } from "../context.js";
 import { Disposers, el, fill, setText } from "../dom.js";
 import { avatar } from "../avatar.js";
@@ -10,6 +11,38 @@ import { tools } from "../tools.js";
 import { wordPanel } from "../wordPanel.js";
 
 let d: Disposers | null = null;
+
+/**
+ * The pen rule, everywhere it has to be said out loud.
+ *
+ * A handicap nobody can see is a handicap nobody can read into a vote, so the
+ * chip rides beside the status-card title for the watchers as well as for the
+ * artist, and the announcement carries it too — a screen reader user is being
+ * handed the same restriction.
+ */
+function ruleChip(rule: PenRule): string {
+  if (rule === PenRule.ONE_LINE) return "One line";
+  if (rule === PenRule.MAX_FIVE) return "Max 5 strokes";
+  return "";
+}
+
+/**
+ * The per-turn stroke ceiling the canvas gates on. Infinity under FREE: the
+ * room's own anti-abuse cap still applies, and the client has no business
+ * holding a second copy of a number it does not enforce.
+ */
+function strokeLimit(rule: PenRule): number {
+  if (rule === PenRule.ONE_LINE) return 1;
+  if (rule === PenRule.MAX_FIVE) return 5;
+  return Number.POSITIVE_INFINITY;
+}
+
+/** Spoken to the artist on the turn they get it, in the lobby's own words. */
+function ruleSpoken(rule: PenRule): string {
+  if (rule === PenRule.ONE_LINE) return " One unbroken stroke. Lift the pen and your turn's drawing is done.";
+  if (rule === PenRule.MAX_FIVE) return " Five strokes for the whole turn. Spend them well.";
+  return "";
+}
 
 function turnsAway(s: ViewState): number {
   const at = s.turnOrder.indexOf(s.selfId);
@@ -47,6 +80,42 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   const statusBody = el("div", {});
   const status = el("section", { class: "card" }, statusTitle, statusBody);
 
+  /** The title, with the rule chip pushed to its right when there is one. */
+  const setStatusTitle = (text: string, chip: string) => {
+    statusTitle.className = chip ? "card-title with-chip" : "card-title";
+    fill(statusTitle, el("span", { text }), chip ? el("span", { class: "rulechip", text: chip }) : null);
+  };
+
+  // The watcher's copy of the rule. The pen card only ever speaks to the artist,
+  // so under a non-free rule everyone else gets this card instead — built once
+  // and refilled, because it changes at most once a match.
+  const ruleTicks = el("span", { class: "gauge-ticks" });
+  const ruleCount = el("b");
+  const ruleOf = el("span");
+  const ruleGauge = el("div", { class: "gauge" }, ruleTicks, el("span", { class: "gauge-label" }, ruleCount, ruleOf));
+  const ruleHint = el("p", { class: "hint" });
+  const ruleCard = el(
+    "section",
+    { class: "card" },
+    el("div", { class: "card-title", text: "The rule this match" }),
+    ruleGauge,
+    ruleHint,
+  );
+  let ruleCardFor: PenRule | null = null;
+  const fillRuleCard = (rule: PenRule) => {
+    if (ruleCardFor === rule) return;
+    ruleCardFor = rule;
+    const oneLine = rule === PenRule.ONE_LINE;
+    const ticks = oneLine ? 1 : 5;
+    ruleGauge.className = oneLine ? "gauge oneline" : "gauge";
+    fill(ruleTicks, ...Array.from({ length: ticks }, () => el("i", { class: "gauge-tick" })));
+    setText(ruleCount, oneLine ? "One line" : "Max 5");
+    setText(ruleOf, oneLine ? "nobody lifts the pen" : "five strokes each");
+    setText(ruleHint, oneLine
+      ? "Every artist gets a single unbroken stroke. Judge the drawing accordingly."
+      : "Every artist gets five strokes for the whole turn. Judge the drawing accordingly.");
+  };
+
   const main = el("div", { class: "col-main" }, head, board.root, paint.root);
   const right = el("div", { class: "col-right stack" }, status, pens.root, word.root);
   const view = el("div", { class: "cols" }, roster.root, main, right);
@@ -55,6 +124,20 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   let lastArtist = "";
   let lastRound = -1;
+  // What the frame loop needs to know to poll the budget without re-reading the
+  // whole snapshot for it.
+  let liveRule: PenRule = PenRule.FREE;
+  let liveArtist = false;
+
+  /** Push the canvas's own count into the gauge. Cheap enough for every frame. */
+  const paintBudget = () => {
+    if (!liveArtist || liveRule === PenRule.FREE) {
+      pens.setBudget(PenRule.FREE, 0, false);
+      return;
+    }
+    const budget = ctx.canvas.strokeBudget();
+    pens.setBudget(liveRule, budget.used, budget.penDown);
+  };
 
   const render = (s: ViewState) => {
     roster.update(s);
@@ -72,13 +155,29 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       iAmArtist ? "" : " is drawing",
     );
 
+    // An unknown rule is FREE to the server, so it is FREE here too.
+    const rule = s.settings.penRule;
+    const chip = ruleChip(rule);
+    liveRule = chip ? rule : PenRule.FREE;
+    liveArtist = iAmArtist;
+
     pens.setEnabled(iAmArtist);
+    ctx.canvas.setStrokeLimit(strokeLimit(rule));
     ctx.canvas.setInteractive(iAmArtist);
     board.setLocked(!iAmArtist);
+    paintBudget();
+
+    const wantsRuleCard = Boolean(chip) && !iAmArtist && !s.youAreEliminated;
+    if (wantsRuleCard) {
+      fillRuleCard(rule);
+      if (ruleCard.parentNode !== right) right.insertBefore(ruleCard, pens.root);
+    } else {
+      ruleCard.remove();
+    }
 
     if (s.youAreEliminated) {
       status.className = "card spectator";
-      setText(statusTitle, "Spectating");
+      setStatusTitle("Spectating", "");
       fill(
         statusBody,
         el("p", { text: "You were eliminated. You can still watch every stroke, but you no longer draw or vote." }),
@@ -91,7 +190,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       status.className = "card";
       pens.root.hidden = false;
       if (iAmArtist) {
-        setText(statusTitle, "You are drawing");
+        setStatusTitle("You are drawing", chip);
         fill(
           statusBody,
           el("p", { text: "Freehand clues only. No letters, numbers, arrows or symbols." }),
@@ -99,7 +198,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         );
       } else {
         const away = turnsAway(s);
-        setText(statusTitle, "Watching");
+        setStatusTitle("Watching", chip);
         fill(
           statusBody,
           el("p", { class: "row" }, avatar(s.artistId, artistName, "sm"), el("span", { text: `${artistName} is drawing.` })),
@@ -119,7 +218,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       lastRound = s.round;
       ctx.announce(
         iAmArtist
-          ? `Round ${s.round}. Your turn to draw.`
+          ? `Round ${s.round}. Your turn to draw.${ruleSpoken(rule)}`
           : `Round ${s.round}. ${artistName} is drawing.`,
       );
     }
@@ -130,6 +229,10 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   dd.raf(() => {
     const s = ctx.state();
     clock.update(s.deadline, s.durationMs);
+    // A stroke starting or ending is a local event the store never republishes,
+    // so the gauge rides the clock's loop. setBudget() drops a repeat before it
+    // reaches the DOM, and under FREE nothing is read at all.
+    if (liveArtist && liveRule !== PenRule.FREE) paintBudget();
   });
 }
 

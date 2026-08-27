@@ -142,6 +142,44 @@
 .nib[aria-pressed="true"] { background: var(--accent-sf); border-color: var(--accent); }
 .nib-dot { border-radius: 999px; background: var(--ink); display: block; }
 
+/* ---- ink gauge: what the pen rule leaves ----
+   Marker ticks rather than a numeral counting down, so it reads as the same
+   rack of pens the card is already made of. Spent ticks keep their place: a
+   used stroke is not recoverable and the canvas is append-only, so the gauge
+   never counts back up. The next unspent tick bobs while the pen is down. */
+.gauge {
+  display: flex; align-items: center; gap: .5rem;
+  margin-bottom: .7rem; padding: .5rem .6rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 2px solid var(--border);
+}
+.gauge-ticks { display: flex; gap: .28rem; }
+.gauge-tick {
+  width: .62rem; height: 1.5rem; border-radius: .2rem .2rem .1rem .1rem;
+  border: 2px solid var(--ink); background: var(--accent);
+  box-shadow: 1px 1px 0 rgba(38,50,56,.2);
+}
+.gauge-tick.spent { background: var(--surface); border-color: var(--border-str); box-shadow: none; }
+.gauge-tick.live  { animation: tick-live 1.4s ease-in-out infinite; }
+.gauge-label { font: 800 .82rem/1.2 var(--font); color: var(--ink-2); }
+.gauge-label b { display: block; font-family: var(--mono); font-size: .95rem; color: var(--ink); }
+.gauge.spent .gauge-label b { color: var(--bad-dk); }
+/* One stroke, one wide tick — a lone narrow one reads as "four are missing". */
+.gauge.oneline .gauge-tick { width: 1.9rem; }
+@keyframes tick-live {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50%      { transform: translateY(-3px) rotate(-4deg); }
+}
+
+/* Why the rack went inert, and why the clock did not stop with it. */
+.spent-note, .live-note {
+  margin: .7rem 0 0; padding: .5rem .6rem;
+  border-radius: var(--radius-sm);
+  font-size: .83rem; font-weight: 800;
+}
+.spent-note { background: var(--bad-sf);  border: 1px solid var(--bad);  color: var(--bad-dk); }
+.live-note  { background: var(--good-sf); border: 1px solid var(--good); color: var(--good-dk); }
+
 /* ---- vote picker ---- */
 .votegrid { display: grid; grid-template-columns: 1fr; gap: .4rem; }
 .votecard {

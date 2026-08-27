@@ -66,6 +66,12 @@ const (
 	MaxStrokesPerTurn  = 128
 	MaxPointsPerStroke = 1200
 
+	// Pen-rule stroke ceilings (DESIGN.md:104). These are game rules, not
+	// anti-abuse: the host hands every artist the same handicap, so a pen rule
+	// only ever lowers MaxStrokesPerTurn and never raises it.
+	OneLineStrokes = 1
+	MaxFiveStrokes = 5
+
 	// Client-side batching interval; the room uses it only to size limits.
 	StrokeBatchWindow = 50 * time.Millisecond
 )
@@ -851,6 +857,7 @@ func DefaultSettings() *genpb.MatchSettings {
 		DrawSeconds:         DefaultDrawSeconds,
 		DiscussSeconds:      DefaultDiscussSeconds,
 		IntermissionSeconds: DefaultIntermissionSeconds,
+		PenRule:             genpb.PenRule_PEN_RULE_FREE,
 	}
 }
 
@@ -880,6 +887,12 @@ func ClampSettings(s *genpb.MatchSettings) *genpb.MatchSettings {
 	}
 	if v := s.GetIntermissionSeconds(); v != 0 {
 		out.IntermissionSeconds = clamp32(v, MinIntermissionSeconds, MaxIntermissionSeconds)
+	}
+	switch s.GetPenRule() {
+	case genpb.PenRule_PEN_RULE_FREE,
+		genpb.PenRule_PEN_RULE_ONE_LINE,
+		genpb.PenRule_PEN_RULE_MAX_FIVE:
+		out.PenRule = s.GetPenRule()
 	}
 	return out
 }

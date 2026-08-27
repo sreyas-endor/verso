@@ -1045,6 +1045,46 @@ func TestSettingsBoundaries(t *testing.T) {
 	}
 }
 
+// TestPenRuleIsClampedToTheEnumerable — DESIGN.md:104. The pen rule is a host
+// setting like every other, so an unset or unknown value becomes the default
+// instead of an error: a newer client cannot hand this room a handicap it does
+// not enforce, and an older one that omits the field still gets a legal game.
+func TestPenRuleIsClampedToTheEnumerable(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		in   *genpb.MatchSettings
+		want genpb.PenRule
+	}{
+		{"nil_is_free", nil, genpb.PenRule_PEN_RULE_FREE},
+		{"unset_is_free", &genpb.MatchSettings{}, genpb.PenRule_PEN_RULE_FREE},
+		{"unspecified_is_free", &genpb.MatchSettings{PenRule: genpb.PenRule_PEN_RULE_UNSPECIFIED},
+			genpb.PenRule_PEN_RULE_FREE},
+		{"free_survives", &genpb.MatchSettings{PenRule: genpb.PenRule_PEN_RULE_FREE},
+			genpb.PenRule_PEN_RULE_FREE},
+		{"one_line_survives", &genpb.MatchSettings{PenRule: genpb.PenRule_PEN_RULE_ONE_LINE},
+			genpb.PenRule_PEN_RULE_ONE_LINE},
+		{"max_five_survives", &genpb.MatchSettings{PenRule: genpb.PenRule_PEN_RULE_MAX_FIVE},
+			genpb.PenRule_PEN_RULE_MAX_FIVE},
+		{"unknown_falls_back", &genpb.MatchSettings{PenRule: genpb.PenRule(99)},
+			genpb.PenRule_PEN_RULE_FREE},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := ClampSettings(tc.in)
+			if got.GetPenRule() != tc.want {
+				t.Errorf("pen_rule = %v, want %v", got.GetPenRule(), tc.want)
+			}
+			// A pen rule must not disturb the rest of the recommended game.
+			if got.GetMaxRounds() != DefaultRounds || got.GetDrawSeconds() != DefaultDrawSeconds {
+				t.Errorf("pen rule changed the other defaults: rounds %d, draw %d",
+					got.GetMaxRounds(), got.GetDrawSeconds())
+			}
+		})
+	}
+}
+
 // TestHostSettingsAreClampedOnTheWire — the clamp is not just a helper; the
 // value the host actually gets back is the clamped one.
 func TestHostSettingsAreClampedOnTheWire(t *testing.T) {

@@ -65,6 +65,12 @@ const canvas: CanvasHandle = {
   setWidth(width) {
     engine.setWidth(width);
   },
+  setStrokeLimit(limit) {
+    engine.setStrokeLimit(limit);
+  },
+  strokeBudget() {
+    return engine.strokeBudget();
+  },
   async savePng() {
     await engine.downloadPng();
   },

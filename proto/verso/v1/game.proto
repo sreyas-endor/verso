@@ -52,6 +52,24 @@ enum Difficulty {
   DIFFICULTY_HARD = 3;
 }
 
+// How much the artist may use their turn with. A host-set handicap, not a
+// difficulty knob: it constrains the pen, never the word.
+//
+// The limit is a per-turn stroke ceiling and nothing else. Running out locks
+// the pen for the rest of the turn; it never ends the turn early, because
+// pointercancel fires on app switch, orientation change and palm rejection,
+// and none of those should cost somebody their turn.
+enum PenRule {
+  PEN_RULE_UNSPECIFIED = 0;
+  // Draw as much as the clock allows. The per-turn caps in
+  // IMPLEMENTATION_PLAN.md §4.7 still apply — they are anti-abuse, not rules.
+  PEN_RULE_FREE = 1;
+  // One unbroken stroke. Lifting the pen finishes the artist's drawing.
+  PEN_RULE_ONE_LINE = 2;
+  // Five strokes for the whole turn.
+  PEN_RULE_MAX_FIVE = 3;
+}
+
 // Server-authoritative match phase (IMPLEMENTATION_PLAN.md §4.5).
 //
 // Discussion and voting share one combined timer (DESIGN.md:46), so they are a
@@ -141,6 +159,10 @@ message MatchSettings {
   // Handoff time before every drawing turn and voting window. Range 3..30,
   // default 10.
   int32 intermission_seconds = 5;
+  // Per-turn pen handicap. Default PEN_RULE_FREE. An unknown value becomes the
+  // default like every other field here, so a newer client cannot hand this
+  // room a rule it does not enforce.
+  PenRule pen_rule = 6;
 }
 
 // Public roster entry. Contains nothing a player is not allowed to know about

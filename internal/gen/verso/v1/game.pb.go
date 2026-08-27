@@ -116,6 +116,69 @@ func (Difficulty) EnumDescriptor() ([]byte, []int) {
 	return file_verso_v1_game_proto_rawDescGZIP(), []int{0}
 }
 
+// How much the artist may use their turn with. A host-set handicap, not a
+// difficulty knob: it constrains the pen, never the word.
+//
+// The limit is a per-turn stroke ceiling and nothing else. Running out locks
+// the pen for the rest of the turn; it never ends the turn early, because
+// pointercancel fires on app switch, orientation change and palm rejection,
+// and none of those should cost somebody their turn.
+type PenRule int32
+
+const (
+	PenRule_PEN_RULE_UNSPECIFIED PenRule = 0
+	// Draw as much as the clock allows. The per-turn caps in
+	// IMPLEMENTATION_PLAN.md §4.7 still apply — they are anti-abuse, not rules.
+	PenRule_PEN_RULE_FREE PenRule = 1
+	// One unbroken stroke. Lifting the pen finishes the artist's drawing.
+	PenRule_PEN_RULE_ONE_LINE PenRule = 2
+	// Five strokes for the whole turn.
+	PenRule_PEN_RULE_MAX_FIVE PenRule = 3
+)
+
+// Enum value maps for PenRule.
+var (
+	PenRule_name = map[int32]string{
+		0: "PEN_RULE_UNSPECIFIED",
+		1: "PEN_RULE_FREE",
+		2: "PEN_RULE_ONE_LINE",
+		3: "PEN_RULE_MAX_FIVE",
+	}
+	PenRule_value = map[string]int32{
+		"PEN_RULE_UNSPECIFIED": 0,
+		"PEN_RULE_FREE":        1,
+		"PEN_RULE_ONE_LINE":    2,
+		"PEN_RULE_MAX_FIVE":    3,
+	}
+)
+
+func (x PenRule) Enum() *PenRule {
+	p := new(PenRule)
+	*p = x
+	return p
+}
+
+func (x PenRule) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PenRule) Descriptor() protoreflect.EnumDescriptor {
+	return file_verso_v1_game_proto_enumTypes[1].Descriptor()
+}
+
+func (PenRule) Type() protoreflect.EnumType {
+	return &file_verso_v1_game_proto_enumTypes[1]
+}
+
+func (x PenRule) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PenRule.Descriptor instead.
+func (PenRule) EnumDescriptor() ([]byte, []int) {
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{1}
+}
+
 // Server-authoritative match phase (IMPLEMENTATION_PLAN.md §4.5).
 //
 // Discussion and voting share one combined timer (DESIGN.md:46), so they are a
@@ -179,11 +242,11 @@ func (x Phase) String() string {
 }
 
 func (Phase) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[1].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[2].Descriptor()
 }
 
 func (Phase) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[1]
+	return &file_verso_v1_game_proto_enumTypes[2]
 }
 
 func (x Phase) Number() protoreflect.EnumNumber {
@@ -192,7 +255,7 @@ func (x Phase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Phase.Descriptor instead.
 func (Phase) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{1}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{2}
 }
 
 // Which side won the match (DESIGN.md:71).
@@ -229,11 +292,11 @@ func (x WinnerSide) String() string {
 }
 
 func (WinnerSide) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[2].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[3].Descriptor()
 }
 
 func (WinnerSide) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[2]
+	return &file_verso_v1_game_proto_enumTypes[3]
 }
 
 func (x WinnerSide) Number() protoreflect.EnumNumber {
@@ -242,7 +305,7 @@ func (x WinnerSide) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WinnerSide.Descriptor instead.
 func (WinnerSide) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{2}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{3}
 }
 
 // Why the match ended. Clients render the same final reveal either way; this
@@ -294,11 +357,11 @@ func (x MatchEndReason) String() string {
 }
 
 func (MatchEndReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[3].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[4].Descriptor()
 }
 
 func (MatchEndReason) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[3]
+	return &file_verso_v1_game_proto_enumTypes[4]
 }
 
 func (x MatchEndReason) Number() protoreflect.EnumNumber {
@@ -307,7 +370,7 @@ func (x MatchEndReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use MatchEndReason.Descriptor instead.
 func (MatchEndReason) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{3}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{4}
 }
 
 // Machine-readable failure reason on an Error event. The `cid` on the
@@ -389,11 +452,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[4].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[5].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[4]
+	return &file_verso_v1_game_proto_enumTypes[5]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -402,7 +465,7 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{4}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{5}
 }
 
 // Host-configured match parameters (DESIGN.md:224). The server clamps every
@@ -422,8 +485,12 @@ type MatchSettings struct {
 	// Handoff time before every drawing turn and voting window. Range 3..30,
 	// default 10.
 	IntermissionSeconds int32 `protobuf:"varint,5,opt,name=intermission_seconds,json=intermissionSeconds,proto3" json:"intermission_seconds,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Per-turn pen handicap. Default PEN_RULE_FREE. An unknown value becomes the
+	// default like every other field here, so a newer client cannot hand this
+	// room a rule it does not enforce.
+	PenRule       PenRule `protobuf:"varint,6,opt,name=pen_rule,json=penRule,proto3,enum=verso.v1.PenRule" json:"pen_rule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MatchSettings) Reset() {
@@ -489,6 +556,13 @@ func (x *MatchSettings) GetIntermissionSeconds() int32 {
 		return x.IntermissionSeconds
 	}
 	return 0
+}
+
+func (x *MatchSettings) GetPenRule() PenRule {
+	if x != nil {
+		return x.PenRule
+	}
+	return PenRule_PEN_RULE_UNSPECIFIED
 }
 
 // Public roster entry. Contains nothing a player is not allowed to know about
@@ -3543,7 +3617,7 @@ var File_verso_v1_game_proto protoreflect.FileDescriptor
 
 const file_verso_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x13verso/v1/game.proto\x12\bverso.v1\"\xe3\x01\n" +
+	"\x13verso/v1/game.proto\x12\bverso.v1\"\x91\x02\n" +
 	"\rMatchSettings\x124\n" +
 	"\n" +
 	"difficulty\x18\x01 \x01(\x0e2\x14.verso.v1.DifficultyR\n" +
@@ -3552,7 +3626,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"max_rounds\x18\x02 \x01(\x05R\tmaxRounds\x12!\n" +
 	"\fdraw_seconds\x18\x03 \x01(\x05R\vdrawSeconds\x12'\n" +
 	"\x0fdiscuss_seconds\x18\x04 \x01(\x05R\x0ediscussSeconds\x121\n" +
-	"\x14intermission_seconds\x18\x05 \x01(\x05R\x13intermissionSeconds\"\xb1\x01\n" +
+	"\x14intermission_seconds\x18\x05 \x01(\x05R\x13intermissionSeconds\x12,\n" +
+	"\bpen_rule\x18\x06 \x01(\x0e2\x11.verso.v1.PenRuleR\apenRule\"\xb1\x01\n" +
 	"\n" +
 	"PlayerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -3793,7 +3868,12 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x16DIFFICULTY_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fDIFFICULTY_EASY\x10\x01\x12\x15\n" +
 	"\x11DIFFICULTY_MEDIUM\x10\x02\x12\x13\n" +
-	"\x0fDIFFICULTY_HARD\x10\x03*\xab\x01\n" +
+	"\x0fDIFFICULTY_HARD\x10\x03*d\n" +
+	"\aPenRule\x12\x18\n" +
+	"\x14PEN_RULE_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rPEN_RULE_FREE\x10\x01\x12\x15\n" +
+	"\x11PEN_RULE_ONE_LINE\x10\x02\x12\x15\n" +
+	"\x11PEN_RULE_MAX_FIVE\x10\x03*\xab\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vPHASE_LOBBY\x10\x01\x12\x13\n" +
@@ -3848,106 +3928,108 @@ func file_verso_v1_game_proto_rawDescGZIP() []byte {
 	return file_verso_v1_game_proto_rawDescData
 }
 
-var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_verso_v1_game_proto_goTypes = []any{
 	(Difficulty)(0),          // 0: verso.v1.Difficulty
-	(Phase)(0),               // 1: verso.v1.Phase
-	(WinnerSide)(0),          // 2: verso.v1.WinnerSide
-	(MatchEndReason)(0),      // 3: verso.v1.MatchEndReason
-	(ErrorCode)(0),           // 4: verso.v1.ErrorCode
-	(*MatchSettings)(nil),    // 5: verso.v1.MatchSettings
-	(*PlayerInfo)(nil),       // 6: verso.v1.PlayerInfo
-	(*Stroke)(nil),           // 7: verso.v1.Stroke
-	(*JoinRoom)(nil),         // 8: verso.v1.JoinRoom
-	(*SetReady)(nil),         // 9: verso.v1.SetReady
-	(*UpdateSettings)(nil),   // 10: verso.v1.UpdateSettings
-	(*StartMatch)(nil),       // 11: verso.v1.StartMatch
-	(*KickPlayer)(nil),       // 12: verso.v1.KickPlayer
-	(*StrokeBegin)(nil),      // 13: verso.v1.StrokeBegin
-	(*StrokePoints)(nil),     // 14: verso.v1.StrokePoints
-	(*StrokeEnd)(nil),        // 15: verso.v1.StrokeEnd
-	(*CastVote)(nil),         // 16: verso.v1.CastVote
-	(*RequestSnapshot)(nil),  // 17: verso.v1.RequestSnapshot
-	(*Rematch)(nil),          // 18: verso.v1.Rematch
-	(*ClientCommand)(nil),    // 19: verso.v1.ClientCommand
-	(*LobbyState)(nil),       // 20: verso.v1.LobbyState
-	(*SettingsChanged)(nil),  // 21: verso.v1.SettingsChanged
-	(*RoundStarted)(nil),     // 22: verso.v1.RoundStarted
-	(*TurnStarted)(nil),      // 23: verso.v1.TurnStarted
-	(*StrokeBegan)(nil),      // 24: verso.v1.StrokeBegan
-	(*StrokeEnded)(nil),      // 25: verso.v1.StrokeEnded
-	(*PhaseChanged)(nil),     // 26: verso.v1.PhaseChanged
-	(*VoteCastCount)(nil),    // 27: verso.v1.VoteCastCount
-	(*VoteCount)(nil),        // 28: verso.v1.VoteCount
-	(*VoteTally)(nil),        // 29: verso.v1.VoteTally
-	(*PlayerEliminated)(nil), // 30: verso.v1.PlayerEliminated
-	(*RoundWords)(nil),       // 31: verso.v1.RoundWords
-	(*PlayerReveal)(nil),     // 32: verso.v1.PlayerReveal
-	(*MatchEnded)(nil),       // 33: verso.v1.MatchEnded
-	(*PlayerPresence)(nil),   // 34: verso.v1.PlayerPresence
-	(*Error)(nil),            // 35: verso.v1.Error
-	(*Joined)(nil),           // 36: verso.v1.Joined
-	(*YourWord)(nil),         // 37: verso.v1.YourWord
-	(*Snapshot)(nil),         // 38: verso.v1.Snapshot
-	(*SpectatorInfo)(nil),    // 39: verso.v1.SpectatorInfo
-	(*VoteAccepted)(nil),     // 40: verso.v1.VoteAccepted
-	(*ServerEvent)(nil),      // 41: verso.v1.ServerEvent
+	(PenRule)(0),             // 1: verso.v1.PenRule
+	(Phase)(0),               // 2: verso.v1.Phase
+	(WinnerSide)(0),          // 3: verso.v1.WinnerSide
+	(MatchEndReason)(0),      // 4: verso.v1.MatchEndReason
+	(ErrorCode)(0),           // 5: verso.v1.ErrorCode
+	(*MatchSettings)(nil),    // 6: verso.v1.MatchSettings
+	(*PlayerInfo)(nil),       // 7: verso.v1.PlayerInfo
+	(*Stroke)(nil),           // 8: verso.v1.Stroke
+	(*JoinRoom)(nil),         // 9: verso.v1.JoinRoom
+	(*SetReady)(nil),         // 10: verso.v1.SetReady
+	(*UpdateSettings)(nil),   // 11: verso.v1.UpdateSettings
+	(*StartMatch)(nil),       // 12: verso.v1.StartMatch
+	(*KickPlayer)(nil),       // 13: verso.v1.KickPlayer
+	(*StrokeBegin)(nil),      // 14: verso.v1.StrokeBegin
+	(*StrokePoints)(nil),     // 15: verso.v1.StrokePoints
+	(*StrokeEnd)(nil),        // 16: verso.v1.StrokeEnd
+	(*CastVote)(nil),         // 17: verso.v1.CastVote
+	(*RequestSnapshot)(nil),  // 18: verso.v1.RequestSnapshot
+	(*Rematch)(nil),          // 19: verso.v1.Rematch
+	(*ClientCommand)(nil),    // 20: verso.v1.ClientCommand
+	(*LobbyState)(nil),       // 21: verso.v1.LobbyState
+	(*SettingsChanged)(nil),  // 22: verso.v1.SettingsChanged
+	(*RoundStarted)(nil),     // 23: verso.v1.RoundStarted
+	(*TurnStarted)(nil),      // 24: verso.v1.TurnStarted
+	(*StrokeBegan)(nil),      // 25: verso.v1.StrokeBegan
+	(*StrokeEnded)(nil),      // 26: verso.v1.StrokeEnded
+	(*PhaseChanged)(nil),     // 27: verso.v1.PhaseChanged
+	(*VoteCastCount)(nil),    // 28: verso.v1.VoteCastCount
+	(*VoteCount)(nil),        // 29: verso.v1.VoteCount
+	(*VoteTally)(nil),        // 30: verso.v1.VoteTally
+	(*PlayerEliminated)(nil), // 31: verso.v1.PlayerEliminated
+	(*RoundWords)(nil),       // 32: verso.v1.RoundWords
+	(*PlayerReveal)(nil),     // 33: verso.v1.PlayerReveal
+	(*MatchEnded)(nil),       // 34: verso.v1.MatchEnded
+	(*PlayerPresence)(nil),   // 35: verso.v1.PlayerPresence
+	(*Error)(nil),            // 36: verso.v1.Error
+	(*Joined)(nil),           // 37: verso.v1.Joined
+	(*YourWord)(nil),         // 38: verso.v1.YourWord
+	(*Snapshot)(nil),         // 39: verso.v1.Snapshot
+	(*SpectatorInfo)(nil),    // 40: verso.v1.SpectatorInfo
+	(*VoteAccepted)(nil),     // 41: verso.v1.VoteAccepted
+	(*ServerEvent)(nil),      // 42: verso.v1.ServerEvent
 }
 var file_verso_v1_game_proto_depIdxs = []int32{
 	0,  // 0: verso.v1.MatchSettings.difficulty:type_name -> verso.v1.Difficulty
-	5,  // 1: verso.v1.UpdateSettings.settings:type_name -> verso.v1.MatchSettings
-	8,  // 2: verso.v1.ClientCommand.join:type_name -> verso.v1.JoinRoom
-	9,  // 3: verso.v1.ClientCommand.set_ready:type_name -> verso.v1.SetReady
-	10, // 4: verso.v1.ClientCommand.update_settings:type_name -> verso.v1.UpdateSettings
-	11, // 5: verso.v1.ClientCommand.start_match:type_name -> verso.v1.StartMatch
-	13, // 6: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
-	14, // 7: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
-	15, // 8: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
-	16, // 9: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
-	17, // 10: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
-	18, // 11: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
-	12, // 12: verso.v1.ClientCommand.kick:type_name -> verso.v1.KickPlayer
-	6,  // 13: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
-	5,  // 14: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
-	1,  // 15: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
-	5,  // 16: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
-	1,  // 17: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
-	28, // 18: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
-	2,  // 19: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
-	3,  // 20: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
-	32, // 21: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
-	31, // 22: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
-	6,  // 23: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
-	4,  // 24: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
-	1,  // 25: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
-	5,  // 26: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
-	6,  // 27: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
-	7,  // 28: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
-	20, // 29: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
-	21, // 30: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
-	22, // 31: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
-	23, // 32: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
-	24, // 33: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
-	14, // 34: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
-	25, // 35: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
-	26, // 36: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
-	27, // 37: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
-	29, // 38: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
-	30, // 39: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
-	33, // 40: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
-	34, // 41: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
-	35, // 42: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
-	36, // 43: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
-	37, // 44: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
-	38, // 45: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
-	39, // 46: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
-	40, // 47: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
-	48, // [48:48] is the sub-list for method output_type
-	48, // [48:48] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	1,  // 1: verso.v1.MatchSettings.pen_rule:type_name -> verso.v1.PenRule
+	6,  // 2: verso.v1.UpdateSettings.settings:type_name -> verso.v1.MatchSettings
+	9,  // 3: verso.v1.ClientCommand.join:type_name -> verso.v1.JoinRoom
+	10, // 4: verso.v1.ClientCommand.set_ready:type_name -> verso.v1.SetReady
+	11, // 5: verso.v1.ClientCommand.update_settings:type_name -> verso.v1.UpdateSettings
+	12, // 6: verso.v1.ClientCommand.start_match:type_name -> verso.v1.StartMatch
+	14, // 7: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
+	15, // 8: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
+	16, // 9: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
+	17, // 10: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
+	18, // 11: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
+	19, // 12: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
+	13, // 13: verso.v1.ClientCommand.kick:type_name -> verso.v1.KickPlayer
+	7,  // 14: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
+	6,  // 15: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
+	2,  // 16: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
+	6,  // 17: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
+	2,  // 18: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
+	29, // 19: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
+	3,  // 20: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
+	4,  // 21: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
+	33, // 22: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
+	32, // 23: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
+	7,  // 24: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
+	5,  // 25: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
+	2,  // 26: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
+	6,  // 27: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
+	7,  // 28: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
+	8,  // 29: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
+	21, // 30: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
+	22, // 31: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
+	23, // 32: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
+	24, // 33: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
+	25, // 34: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
+	15, // 35: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
+	26, // 36: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
+	27, // 37: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
+	28, // 38: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
+	30, // 39: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
+	31, // 40: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
+	34, // 41: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
+	35, // 42: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
+	36, // 43: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
+	37, // 44: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
+	38, // 45: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
+	39, // 46: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
+	40, // 47: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
+	41, // 48: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
+	49, // [49:49] is the sub-list for method output_type
+	49, // [49:49] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_verso_v1_game_proto_init() }
@@ -3998,7 +4080,7 @@ func file_verso_v1_game_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_verso_v1_game_proto_rawDesc), len(file_verso_v1_game_proto_rawDesc)),
-			NumEnums:      5,
+			NumEnums:      6,
 			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,

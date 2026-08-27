@@ -25,7 +25,7 @@ import {
   StrokePointsSchema,
   UpdateSettingsSchema,
 } from "../../gen/verso/v1/game_pb.js";
-import type { Difficulty, MatchSettings } from "../../gen/verso/v1/game_pb.js";
+import type { Difficulty, MatchSettings, PenRule } from "../../gen/verso/v1/game_pb.js";
 import {
   MAX_DISCUSS_SECONDS,
   MAX_DRAW_SECONDS,
@@ -45,6 +45,7 @@ import type { ClientCommandBody } from "./protocol.js";
 /** The host-configurable settings, as plain numbers. */
 export interface SettingsInit {
   difficulty: Difficulty;
+  penRule: PenRule;
   maxRounds: number;
   drawSeconds: number;
   discussSeconds: number;
@@ -146,6 +147,9 @@ export function kickPlayer(targetPlayerId: string): ClientCommandBody {
 export function toSettings(init: SettingsInit): MatchSettings {
   return create(MatchSettingsSchema, {
     difficulty: init.difficulty,
+    // No range to clamp — an enum the room does not know becomes its default
+    // there, the same as any other unset field.
+    penRule: init.penRule,
     maxRounds: clamp(Math.round(init.maxRounds), MIN_ROUNDS, MAX_ROUNDS),
     drawSeconds: clamp(Math.round(init.drawSeconds), MIN_DRAW_SECONDS, MAX_DRAW_SECONDS),
     discussSeconds: clamp(Math.round(init.discussSeconds), MIN_DISCUSS_SECONDS, MAX_DISCUSS_SECONDS),
