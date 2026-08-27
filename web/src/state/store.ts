@@ -164,15 +164,20 @@ export class GameStore {
             : v.phase === Phase.ASSIGNING
               ? clearRoundBoundary(s)
               : s;
-        const leavingTurnSequence = v.phase !== Phase.DRAWING && v.phase !== Phase.INTERMISSION;
+        // The round's turn order outlives the drawing phase: the room votes in
+        // the order it drew (DESIGN.md:60), so DISCUSSION and RESOLVING keep it
+        // and the roster and ballot stay put across the whole round. ASSIGNING
+        // and LOBBY have already dropped it through `base`; ENDED is named here
+        // because no round is running behind the final reveal.
+        const leavingRound = v.phase === Phase.ENDED;
         return {
           ...base,
           phase: v.phase,
           round: v.round,
           durationMs: v.durationMs,
           deadline: this.deadlineFrom(v.remainingMs),
-          turnOrder: leavingTurnSequence ? [] : base.turnOrder,
-          turnIndex: leavingTurnSequence ? 0 : base.turnIndex,
+          turnOrder: leavingRound ? [] : base.turnOrder,
+          turnIndex: leavingRound ? 0 : base.turnIndex,
           artistId: v.phase === Phase.DRAWING ? base.artistId : "",
           nextArtistId: v.nextArtistId,
         };

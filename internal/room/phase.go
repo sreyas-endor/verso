@@ -10,7 +10,8 @@ package room
 //
 // Discussion and voting are one phase with one combined timer (DESIGN.md:46).
 // Turn order is reshuffled independently at the start of every round
-// (DESIGN.md:36). Every transition is driven either by r.phaseTimer firing or
+// (DESIGN.md:36) and then holds for the whole round, vote included
+// (DESIGN.md:60). Every transition is driven either by r.phaseTimer firing or
 // by a command, and both land on the room goroutine.
 //
 // Note where the "next round" arrow lands: on ASSIGNING, not on DRAWING. Every
@@ -300,9 +301,16 @@ func (r *Room) skipCurrentTurn() {
 func (r *Room) beginVotingIntermission() {
 	r.commitOpen(nil)
 	r.artistID = ""
-	// Snapshot.turn_order is specified as empty outside PHASE_DRAWING.
-	r.turnOrder = nil
-	r.turnIndex = 0
+	// turnOrder deliberately survives the last turn. The room votes on what it
+	// just watched being drawn, and the order it was drawn in is how players
+	// hold that in their heads: "the third one" means something to them. Wiping
+	// it here would drop the roster and the ballot back to seat order at the
+	// exact moment somebody is trying to point at a drawing, so the order lives
+	// until the round really ends — openWordReveal deals the next one, and
+	// finishMatch ends the match.
+	//
+	// turnIndex is left where beginTurnAt ran it off the end of the order, which
+	// is the honest reading of "every turn is done".
 	clear(r.votes)
 
 	r.nextArtistID = ""

@@ -12,7 +12,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   d = new Disposers();
   const dd = d;
 
-  const roster = playerList("Players");
+  const roster = playerList("Players", { showTurnQueue: true });
   const board = stage(ctx.canvas, "Finished canvas for this round");
   ctx.canvas.setInteractive(false);
   board.setLocked(true);

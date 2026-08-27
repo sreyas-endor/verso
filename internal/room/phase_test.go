@@ -179,6 +179,78 @@ func TestArtistSequenceFollowsThePublishedTurnOrder(t *testing.T) {
 	})
 }
 
+// TestTurnOrderHoldsThroughTheVote — DESIGN.md:60. The reshuffle belongs to the
+// start of a round, not the end of one: the room argues about the drawings in
+// the order they appeared, so the order a client can see must still be that
+// order while the vote is open and while the result is up. It goes only when the
+// next round's reveal deals a new pair.
+//
+// The assertion runs off the Snapshot rather than the client's own bookkeeping,
+// because a player who reconnects into the voting window must be handed the same
+// order as everyone who never left.
+func TestTurnOrderHoldsThroughTheVote(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		h := newHarness(t, 6, mkSettings(2, 5, 30), 707)
+		defer h.stop()
+		h.discard()
+		h.start()
+		h.toDiscussion()
+
+		evs := h.drain(0)
+		rs := allRoundStarted(evs)
+		if len(rs) != 1 {
+			t.Fatalf("RoundStarted count = %d, want 1", len(rs))
+		}
+		drew := rs[0].GetTurnOrder()
+		var artists []string
+		for _, ts := range allTurnStarted(evs) {
+			artists = append(artists, ts.GetArtistId())
+		}
+		if !slices.Equal(artists, drew) {
+			t.Fatalf("artists %v do not match turn order %v", artists, drew)
+		}
+
+		// The voting window: the order everybody just watched, unchanged.
+		snap := h.snapshotOf(0)
+		if got := snap.GetPhase(); got != genpb.Phase_PHASE_DISCUSSION {
+			t.Fatalf("phase = %v, want DISCUSSION", got)
+		}
+		if !slices.Equal(snap.GetTurnOrder(), drew) {
+			t.Fatalf("turn order during the vote = %v, want %v", snap.GetTurnOrder(), drew)
+		}
+		// Every turn is done, so the cursor sits one past the last of them.
+		if got, want := int(snap.GetTurnIndex()), len(drew); got != want {
+			t.Fatalf("turn index during the vote = %d, want %d", got, want)
+		}
+
+		// The result screen: still unchanged, because the elimination is read
+		// against the same list.
+		h.skipAll()
+		if got := h.phase(); got != genpb.Phase_PHASE_RESOLVING {
+			t.Fatalf("phase after every vote = %v, want RESOLVING", got)
+		}
+		if snap := h.snapshotOf(0); !slices.Equal(snap.GetTurnOrder(), drew) {
+			t.Fatalf("turn order on the result screen = %v, want %v", snap.GetTurnOrder(), drew)
+		}
+
+		// The next round's reveal is where it goes, and where a new one is dealt.
+		h.advance(ResolveDuration)
+		if got := h.phase(); got != genpb.Phase_PHASE_ASSIGNING {
+			t.Fatalf("phase after the result screen = %v, want ASSIGNING", got)
+		}
+		if snap := h.snapshotOf(0); len(snap.GetTurnOrder()) != 0 {
+			t.Fatalf("turn order survived into the next reveal: %v", snap.GetTurnOrder())
+		}
+
+		h.toDiscussion()
+		if snap := h.snapshotOf(0); len(snap.GetTurnOrder()) != len(drew) {
+			t.Fatalf("round 2 votes on %v, want an order over all %d players",
+				snap.GetTurnOrder(), len(drew))
+		}
+	})
+}
+
 // TestDrawingTurnExpiresAtExactlyTheConfiguredDuration — the turn clock is
 // authoritative and lands on the instant, not a tick before or after.
 func TestDrawingTurnExpiresAtExactlyTheConfiguredDuration(t *testing.T) {

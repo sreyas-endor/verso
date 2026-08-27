@@ -2936,10 +2936,14 @@ type Snapshot struct {
 	TotalRounds int32          `protobuf:"varint,5,opt,name=total_rounds,json=totalRounds,proto3" json:"total_rounds,omitempty"`
 	Settings    *MatchSettings `protobuf:"bytes,6,opt,name=settings,proto3" json:"settings,omitempty"`
 	Players     []*PlayerInfo  `protobuf:"bytes,7,rep,name=players,proto3" json:"players,omitempty"`
-	// Empty outside PHASE_DRAWING.
+	// The order this round draws in, and still the order it votes in
+	// (DESIGN.md:60). Empty before the first round of a match, and cleared when
+	// the round ends: the next round reshuffles.
 	TurnOrder []string `protobuf:"bytes,8,rep,name=turn_order,json=turnOrder,proto3" json:"turn_order,omitempty"`
-	TurnIndex int32    `protobuf:"varint,9,opt,name=turn_index,json=turnIndex,proto3" json:"turn_index,omitempty"`
-	ArtistId  string   `protobuf:"bytes,10,opt,name=artist_id,json=artistId,proto3" json:"artist_id,omitempty"`
+	// 0-based index of the live turn, and len(turn_order) once every turn is
+	// done — including for the whole discussion and result.
+	TurnIndex int32  `protobuf:"varint,9,opt,name=turn_index,json=turnIndex,proto3" json:"turn_index,omitempty"`
+	ArtistId  string `protobuf:"bytes,10,opt,name=artist_id,json=artistId,proto3" json:"artist_id,omitempty"`
 	// Milliseconds left in the current phase or turn; 0 when untimed.
 	RemainingMs int32 `protobuf:"varint,11,opt,name=remaining_ms,json=remainingMs,proto3" json:"remaining_ms,omitempty"`
 	// The whole canvas, replayed in one message. There is no incremental

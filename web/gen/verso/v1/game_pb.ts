@@ -1381,13 +1381,18 @@ export type Snapshot = Message<"verso.v1.Snapshot"> & {
   players: PlayerInfo[];
 
   /**
-   * Empty outside PHASE_DRAWING.
+   * The order this round draws in, and still the order it votes in
+   * (DESIGN.md:60). Empty before the first round of a match, and cleared when
+   * the round ends: the next round reshuffles.
    *
    * @generated from field: repeated string turn_order = 8;
    */
   turnOrder: string[];
 
   /**
+   * 0-based index of the live turn, and len(turn_order) once every turn is
+   * done — including for the whole discussion and result.
+   *
    * @generated from field: int32 turn_index = 9;
    */
   turnIndex: number;

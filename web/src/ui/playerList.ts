@@ -3,12 +3,15 @@ import { avatar } from "./avatar.js";
 import { el, fill } from "./dom.js";
 import { markerGlyph } from "./paintress.js";
 import { avatarColor } from "./palette.js";
+import { inTurnOrder } from "./turnOrder.js";
 import type { ViewState } from "./context.js";
 
 export interface PlayerListOptions {
   /**
-   * Order the roster by this round's turn order and draw the turn track. Only
-   * the two screens with a round in progress ask for it.
+   * Order the roster by this round's turn order and draw the turn track. Every
+   * screen with a round in progress asks for it, the vote and the result
+   * included: the rail is how the room keeps hold of which drawing was which
+   * (DESIGN.md:60), so it must not disappear at the moment they argue about it.
    */
   showTurnQueue?: boolean;
   /** Show ready checkmarks (lobby only). */
@@ -38,30 +41,41 @@ interface Seat {
 
 /**
  * Splits the roster into the players this round's turn order covers — in that
- * order — and everyone else, in seat order.
+ * order — and everyone else, after them.
  *
- * The track is drawn only when somebody is holding the pen or about to. The
- * client's `turnOrder` outlives the round it belongs to, because nothing on the
- * wire clears it between the last turn and the vote, so its mere presence is
- * not evidence that a drawing turn is coming. The server names an artist for a
- * drawing turn and nobody for the intermission before voting, and that is the
- * signal used here.
+ * Two separate things are decided here and only one of them is the track.
+ *
+ * The ORDER follows `turnOrder` wherever there is one, which is the whole round
+ * including the vote (DESIGN.md:60) — see inTurnOrder. Nothing may reorder the
+ * roster under a room that is arguing about "the third drawing".
+ *
+ * The TRACK — nodes, subtitles, the pen — says where the round has got to. It
+ * lasts as long as the order does, because a rail that vanishes the moment the
+ * last turn ends reads as the column being replaced rather than as the round
+ * moving on. Once the server stops naming an artist the round has drawn its
+ * last, so the cursor sits past the end: every node filled, and no pen, since
+ * there is nobody left to hold it.
  */
 function order(s: ViewState, opts: PlayerListOptions): { track: Seat[]; rest: Seat[] } {
   const flat = (): { track: Seat[]; rest: Seat[] } => ({
     track: [],
-    rest: s.players.map((player) => ({ player, state: "offTrack", away: 0 })),
+    rest: inTurnOrder(s.players, s.turnOrder).map((player) => ({
+      player,
+      state: "offTrack",
+      away: 0,
+    })),
   });
   if (opts.showTurnQueue !== true || s.turnOrder.length === 0) return flat();
 
   const focus = s.artistId !== "" ? s.artistId : s.nextArtistId;
-  if (focus === "") return flat();
 
   // Trust the id the server named over the index that came with it: the index
   // arrives on TurnStarted only, so after a bare PhaseChanged it is one turn
-  // stale, while the id is always current.
-  const found = s.turnOrder.indexOf(focus);
-  const cursor = found >= 0 ? found : s.turnIndex;
+  // stale, while the id is always current. With no id named at all — the whole
+  // discussion and result — nothing is pending, so the cursor goes off the end
+  // and the track reads as finished.
+  const found = focus === "" ? -1 : s.turnOrder.indexOf(focus);
+  const cursor = found >= 0 ? found : focus === "" ? s.turnOrder.length : s.turnIndex;
   const live = s.artistId !== "";
 
   const unplaced = new Map(s.players.map((p) => [p.id, p]));

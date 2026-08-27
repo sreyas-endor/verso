@@ -452,7 +452,13 @@ type Room struct {
 	round int32
 
 	// turnOrder holds the active player ids for this round, reshuffled at the
-	// start of every round (DESIGN.md:36). turnIndex points at the live turn.
+	// start of every round (DESIGN.md:36). turnIndex points at the live turn,
+	// and sits one past the end once every turn is done.
+	//
+	// Both hold for the whole round, not just the drawing phase: the vote is
+	// argued in drawing order, so the order stays on the wire through the
+	// discussion and the result (DESIGN.md:60). Only openWordReveal,
+	// finishMatch and resetToLobby clear it.
 	turnOrder []string
 	turnIndex int
 

@@ -1,6 +1,7 @@
 import type { VoteChoice, ViewState } from "./context.js";
 import { avatar } from "./avatar.js";
 import { Disposers, el, fill, setText } from "./dom.js";
+import { inTurnOrder } from "./turnOrder.js";
 
 export interface VotePickerView {
   root: HTMLElement;
@@ -53,7 +54,14 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
   function paint(s: ViewState): void {
     snapshot = s;
     const done = s.youHaveVoted;
-    const candidates = s.players.filter((p) => p.connected && !p.eliminated);
+    // The ballot is in this round's drawing order, not seat order
+    // (DESIGN.md:60). A voter is picking one of the drawings they have just
+    // watched appear, and the thing they remember about it is when it appeared;
+    // the roster beside them is in the same order, so a card and a row can be
+    // matched up by eye.
+    const candidates = inTurnOrder(s.players, s.turnOrder).filter(
+      (p) => p.connected && !p.eliminated,
+    );
 
     grid.hidden = done;
     confirmBox.hidden = done || pending === null;

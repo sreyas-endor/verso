@@ -563,8 +563,12 @@ message Snapshot {
   int32 total_rounds = 5;
   MatchSettings settings = 6;
   repeated PlayerInfo players = 7;
-  // Empty outside PHASE_DRAWING.
+  // The order this round draws in, and still the order it votes in
+  // (DESIGN.md:60). Empty before the first round of a match, and cleared when
+  // the round ends: the next round reshuffles.
   repeated string turn_order = 8;
+  // 0-based index of the live turn, and len(turn_order) once every turn is
+  // done — including for the whole discussion and result.
   int32 turn_index = 9;
   string artist_id = 10;
   // Milliseconds left in the current phase or turn; 0 when untimed.

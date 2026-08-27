@@ -57,6 +57,7 @@ After all active players have drawn:
 - Valid vote choices are any active player, the voter themself, or `Skip`.
 - The match ends the phase early if every active player has submitted a vote.
 - A player who does not vote before time expires **abstains**. An abstention is not a `Skip`: it is counted in no bucket and adds weight to no option. `Skip` is a deliberate answer, and only a player who chooses it casts it.
+- The roster and the ballot keep **this round's drawing order** through the vote and the result. Players argue about the drawings in the order they appeared — "the third one" is how a drawing gets referred to — so nothing reorders between the last turn and the elimination. The reshuffle belongs to the start of the next round, not the end of this one.
 
 ### 4. Vote Result
 
