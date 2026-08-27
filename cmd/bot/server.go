@@ -84,7 +84,8 @@ func StartServer(ctx context.Context, opts ServerOptions) (*LocalServer, error) 
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", ws.Handler())
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+	// Same name as the real server (cmd/verso/main.go), not /healthz.
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, "ok rooms=%d conns=%d\n", reg.Count(), ws.Live())
 	})
 

@@ -87,7 +87,15 @@ func run(log *slog.Logger, addr string, dev bool, webroot, origins string, maxRo
 
 	mux := http.NewServeMux()
 	mux.Handle("/ws", ws.Handler())
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+	// NOT /healthz. Google Frontend reserves the internal z-page names and
+	// answers them itself with its own 404 page, so a request for /healthz
+	// never reaches this process on Cloud Run. Verified against the deployed
+	// service: /healthz, /statusz, /varz and /rpcz are all swallowed, while
+	// /health, /healthz2 and /debugz arrive normally. The give-away is the
+	// response headers — an intercepted 404 carries no `server: Google
+	// Frontend` and no x-cloud-trace-context, because it never entered the
+	// Cloud Run serving path at all.
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		fmt.Fprintf(w, "ok rooms=%d conns=%d\n", reg.Count(), ws.Live())
 	})
