@@ -14,6 +14,8 @@ The group wins by eliminating the imposter. The imposter wins by surviving the f
 - The host also plays normally.
 - Players join with a display name and signal readiness.
 - A match requires 3–10 players.
+- **The host may remove another player from the lobby.** Only from the lobby, and never themself. Past the lobby a seat holds a word, a place in the turn order and a place in the vote denominator; removing one would have to decide what happens when the target is the imposter, and no answer to that exists which does not tell the room who they were. A host who wants somebody out of a running match ends it and removes them before the rematch.
+- Removal is not a ban. The removed player's seat and reconnect token are destroyed, so they cannot reclaim that seat, but the room code still works and they may take a fresh one. There is no account to ban and no address worth banning on a shared network.
 - The host configures:
   - Word-pair difficulty: Easy, Medium, or Hard.
   - Maximum rounds: 1–4; recommended default is 2.
@@ -205,7 +207,7 @@ Pairs have substantial overlap and reward deliberately ambiguous drawings. These
 ### Screens
 
 1. **Home** — Create room or join with code/link.
-2. **Lobby** — Player list, readiness, host settings, share controls, and start button.
+2. **Lobby** — Player list, readiness, host settings, share controls, and start button. The host's roster rows carry a remove control; nobody else's do.
 3. **Private word reveal** — Show only the player's assigned word and a reminder not to reveal it.
 4. **Drawing round** — Shared canvas, active artist, turn queue, and timer.
 5. **Discussion and decision** — Shared canvas, countdown, and private vote picker.

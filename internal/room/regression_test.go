@@ -28,24 +28,24 @@ func regRoom(t *testing.T, n int, s *genpb.MatchSettings) (*Room, []string, []*s
 	go r.run(ctx)
 
 	s0 := newSmokeSock()
-	if _, err := r.attach(hostTok, s0.ch); err != nil {
+	if _, err := r.attach(hostTok, s0); err != nil {
 		t.Fatal(err)
 	}
 	ids, socks := []string{hostID}, []*smokeSock{s0}
 	for i := 1; i < n; i++ {
 		sk := newSmokeSock()
-		id, _, err := r.seat("p", sk.ch)
+		id, _, err := r.seat("p", sk)
 		if err != nil {
 			t.Fatal(err)
 		}
 		ids, socks = append(ids, id), append(socks, sk)
 	}
 	for i, id := range ids {
-		r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}}}})
 	}
 	synctest.Wait()
-	r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+	r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 		Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}}}})
 	synctest.Wait()
 	time.Sleep(AssignDuration + time.Millisecond)
@@ -96,7 +96,7 @@ func TestSeatExpiryDoesNotEndTheFinalRoundEarly(t *testing.T) {
 				break
 			}
 		}
-		r.detach(ids[victim], socks[victim].ch)
+		r.detach(ids[victim], socks[victim])
 		synctest.Wait()
 		time.Sleep(GraceWindow + 2*SweepInterval)
 		synctest.Wait()
@@ -125,7 +125,7 @@ func TestLosingASeatResolvesASatisfiedVote(t *testing.T) {
 		// Three of the four vote. The fourth is still connected, so it is still
 		// in the denominator and the window must stay open for it.
 		for i := range 3 {
-			r.Submit(Command{PlayerID: ids[i], Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: ids[i], Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_CastVote{CastVote: &genpb.CastVote{
 					Choice: &genpb.CastVote_Skip{Skip: true}}}}})
 		}
@@ -136,7 +136,7 @@ func TestLosingASeatResolvesASatisfiedVote(t *testing.T) {
 
 		// Its socket drops: three of three active players have now voted, so the
 		// window closes at once rather than burning the remaining ~two minutes.
-		r.detach(ids[3], socks[3].ch)
+		r.detach(ids[3], socks[3])
 		synctest.Wait()
 		if got := smokePhase(r); got == genpb.Phase_PHASE_DISCUSSION {
 			t.Fatal("every remaining active player had voted but the window did not close")
@@ -162,7 +162,7 @@ func TestRematchDropsSeatsWithNoSocket(t *testing.T) {
 				break
 			}
 		}
-		r.detach(ids[victim], socks[victim].ch)
+		r.detach(ids[victim], socks[victim])
 		synctest.Wait()
 		time.Sleep(GraceWindow + 2*SweepInterval)
 		synctest.Wait()
@@ -181,14 +181,14 @@ func TestRematchDropsSeatsWithNoSocket(t *testing.T) {
 			t.Fatalf("match did not finish, phase = %v", got)
 		}
 
-		r.Submit(Command{PlayerID: hostID, Out: socks[0].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: socks[0], Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_Rematch{Rematch: &genpb.Rematch{}}}})
 		synctest.Wait()
 		for i, id := range ids {
 			if i == victim {
 				continue
 			}
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}}}})
 		}
 		synctest.Wait()

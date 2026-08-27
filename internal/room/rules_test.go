@@ -700,7 +700,7 @@ func TestImposterDisconnectEndsTheMatchForTheGroup(t *testing.T) {
 				h.advance(AssignDuration)
 
 				oi := h.imposterIdx()
-				h.r.detach(h.ids[oi], h.socks[oi].ch)
+				h.r.detach(h.ids[oi], h.socks[oi])
 				synctest.Wait()
 
 				// Inside the window the seat is still theirs to reclaim, so
@@ -1127,7 +1127,7 @@ func TestRosterBoundaries(t *testing.T) {
 				t.Fatalf("seats = %d, want %d", got, MaxPlayers)
 			}
 			extra := newSmokeSock()
-			if _, _, err := h.r.seat("eleventh", extra.ch); err != ErrRoomFull {
+			if _, _, err := h.r.seat("eleventh", extra); err != ErrRoomFull {
 				t.Fatalf("seating an 11th player returned %v, want ErrRoomFull", err)
 			}
 			if got := h.seatCount(); got != MaxPlayers {
@@ -1143,7 +1143,7 @@ func TestRosterBoundaries(t *testing.T) {
 			defer h.stop()
 			h.start()
 			latecomer := newSmokeSock()
-			if _, _, err := h.r.seat("late", latecomer.ch); err != ErrMatchInProgress {
+			if _, _, err := h.r.seat("late", latecomer); err != ErrMatchInProgress {
 				t.Fatalf("seating mid-match returned %v, want ErrMatchInProgress", err)
 			}
 		})
@@ -1217,7 +1217,7 @@ func TestMatchNeverRunsPastTheConfiguredFinalRound(t *testing.T) {
 		// simply not active for the moment (DESIGN.md, "Active players").
 		oi := h.imposterIdx()
 		watcher := h.anyIdxExcept(oi)
-		h.r.detach(h.ids[oi], h.socks[oi].ch)
+		h.r.detach(h.ids[oi], h.socks[oi])
 		synctest.Wait()
 		h.discard()
 

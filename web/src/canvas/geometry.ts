@@ -56,13 +56,18 @@ export class StrokePen {
   private bucket = -1;
   private open = false;
   private started = false;
+  /** Provisional only: the one-point dot is already down. */
+  private dotted = false;
 
   /**
-   * @param provisional draw a straight tail to the newest point on every flush.
-   *   The midpoint scheme otherwise lags one sample, which is invisible for a
-   *   viewer receiving 50 ms batches but not for the artist's own hand. The tail
-   *   is overdrawn by real geometry on the next flush, so it is only ever
-   *   enabled on the overlay layer, which is discarded rather than composited.
+   * @param provisional draw a straight tail to the newest point on every flush,
+   *   and put a dot down for the very first one. The midpoint scheme otherwise
+   *   lags one sample, which is invisible for a viewer receiving 50 ms batches
+   *   but not for the artist's own hand; and a stroke of one point resolves no
+   *   segment at all, so a tap would have nothing on screen until the server
+   *   echoed StrokeEnded back. Both marks are overdrawn by real geometry on the
+   *   next flush, so this is only ever enabled on the overlay layer, which is
+   *   discarded rather than composited.
    */
   constructor(ctx: AnyCtx, colorIndex: number, width: number, provisional = false) {
     this.ctx = ctx;
@@ -81,6 +86,19 @@ export class StrokePen {
       this.cy = at(pts, 1);
       this.started = true;
       this.consumed = 1;
+    }
+
+    // One point resolves no curve segment: the midpoint scheme needs two. For
+    // the artist that would mean a tap stays invisible until StrokeEnded comes
+    // back off the network, so put down the same dot `end` would commit for a
+    // one-point stroke. Guarded, because a repeated flush would re-fill the
+    // same disc and darken its antialiased rim.
+    if (this.provisional && n === 1) {
+      if (!this.dotted) {
+        this.dot(at(pts, 0), at(pts, 1));
+        this.dotted = true;
+      }
+      return;
     }
 
     let i = this.consumed;

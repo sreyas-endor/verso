@@ -13,6 +13,12 @@ export interface PlayerListOptions {
   showTurnQueue?: boolean;
   /** Show ready checkmarks (lobby only). */
   showReady?: boolean;
+  /**
+   * Render a remove button on every row but the viewer's own, for the host
+   * only. Lobby only: the server refuses a kick in any other phase, so
+   * offering the control there would be a button that cannot work.
+   */
+  onKick?: (player: PlayerInfo) => void;
 }
 
 export interface PlayerListView {
@@ -133,7 +139,26 @@ function row(seat: Seat, s: ViewState, opts: PlayerListOptions): HTMLElement {
       sub ? el("div", { class: "pitem-sub", text: sub }) : null,
     ),
     el("span", { class: "pitem-marks" }, ...marks(p, s, opts)),
+    kickButton(p, s, opts),
   );
+}
+
+/**
+ * The host's remove control. Absent for everyone else, and for the host's own
+ * row: a host leaves by closing the tab, which migrates the role, and the
+ * server refuses a self-kick anyway.
+ */
+function kickButton(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): HTMLElement | null {
+  if (!opts.onKick || !s.isHost || p.id === s.selfId) return null;
+  const b = el("button", {
+    class: "pitem-kick",
+    type: "button",
+    title: `Remove ${p.name}`,
+    "aria-label": `Remove ${p.name} from the room`,
+    text: "\u00d7",
+  });
+  b.addEventListener("click", () => opts.onKick?.(p));
+  return b;
 }
 
 /** Left column of every in-match screen, and the lobby roster. */

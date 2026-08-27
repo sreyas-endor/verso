@@ -81,6 +81,28 @@ const BACKOFF_CAP_MS = 10_000;
 /** How long a resync request waits before another one is allowed. */
 const RESYNC_COOLDOWN_MS = 2_000;
 
+// A resync is not fire-and-forget. The server drops an event rather than
+// blocking when a slow client's bounded outbound queue is full (room/api.go,
+// deliver), and a Snapshot is the largest frame it ever sends — so the one
+// message that clears `resyncing` is also the one most likely to be dropped
+// under exactly the load that caused the gap. Without a retry that leaves the
+// socket dropping every stroke event for the rest of the phase and the canvas
+// frozen with no error anywhere.
+//
+// The backoff is deliberately slower than the server's snapshot bucket refills
+// (transport.DefaultSnapshotRate): a client that answers a dropped snapshot by
+// asking faster is a denial of service it inflicts on itself.
+/** First wait for a Snapshot that never came. Half-jittered, like the socket backoff. */
+const RESYNC_RETRY_BASE_MS = 2_000;
+const RESYNC_RETRY_FACTOR = 2;
+const RESYNC_RETRY_CAP_MS = 15_000;
+/**
+ * Retries before the socket stops asking and reconnects instead. A fresh socket
+ * gets an unconditional Snapshot out of Attach and a fresh outbound queue,
+ * which is the state a repeatedly-dropped snapshot is evidence of.
+ */
+const MAX_RESYNC_ATTEMPTS = 4;
+
 /** Correlation entries older than this stop being usable as RTT samples. */
 const RTT_TTL_MS = 30_000;
 
@@ -129,6 +151,9 @@ export class VersoSocket {
   private readonly openStrokeIds = new Set<number>();
   private resyncAt = 0;
   private resyncing = false;
+  /** The single owner of automatic resync retry. Never more than one armed. */
+  private resyncTimer: ReturnType<typeof setTimeout> | null = null;
+  private resyncAttempt = 0;
 
   private readonly frameListeners = new Set<FrameListener>();
   private readonly stateListeners = new Set<StateListener>();
@@ -259,6 +284,19 @@ export class VersoSocket {
     return cid;
   }
 
+  /**
+   * Ask for a fresh Snapshot and take responsibility for getting one.
+   *
+   * This is the only entry point for "my canvas is wrong": the canvas engine's
+   * own sequence-gap detector routes here rather than sending a bare
+   * RequestSnapshot, so there is exactly one owner of retry policy and two
+   * detectors cannot race each other into a request storm. Cheap to call
+   * repeatedly — a resync already in flight absorbs it.
+   */
+  resync(): void {
+    this.requestResync();
+  }
+
   // ------------------------------------------------------------------------
   // internals: socket
   // ------------------------------------------------------------------------
@@ -386,6 +424,7 @@ export class VersoSocket {
 
   private teardown(): void {
     this.clearRetryTimer();
+    this.clearResyncTimer();
     this.closeWs();
     this.pending.clear();
     this.joinCid = "";
@@ -427,16 +466,35 @@ export class VersoSocket {
         break;
       }
       case "error":
+        // A kick arrives unsolicited, so it is not a join failure and does not
+        // reach handleJoinError. It is terminal in the same way: the seat is
+        // gone server-side, so the stored token is now a token for nothing and
+        // retrying would only take a fresh seat in the room we were removed
+        // from. The frame still forwards, so the UI can say what happened.
+        if (narrowErrorCode(body.value.code) === ErrorCode.KICKED) {
+          this.failure = { code: ErrorCode.KICKED, message: body.value.message };
+          this.intent = null;
+          this.teardown();
+          this.clearSeat();
+          this.resetSync();
+          this.setStatus("closed");
+          this.emitState();
+          break;
+        }
         if (frame.cid !== "" && frame.cid === this.joinCid) {
           if (this.handleJoinError(body.value.code, body.value.message)) return;
         }
         break;
       case "snapshot":
         // A Snapshot is the whole truth: it re-baselines the sequence and
-        // closes any resync in flight.
+        // closes any resync in flight, including one the server answered late
+        // or answered twice. Duplicate snapshots are idempotent here and in the
+        // engine, which rebuilds from the log rather than appending to it.
         this.lastSeq = body.value.seq;
         this.openStrokeIds.clear();
         this.resyncing = false;
+        this.resyncAttempt = 0;
+        this.clearResyncTimer();
         break;
       case "phaseChanged":
       case "lobbyState":
@@ -523,6 +581,63 @@ export class VersoSocket {
     this.resyncAt = now;
     // have_seq is advisory; the server always answers with the whole state.
     this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
+    this.armResyncRetry();
+  }
+
+  /**
+   * Arm the wait for the Snapshot just asked for. Half-jittered so a room whose
+   * clients all gapped on the same dropped broadcast does not re-ask in unison.
+   */
+  private armResyncRetry(): void {
+    this.clearResyncTimer();
+    const ceiling = Math.min(
+      RESYNC_RETRY_CAP_MS,
+      RESYNC_RETRY_BASE_MS * RESYNC_RETRY_FACTOR ** this.resyncAttempt,
+    );
+    const delay = ceiling / 2 + Math.random() * (ceiling / 2);
+    this.resyncTimer = setTimeout(() => {
+      this.resyncTimer = null;
+      this.onResyncTimeout();
+    }, delay);
+  }
+
+  private onResyncTimeout(): void {
+    // The snapshot landed while this was pending, or a phase reset dropped the
+    // baseline: either way there is nothing left to recover.
+    if (!this.resyncing) return;
+    const ws = this.ws;
+    if (ws === null || ws.readyState !== WebSocket.OPEN) {
+      // There is nothing to ask. Recovery belongs to the reconnect path, which
+      // ends in an unconditional Snapshot out of Attach — but drop the baseline
+      // on the way out regardless, because this is the last time this timer
+      // fires. If that reconnect Snapshot is itself dropped, a client left with
+      // `resyncing` set and no armed timer is frozen for the rest of the phase,
+      // which is the exact failure this retry exists to remove.
+      this.resetSync();
+      return;
+    }
+
+    this.resyncAttempt += 1;
+    if (this.resyncAttempt > MAX_RESYNC_ATTEMPTS) {
+      // Asking again is not working. Drop the baseline first so that whatever
+      // happens next the client cannot stay frozen: with lastSeq null the very
+      // next stroke event re-establishes it instead of reporting a phantom gap,
+      // and resyncing false stops events being discarded in the meantime.
+      this.log("resync unanswered, reconnecting");
+      this.resetSync();
+      this.retryNow();
+      return;
+    }
+    this.resyncAt = this.now();
+    this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
+    this.armResyncRetry();
+  }
+
+  private clearResyncTimer(): void {
+    if (this.resyncTimer !== null) {
+      clearTimeout(this.resyncTimer);
+      this.resyncTimer = null;
+    }
   }
 
   private maybeResetBaseline(rawPhase: number): void {
@@ -537,6 +652,8 @@ export class VersoSocket {
     this.lastSeq = null;
     this.openStrokeIds.clear();
     this.resyncing = false;
+    this.resyncAttempt = 0;
+    this.clearResyncTimer();
   }
 
   // ------------------------------------------------------------------------

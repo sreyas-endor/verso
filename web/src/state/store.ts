@@ -47,9 +47,25 @@ export class GameStore {
 
   // ---- writing ----------------------------------------------------------
 
-  /** Applies one decoded frame. Called by the session wiring, not by the UI. */
+  /**
+   * Applies one decoded frame. Called by the session wiring, not by the UI.
+   *
+   * A reducer arm that returns the state it was handed is declaring that this
+   * event carries no `GameState`, and referential equality is how it says so.
+   * Publishing that to every listener anyway is what made a stroke batch — up
+   * to 20 a second, and the artist receives its own echo — rerun the screen
+   * renderer and rebuild every roster row on the same main thread that is
+   * rasterising the ink. The store owns its own notification semantics, so the
+   * decision belongs here rather than in a special case at the call site.
+   *
+   * Note this is a *reference* test, not a deep compare: every arm that
+   * changes anything already builds a new object, so a real update can never
+   * be swallowed by it.
+   */
   apply(frame: ServerFrame): void {
-    this.commit(this.reduce(this.state, frame.body));
+    const next = this.reduce(this.state, frame.body);
+    if (next === this.state) return;
+    this.commit(next);
   }
 
   /** Merges connection facts the socket owns and the reducer cannot see. */
@@ -234,6 +250,20 @@ export class GameStore {
 
       case "error": {
         const v = body.value;
+        // A kick is the one error that invalidates everything else on screen.
+        // The seat is gone, so leaving the roster and phase in place would sit
+        // the removed player in a lobby that no longer contains them; reset to
+        // the initial state, which routes to home on selfId === "", and carry
+        // only the reason across so home can render it.
+        if (v.code === ErrorCode.KICKED) {
+          return {
+            ...initialState(),
+            connection: s.connection,
+            rttMs: s.rttMs,
+            lastError: v.message,
+            lastErrorCode: ErrorCode.KICKED,
+          };
+        }
         return {
           ...s,
           busy: false,

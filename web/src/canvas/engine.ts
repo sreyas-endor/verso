@@ -44,6 +44,14 @@ export interface CanvasOutbound {
   strokePoints(points: number[]): void;
   /** @param points the RDP-simplified whole stroke, or [] to keep what was streamed. */
   strokeEnd(points: number[]): void;
+  /**
+   * "My canvas is wrong, send me everything."
+   *
+   * @param haveSeq the last seq applied, advisory only — the answer is always
+   *   the complete state, and the implementation is free to supply its own.
+   *   The net layer owns retry policy for this one; the engine asks once per
+   *   gap and does not follow up (PERFORMANCE_OPTIMIZATION_PLAN.md C4).
+   */
   requestSnapshot(haveSeq: number): void;
 }
 
@@ -99,8 +107,17 @@ const GAP_COOLDOWN_MS = 1_000;
  * batch's worth of frames converts that into continuous motion, at the cost of
  * being one batch behind. That trade is only ever made for someone else's
  * stroke; see the file header on why the artist's own ink is never delayed.
+ *
+ * This is a PLAYBACK target and STROKE_BATCH_MS is a WIRE contract; they are
+ * deliberately not the same constant even though they currently hold the same
+ * number. Lowering this one buys a viewer 20-40 ms and costs nothing on the
+ * network, but it trades against how continuous a batch looks when it is
+ * spread over fewer frames, so it is a measurement (60 Hz and 120 Hz, at 0/20
+ * /50 ms of jitter) rather than a guess — PERFORMANCE_OPTIMIZATION_PLAN.md C3.
+ * Lowering STROKE_BATCH_MS instead is a different decision entirely and has to
+ * be argued against transport.DefaultCommandRate.
  */
-const REMOTE_PLAYBACK_MS = STROKE_BATCH_MS;
+const REMOTE_PLAYBACK_MS = 50;
 /**
  * Backlog past which the buffer is emptied in one frame. Smoothing is worth a
  * batch of delay and nothing more: after a stall the viewer should catch up,
@@ -227,7 +244,7 @@ export class CanvasEngine implements PointerSink {
 
     const width = scaledWidth(this.width, widthScale);
     const rec: StrokeRec = { id: UNADOPTED, colorIndex: this.colorIndex, width, pts: [x, y] };
-    this.live = {
+    const live: Live = {
       rec,
       pen: new StrokePen(this.surface.overlayCtx, rec.colorIndex, rec.width, true),
       local: true,
@@ -236,7 +253,16 @@ export class CanvasEngine implements PointerSink {
       ended: false,
       queue: [],
     };
+    this.live = live;
     this.pointsThisTurn++;
+
+    // Synchronously, before the socket and before the frame loop. The rAF path
+    // only paints on a `dirty` flag that the first point does not set, so
+    // without this a tap has nothing on screen until StrokeEnded comes back
+    // over the network — the one place the artist's ink was still round
+    // -tripping. Provisional, so it lands on the overlay only; the base layer
+    // keeps holding committed server geometry and nothing else.
+    live.pen.flush(rec.pts);
 
     this.outbound.strokeBegin(rec.colorIndex, width, toGrid(rec.pts));
     this.startBatch();

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -38,6 +39,14 @@ func (boundaryDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, strin
 
 // newTunedServer is newTestServer with the knobs a specific test needs to move.
 func newTunedServer(t *testing.T, cfg Config) *httptest.Server {
+	t.Helper()
+	hs, _ := newTunedServerWith(t, cfg)
+	return hs
+}
+
+// newTunedServerWith also hands back the transport Server itself, for the tests
+// that assert on live connection count rather than on frames.
+func newTunedServerWith(t *testing.T, cfg Config) (*httptest.Server, *Server) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -63,7 +72,7 @@ func newTunedServer(t *testing.T, cfg Config) *httptest.Server {
 		hs.Close()
 		_ = reg.Close(context.Background())
 	})
-	return hs
+	return hs, ws
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +102,8 @@ func TestValidateRejectsEveryEmptyVariant(t *testing.T) {
 		"nil cast_vote":          {Cmd: &genpb.ClientCommand_CastVote{}},
 		"nil request_snapshot":   {Cmd: &genpb.ClientCommand_RequestSnapshot{}},
 		"nil rematch":            {Cmd: &genpb.ClientCommand_Rematch{}},
+		"nil kick":               {Cmd: &genpb.ClientCommand_Kick{}},
+		"kick, empty target":     {Cmd: &genpb.ClientCommand_Kick{Kick: &genpb.KickPlayer{}}},
 		"cast_vote, no choice":   {Cmd: &genpb.ClientCommand_CastVote{CastVote: &genpb.CastVote{}}},
 		"cast_vote, skip false":  {Cmd: &genpb.ClientCommand_CastVote{CastVote: &genpb.CastVote{Choice: &genpb.CastVote_Skip{Skip: false}}}},
 		"nil command altogether": nil,
@@ -117,6 +128,7 @@ func TestValidateRejectsEveryEmptyVariant(t *testing.T) {
 		"vote skip":        {Cmd: &genpb.ClientCommand_CastVote{CastVote: &genpb.CastVote{Choice: &genpb.CastVote_Skip{Skip: true}}}},
 		"request_snapshot": {Cmd: &genpb.ClientCommand_RequestSnapshot{RequestSnapshot: &genpb.RequestSnapshot{}}},
 		"rematch":          {Cmd: &genpb.ClientCommand_Rematch{Rematch: &genpb.Rematch{}}},
+		"kick":             {Cmd: &genpb.ClientCommand_Kick{Kick: &genpb.KickPlayer{TargetPlayerId: "x"}}},
 	}
 	for name, cmd := range good {
 		if err := validate(cmd); err != nil {
@@ -284,6 +296,36 @@ func TestTamperedAndForeignSeatTokensAreRejected(t *testing.T) {
 // TestAnExpiredSeatTokenIsRejected drives a real room with plain channels — no
 // socket — so the 60 s grace window can pass in virtual time.
 //
+// ---------------------------------------------------------------------------
+// A channel as a room.Session
+// ---------------------------------------------------------------------------
+
+// chanSession adapts a plain buffered channel to room.Session, which is what
+// the room takes now that it can also ask a connection to close. Send keeps the
+// real policy — non-blocking, drop on a full queue — so a test that jams a
+// queue is still measuring what transport does.
+//
+// One session per channel, reused: the room compares sessions by identity to
+// tell a live socket from one a reconnect displaced, so handing out two
+// wrappers around the same channel would be handing out two different sockets.
+type chanSession struct {
+	ch     chan *genpb.ServerEvent
+	closed atomic.Bool
+}
+
+func sessionOf(ch chan *genpb.ServerEvent) *chanSession { return &chanSession{ch: ch} }
+
+func (s *chanSession) Send(ev *genpb.ServerEvent) {
+	select {
+	case s.ch <- ev:
+	default:
+	}
+}
+
+func (s *chanSession) Close() { s.closed.Store(true) }
+
+func (s *chanSession) wasClosed() bool { return s.closed.Load() }
+
 // The two outcomes are deliberately different. In the lobby the seat is freed
 // outright and the token stops working. Mid-match the seat and its word are
 // retained (DESIGN.md:113), so the token keeps working and brings its holder
@@ -299,34 +341,34 @@ func TestAnExpiredSeatTokenIsRejected(t *testing.T) {
 		})
 		go r.Run(ctx)
 
-		hostCh := make(chan *genpb.ServerEvent, 256)
-		if _, err := r.Attach(func() string { _, tok := r.HostSeat(); return tok }(), hostCh); err != nil {
+		hostSess := sessionOf(make(chan *genpb.ServerEvent, 256))
+		if _, err := r.Attach(func() string { _, tok := r.HostSeat(); return tok }(), hostSess); err != nil {
 			t.Fatal(err)
 		}
 
-		ch := make(chan *genpb.ServerEvent, 256)
-		id, token, err := r.Seat("bee", ch)
+		sess := sessionOf(make(chan *genpb.ServerEvent, 256))
+		id, token, err := r.Seat("bee", sess)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		r.Detach(id, ch)
+		r.Detach(id, sess)
 		synctest.Wait()
 
 		// Inside the window the token still works.
 		time.Sleep(room.GraceWindow / 2)
 		synctest.Wait()
-		if _, err := r.Attach(token, ch); err != nil {
+		if _, err := r.Attach(token, sess); err != nil {
 			t.Fatalf("token rejected inside the grace window: %v", err)
 		}
 
 		// Past it, in the lobby, the seat is gone and so is the credential.
-		r.Detach(id, ch)
+		r.Detach(id, sess)
 		synctest.Wait()
 		time.Sleep(room.GraceWindow + 2*room.SweepInterval)
 		synctest.Wait()
 
-		if _, err := r.Attach(token, ch); err == nil {
+		if _, err := r.Attach(token, sess); err == nil {
 			t.Fatal("an expired lobby seat token was accepted")
 		} else if !errorsIsBadSeat(err) {
 			t.Fatalf("expired token gave %v, want ErrBadSeat", err)
@@ -388,28 +430,28 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 	hostID, hostTok := r.HostSeat()
 	go r.Run(ctx)
 
-	live := make(chan *genpb.ServerEvent, 4096)
+	live := sessionOf(make(chan *genpb.ServerEvent, 4096))
 	if _, err := r.Attach(hostTok, live); err != nil {
 		t.Fatal(err)
 	}
-	second := make(chan *genpb.ServerEvent, 4096)
+	second := sessionOf(make(chan *genpb.ServerEvent, 4096))
 	secondID, _, err := r.Seat("grace", second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Capacity 1 and never read: full after the very first frame, and full for
 	// the rest of the test. This is a socket that has stopped consuming.
-	stuck := make(chan *genpb.ServerEvent, 1)
+	stuck := sessionOf(make(chan *genpb.ServerEvent, 1))
 	stuckID, _, err := r.Seat("stuck", stuck)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	drain := func(ch chan *genpb.ServerEvent) int {
+	drain := func(s *chanSession) int {
 		n := 0
 		for {
 			select {
-			case <-ch:
+			case <-s.ch:
 				n++
 			default:
 				return n
@@ -424,7 +466,7 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 	// blocks, so a test that overran it would be measuring the wrong queue.
 	seats := []struct {
 		id  string
-		out chan *genpb.ServerEvent
+		out *chanSession
 	}{{hostID, live}, {secondID, second}, {stuckID, stuck}}
 	for i := range 400 {
 		for _, s := range seats {
@@ -445,7 +487,7 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 	deadline := time.Now().Add(10 * time.Second)
 	for !got && time.Now().Before(deadline) {
 		select {
-		case ev := <-live:
+		case ev := <-live.ch:
 			hostFrames++
 			if ev.GetSnapshot() != nil && ev.GetCid() == "snap" {
 				got = true
@@ -468,7 +510,7 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 	}
 	// And the jammed queue is exactly as full as it was: frames were dropped,
 	// not buffered without bound and not blocked on.
-	if n := len(stuck); n != 1 {
+	if n := len(stuck.ch); n != 1 {
 		t.Fatalf("the jammed queue holds %d frames, want its capacity of 1", n)
 	}
 

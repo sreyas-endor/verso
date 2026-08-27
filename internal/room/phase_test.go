@@ -525,7 +525,7 @@ func TestArtistDisconnectSkipsTheTurnImmediately(t *testing.T) {
 			t.Fatal("no artist")
 		}
 		started := time.Now()
-		h.r.detach(h.ids[ai], h.socks[ai].ch)
+		h.r.detach(h.ids[ai], h.socks[ai])
 		synctest.Wait()
 
 		if elapsed := time.Since(started); elapsed != 0 {
@@ -577,7 +577,7 @@ func TestLastActiveArtistLeavingOpensDiscussion(t *testing.T) {
 			h.nextTurn()
 		}
 		ai := h.artistIdx()
-		h.r.detach(h.ids[ai], h.socks[ai].ch)
+		h.r.detach(h.ids[ai], h.socks[ai])
 		synctest.Wait()
 
 		// beginTurnAt ran out of artists and fell through to the voting

@@ -25,7 +25,16 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   d = new Disposers();
   const dd = d;
 
-  const roster = playerList("Players", { showReady: true });
+  const roster = playerList("Players", {
+    showReady: true,
+    // No confirmation step: a lobby kick is not a ban, so the worst a misclick
+    // costs is asking that player to rejoin. The toast is what makes a misclick
+    // visible, since the row simply disappears.
+    onKick: (p) => {
+      ctx.actions.kickPlayer(p.id);
+      ctx.toast(`Removed ${p.name}. They can rejoin with the room code.`);
+    },
+  });
   const settings = settingsPanel((next) => ctx.actions.updateSettings(next));
   dd.add(() => settings.dispose());
 

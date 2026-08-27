@@ -24,6 +24,25 @@
 .pitem-off { opacity: .62; }
 .pitem-marks { display: flex; gap: .25rem; align-items: center; margin-left: auto; flex: none; }
 
+/* The host's remove control. Held back until the row is hovered or the button
+   itself is focused, so the roster does not read as a row of delete buttons —
+   but never display:none, which would take it off the tab order entirely. */
+.pitem-kick {
+  flex: none; margin-left: .35rem; width: 1.5rem; height: 1.5rem; padding: 0;
+  border: 2px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-3);
+  font: inherit; font-size: 1.05rem; line-height: 1; font-weight: 800;
+  cursor: pointer; opacity: 0; transition: opacity .12s, color .12s, background .12s;
+}
+.pitem:hover .pitem-kick, .pitem-kick:focus-visible { opacity: 1; }
+.pitem-kick:hover { background: var(--bad-sf); color: var(--bad-dk); }
+.pitem-kick:focus-visible { outline: 2px solid var(--bad); outline-offset: 1px; }
+
+/* Coarse pointers have no hover to reveal it with. */
+@media (hover: none) {
+  .pitem-kick { opacity: 1; color: var(--ink-2); }
+}
+
 /* ---- timer ---- */
 .timer { display: flex; flex-direction: column; gap: .35rem; min-width: 7rem; }
 .timer-num {

@@ -96,7 +96,7 @@ func newHarnessWithDeck(t *testing.T, n int, s *genpb.MatchSettings, seed uint64
 	h := &harness{t: t, r: r, set: ClampSettings(s), cancel: cancel}
 
 	s0 := newSmokeSock()
-	if _, err := r.attach(hostTok, s0.ch); err != nil {
+	if _, err := r.attach(hostTok, s0); err != nil {
 		t.Fatalf("harness: attach host: %v", err)
 	}
 	h.ids = append(h.ids, hostID)
@@ -109,7 +109,7 @@ func newHarnessWithDeck(t *testing.T, n int, s *genpb.MatchSettings, seed uint64
 		// "longest connected" indistinguishable from "lowest seat number".
 		h.advance(time.Second)
 		sk := newSmokeSock()
-		id, tok, err := r.seat(fmt.Sprintf("p%d", i), sk.ch)
+		id, tok, err := r.seat(fmt.Sprintf("p%d", i), sk)
 		if err != nil {
 			t.Fatalf("harness: seat %d: %v", i, err)
 		}
@@ -138,7 +138,7 @@ func (h *harness) stop() {
 // ---------------------------------------------------------------------------
 
 func (h *harness) send(i int, c *genpb.ClientCommand) {
-	h.r.Submit(Command{PlayerID: h.ids[i], Out: h.socks[i].ch, Cmd: c})
+	h.r.Submit(Command{PlayerID: h.ids[i], Out: h.socks[i], Cmd: c})
 }
 
 // advance moves the fake clock by d and waits for the actor to settle.
@@ -397,6 +397,16 @@ func lastSnapshot(evs []*genpb.ServerEvent) *genpb.Snapshot {
 	var out *genpb.Snapshot
 	for _, e := range evs {
 		if v := e.GetSnapshot(); v != nil {
+			out = v
+		}
+	}
+	return out
+}
+
+func lastLobbyState(evs []*genpb.ServerEvent) *genpb.LobbyState {
+	var out *genpb.LobbyState
+	for _, e := range evs {
+		if v := e.GetLobbyState(); v != nil {
 			out = v
 		}
 	}

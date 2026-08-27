@@ -51,7 +51,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file verso/v1/game.proto.
  */
 export const file_verso_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("ChN2ZXJzby92MS9nYW1lLnByb3RvEgh2ZXJzby52MSKaAQoNTWF0Y2hTZXR0aW5ncxIoCgpkaWZmaWN1bHR5GAEgASgOMhQudmVyc28udjEuRGlmZmljdWx0eRISCgptYXhfcm91bmRzGAIgASgFEhQKDGRyYXdfc2Vjb25kcxgDIAEoBRIXCg9kaXNjdXNzX3NlY29uZHMYBCABKAUSHAoUaW50ZXJtaXNzaW9uX3NlY29uZHMYBSABKAUiewoKUGxheWVySW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHNlYXQYAyABKAUSEQoJY29ubmVjdGVkGAQgASgIEg0KBXJlYWR5GAUgASgIEg8KB2lzX2hvc3QYBiABKAgSEgoKZWxpbWluYXRlZBgHIAEoCCJPCgZTdHJva2USEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoESJhCghKb2luUm9vbRIRCglyb29tX2NvZGUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhIKCnNlYXRfdG9rZW4YAyABKAkSGAoQcHJvdG9jb2xfdmVyc2lvbhgEIAEoBSIZCghTZXRSZWFkeRINCgVyZWFkeRgBIAEoCCI7Cg5VcGRhdGVTZXR0aW5ncxIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiDAoKU3RhcnRNYXRjaCJBCgtTdHJva2VCZWdpbhITCgtjb2xvcl9pbmRleBgBIAEoBRINCgV3aWR0aBgCIAEoBRIOCgZwb2ludHMYAyADKBEiPgoMU3Ryb2tlUG9pbnRzEhEKCXN0cm9rZV9pZBgBIAEoBRIOCgZwb2ludHMYAiADKBESCwoDc2VxGAMgASgFIhsKCVN0cm9rZUVuZBIOCgZwb2ludHMYASADKBEiPAoIQ2FzdFZvdGUSFgoMY2FuZGlkYXRlX2lkGAEgASgJSAASDgoEc2tpcBgCIAEoCEgAQggKBmNob2ljZSIjCg9SZXF1ZXN0U25hcHNob3QSEAoIaGF2ZV9zZXEYASABKAUiCQoHUmVtYXRjaCLjAwoNQ2xpZW50Q29tbWFuZBILCgNjaWQYASABKAkSIgoEam9pbhgCIAEoCzISLnZlcnNvLnYxLkpvaW5Sb29tSAASJwoJc2V0X3JlYWR5GAMgASgLMhIudmVyc28udjEuU2V0UmVhZHlIABIzCg91cGRhdGVfc2V0dGluZ3MYBCABKAsyGC52ZXJzby52MS5VcGRhdGVTZXR0aW5nc0gAEisKC3N0YXJ0X21hdGNoGAUgASgLMhQudmVyc28udjEuU3RhcnRNYXRjaEgAEi0KDHN0cm9rZV9iZWdpbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2luSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEikKCnN0cm9rZV9lbmQYCCABKAsyEy52ZXJzby52MS5TdHJva2VFbmRIABInCgljYXN0X3ZvdGUYCSABKAsyEi52ZXJzby52MS5DYXN0Vm90ZUgAEjUKEHJlcXVlc3Rfc25hcHNob3QYCiABKAsyGS52ZXJzby52MS5SZXF1ZXN0U25hcHNob3RIABIkCgdyZW1hdGNoGAsgASgLMhEudmVyc28udjEuUmVtYXRjaEgAQgUKA2NtZCLOAQoKTG9iYnlTdGF0ZRIRCglyb29tX2NvZGUYASABKAkSJQoHcGxheWVycxgCIAMoCzIULnZlcnNvLnYxLlBsYXllckluZm8SKQoIc2V0dGluZ3MYAyABKAsyFy52ZXJzby52MS5NYXRjaFNldHRpbmdzEh4KBXBoYXNlGAQgASgOMg8udmVyc28udjEuUGhhc2USEwoLbWluX3BsYXllcnMYBSABKAUSEwoLbWF4X3BsYXllcnMYBiABKAUSEQoJY2FuX3N0YXJ0GAcgASgIIjwKD1NldHRpbmdzQ2hhbmdlZBIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiXQoMUm91bmRTdGFydGVkEg0KBXJvdW5kGAEgASgFEhQKDHRvdGFsX3JvdW5kcxgCIAEoBRISCgp0dXJuX29yZGVyGAMgAygJEhQKDGFjdGl2ZV9jb3VudBgEIAEoBSJuCgtUdXJuU3RhcnRlZBINCgVyb3VuZBgBIAEoBRISCgp0dXJuX2luZGV4GAIgASgFEhEKCWFydGlzdF9pZBgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoBRIUCgxyZW1haW5pbmdfbXMYBSABKAUiYQoLU3Ryb2tlQmVnYW4SEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoERILCgNzZXEYBSABKAUiPQoLU3Ryb2tlRW5kZWQSEQoJc3Ryb2tlX2lkGAEgASgFEg4KBnBvaW50cxgCIAMoERILCgNzZXEYAyABKAUigAEKDFBoYXNlQ2hhbmdlZBIeCgVwaGFzZRgBIAEoDjIPLnZlcnNvLnYxLlBoYXNlEg0KBXJvdW5kGAIgASgFEhMKC2R1cmF0aW9uX21zGAMgASgFEhQKDHJlbWFpbmluZ19tcxgEIAEoBRIWCg5uZXh0X2FydGlzdF9pZBgFIAEoCSJICg1Wb3RlQ2FzdENvdW50Eg0KBXJvdW5kGAEgASgFEhIKCnZvdGVzX2Nhc3QYAiABKAUSFAoMYWN0aXZlX2NvdW50GAMgASgFIjAKCVZvdGVDb3VudBIUCgxjYW5kaWRhdGVfaWQYASABKAkSDQoFdm90ZXMYAiABKAUiiQEKCVZvdGVUYWxseRINCgVyb3VuZBgBIAEoBRIjCgZjb3VudHMYAiADKAsyEy52ZXJzby52MS5Wb3RlQ291bnQSEgoKc2tpcF9jb3VudBgDIAEoBRIUCgxhY3RpdmVfY291bnQYBCABKAUSHgoSbWFqb3JpdHlfdGhyZXNob2xkGAUgASgFQgIYASJeChBQbGF5ZXJFbGltaW5hdGVkEg0KBXJvdW5kGAEgASgFEhIKCmVsaW1pbmF0ZWQYAiABKAgSEQoJcGxheWVyX2lkGAMgASgJEhQKDHdhc19pbXBvc3RlchgEIAEoCCJHCgpSb3VuZFdvcmRzEg0KBXJvdW5kGAEgASgFEhMKC2NvbW1vbl93b3JkGAIgASgJEhUKDWltcG9zdGVyX3dvcmQYAyABKAkidgoMUGxheWVyUmV2ZWFsEhEKCXBsYXllcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHdvcmQYAyABKAkSFAoMd2FzX2ltcG9zdGVyGAQgASgIEhIKCmVsaW1pbmF0ZWQYBSABKAgSDQoFd29yZHMYBiADKAkiigIKCk1hdGNoRW5kZWQSJAoGd2lubmVyGAEgASgOMhQudmVyc28udjEuV2lubmVyU2lkZRIoCgZyZWFzb24YAiABKA4yGC52ZXJzby52MS5NYXRjaEVuZFJlYXNvbhITCgtjb21tb25fd29yZBgDIAEoCRIVCg1pbXBvc3Rlcl93b3JkGAQgASgJEhoKEmltcG9zdGVyX3BsYXllcl9pZBgFIAEoCRInCgdyZXZlYWxzGAYgAygLMhYudmVyc28udjEuUGxheWVyUmV2ZWFsEhUKDXJvdW5kc19wbGF5ZWQYByABKAUSJAoGcm91bmRzGAggAygLMhQudmVyc28udjEuUm91bmRXb3JkcyJXCg5QbGF5ZXJQcmVzZW5jZRIkCgZwbGF5ZXIYASABKAsyFC52ZXJzby52MS5QbGF5ZXJJbmZvEh8KF2dyYWNlX3NlY29uZHNfcmVtYWluaW5nGAIgASgFIjsKBUVycm9yEiEKBGNvZGUYASABKA4yEy52ZXJzby52MS5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCSKZAQoGSm9pbmVkEhEKCXJvb21fY29kZRgBIAEoCRIRCglwbGF5ZXJfaWQYAiABKAkSEgoKc2VhdF90b2tlbhgDIAEoCRIVCg1ncmFjZV9zZWNvbmRzGAQgASgFEg8KB2lzX2hvc3QYBSABKAgSEwoLcmVjb25uZWN0ZWQYBiABKAgSGAoQcHJvdG9jb2xfdmVyc2lvbhgHIAEoBSInCghZb3VyV29yZBIMCgR3b3JkGAEgASgJEg0KBXJvdW5kGAIgASgFItEDCghTbmFwc2hvdBIRCglyb29tX2NvZGUYASABKAkSEQoJcGxheWVyX2lkGAIgASgJEh4KBXBoYXNlGAMgASgOMg8udmVyc28udjEuUGhhc2USDQoFcm91bmQYBCABKAUSFAoMdG90YWxfcm91bmRzGAUgASgFEikKCHNldHRpbmdzGAYgASgLMhcudmVyc28udjEuTWF0Y2hTZXR0aW5ncxIlCgdwbGF5ZXJzGAcgAygLMhQudmVyc28udjEuUGxheWVySW5mbxISCgp0dXJuX29yZGVyGAggAygJEhIKCnR1cm5faW5kZXgYCSABKAUSEQoJYXJ0aXN0X2lkGAogASgJEhQKDHJlbWFpbmluZ19tcxgLIAEoBRIhCgdzdHJva2VzGAwgAygLMhAudmVyc28udjEuU3Ryb2tlEgsKA3NlcRgNIAEoBRIRCgl5b3VyX3dvcmQYDiABKAkSGgoSeW91X2FyZV9lbGltaW5hdGVkGA8gASgIEhYKDnlvdV9oYXZlX3ZvdGVkGBAgASgIEhIKCnZvdGVzX2Nhc3QYESABKAUSFAoMYWN0aXZlX2NvdW50GBIgASgFEhYKDm5leHRfYXJ0aXN0X2lkGBMgASgJIkIKDVNwZWN0YXRvckluZm8SGgoSaW1wb3N0ZXJfcGxheWVyX2lkGAEgASgJEhUKDWltcG9zdGVyX25hbWUYAiABKAkiQQoMVm90ZUFjY2VwdGVkEg0KBXJvdW5kGAEgASgFEhQKDGNhbmRpZGF0ZV9pZBgCIAEoCRIMCgRza2lwGAMgASgIIpoHCgtTZXJ2ZXJFdmVudBILCgNjaWQYASABKAkSKwoLbG9iYnlfc3RhdGUYAiABKAsyFC52ZXJzby52MS5Mb2JieVN0YXRlSAASNQoQc2V0dGluZ3NfY2hhbmdlZBgDIAEoCzIZLnZlcnNvLnYxLlNldHRpbmdzQ2hhbmdlZEgAEi8KDXJvdW5kX3N0YXJ0ZWQYBCABKAsyFi52ZXJzby52MS5Sb3VuZFN0YXJ0ZWRIABItCgx0dXJuX3N0YXJ0ZWQYBSABKAsyFS52ZXJzby52MS5UdXJuU3RhcnRlZEgAEi0KDHN0cm9rZV9iZWdhbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2FuSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEi0KDHN0cm9rZV9lbmRlZBgIIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUVuZGVkSAASLwoNcGhhc2VfY2hhbmdlZBgJIAEoCzIWLnZlcnNvLnYxLlBoYXNlQ2hhbmdlZEgAEjIKD3ZvdGVfY2FzdF9jb3VudBgKIAEoCzIXLnZlcnNvLnYxLlZvdGVDYXN0Q291bnRIABIpCgp2b3RlX3RhbGx5GAsgASgLMhMudmVyc28udjEuVm90ZVRhbGx5SAASNwoRcGxheWVyX2VsaW1pbmF0ZWQYDCABKAsyGi52ZXJzby52MS5QbGF5ZXJFbGltaW5hdGVkSAASKwoLbWF0Y2hfZW5kZWQYDSABKAsyFC52ZXJzby52MS5NYXRjaEVuZGVkSAASMwoPcGxheWVyX3ByZXNlbmNlGA4gASgLMhgudmVyc28udjEuUGxheWVyUHJlc2VuY2VIABIgCgVlcnJvchgPIAEoCzIPLnZlcnNvLnYxLkVycm9ySAASIgoGam9pbmVkGBAgASgLMhAudmVyc28udjEuSm9pbmVkSAASJwoJeW91cl93b3JkGBEgASgLMhIudmVyc28udjEuWW91cldvcmRIABImCghzbmFwc2hvdBgSIAEoCzISLnZlcnNvLnYxLlNuYXBzaG90SAASMQoOc3BlY3RhdG9yX2luZm8YEyABKAsyFy52ZXJzby52MS5TcGVjdGF0b3JJbmZvSAASLwoNdm90ZV9hY2NlcHRlZBgUIAEoCzIWLnZlcnNvLnYxLlZvdGVBY2NlcHRlZEgAQgUKA2V2dCppCgpEaWZmaWN1bHR5EhoKFkRJRkZJQ1VMVFlfVU5TUEVDSUZJRUQQABITCg9ESUZGSUNVTFRZX0VBU1kQARIVChFESUZGSUNVTFRZX01FRElVTRACEhMKD0RJRkZJQ1VMVFlfSEFSRBADKqsBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEg8KC1BIQVNFX0xPQkJZEAESEwoPUEhBU0VfQVNTSUdOSU5HEAISEQoNUEhBU0VfRFJBV0lORxADEhQKEFBIQVNFX0RJU0NVU1NJT04QBBITCg9QSEFTRV9SRVNPTFZJTkcQBRIPCgtQSEFTRV9FTkRFRBAGEhYKElBIQVNFX0lOVEVSTUlTU0lPThAHKloKCldpbm5lclNpZGUSGwoXV0lOTkVSX1NJREVfVU5TUEVDSUZJRUQQABIVChFXSU5ORVJfU0lERV9HUk9VUBABEhgKFFdJTk5FUl9TSURFX0lNUE9TVEVSEAIq/AEKDk1hdGNoRW5kUmVhc29uEiAKHE1BVENIX0VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIoCiRNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0VMSU1JTkFURUQQARIpCiVNQVRDSF9FTkRfUkVBU09OX0ZJTkFMX1JPVU5EX1NVUlZJVkVEEAISJwojTUFUQ0hfRU5EX1JFQVNPTl9UV09fUExBWUVSU19SRU1BSU4QAxIqCiZNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0RJU0NPTk5FQ1RFRBAEEh4KGk1BVENIX0VORF9SRUFTT05fQUJBTkRPTkVEEAUq4AMKCUVycm9yQ29kZRIaChZFUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASHQoZRVJST1JfQ09ERV9ST09NX05PVF9GT1VORBABEhgKFEVSUk9SX0NPREVfUk9PTV9GVUxMEAISIAocRVJST1JfQ09ERV9NQVRDSF9JTl9QUk9HUkVTUxADEhcKE0VSUk9SX0NPREVfQkFEX1NFQVQQBBIXChNFUlJPUl9DT0RFX05PVF9IT1NUEAUSGQoVRVJST1JfQ09ERV9OT1RfQVJUSVNUEAYSHAoYRVJST1JfQ09ERV9BTFJFQURZX1ZPVEVEEAcSHwobRVJST1JfQ09ERV9JTlZBTElEX1NFVFRJTkdTEAgSIQodRVJST1JfQ09ERV9OT1RfRU5PVUdIX1BMQVlFUlMQCRIYChRFUlJPUl9DT0RFX05PVF9SRUFEWRAKEh4KGkVSUk9SX0NPREVfSU5WQUxJRF9DT01NQU5EEAsSGQoVRVJST1JfQ09ERV9OT1RfQUNUSVZFEAwSGwoXRVJST1JfQ09ERV9SQVRFX0xJTUlURUQQDRIaChZFUlJPUl9DT0RFX1dST05HX1BIQVNFEA4SHwobRVJST1JfQ09ERV9QUk9UT0NPTF9WRVJTSU9OEA9ClwEKDGNvbS52ZXJzby52MUIJR2FtZVByb3RvUAFaO2dpdGh1Yi5jb20vc3JleWFzLWVuZG9yL3ZlcnNvL2ludGVybmFsL2dlbi92ZXJzby92MTt2ZXJzb3YxogIDVlhYqgIIVmVyc28uVjHKAghWZXJzb1xWMeICFFZlcnNvXFYxXEdQQk1ldGFkYXRh6gIJVmVyc286OlYxYgZwcm90bzM");
+  fileDesc("ChN2ZXJzby92MS9nYW1lLnByb3RvEgh2ZXJzby52MSKaAQoNTWF0Y2hTZXR0aW5ncxIoCgpkaWZmaWN1bHR5GAEgASgOMhQudmVyc28udjEuRGlmZmljdWx0eRISCgptYXhfcm91bmRzGAIgASgFEhQKDGRyYXdfc2Vjb25kcxgDIAEoBRIXCg9kaXNjdXNzX3NlY29uZHMYBCABKAUSHAoUaW50ZXJtaXNzaW9uX3NlY29uZHMYBSABKAUiewoKUGxheWVySW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHNlYXQYAyABKAUSEQoJY29ubmVjdGVkGAQgASgIEg0KBXJlYWR5GAUgASgIEg8KB2lzX2hvc3QYBiABKAgSEgoKZWxpbWluYXRlZBgHIAEoCCJPCgZTdHJva2USEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoESJhCghKb2luUm9vbRIRCglyb29tX2NvZGUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhIKCnNlYXRfdG9rZW4YAyABKAkSGAoQcHJvdG9jb2xfdmVyc2lvbhgEIAEoBSIZCghTZXRSZWFkeRINCgVyZWFkeRgBIAEoCCI7Cg5VcGRhdGVTZXR0aW5ncxIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiDAoKU3RhcnRNYXRjaCImCgpLaWNrUGxheWVyEhgKEHRhcmdldF9wbGF5ZXJfaWQYASABKAkiQQoLU3Ryb2tlQmVnaW4SEwoLY29sb3JfaW5kZXgYASABKAUSDQoFd2lkdGgYAiABKAUSDgoGcG9pbnRzGAMgAygRIj4KDFN0cm9rZVBvaW50cxIRCglzdHJva2VfaWQYASABKAUSDgoGcG9pbnRzGAIgAygREgsKA3NlcRgDIAEoBSIbCglTdHJva2VFbmQSDgoGcG9pbnRzGAEgAygRIjwKCENhc3RWb3RlEhYKDGNhbmRpZGF0ZV9pZBgBIAEoCUgAEg4KBHNraXAYAiABKAhIAEIICgZjaG9pY2UiIwoPUmVxdWVzdFNuYXBzaG90EhAKCGhhdmVfc2VxGAEgASgFIgkKB1JlbWF0Y2giiQQKDUNsaWVudENvbW1hbmQSCwoDY2lkGAEgASgJEiIKBGpvaW4YAiABKAsyEi52ZXJzby52MS5Kb2luUm9vbUgAEicKCXNldF9yZWFkeRgDIAEoCzISLnZlcnNvLnYxLlNldFJlYWR5SAASMwoPdXBkYXRlX3NldHRpbmdzGAQgASgLMhgudmVyc28udjEuVXBkYXRlU2V0dGluZ3NIABIrCgtzdGFydF9tYXRjaBgFIAEoCzIULnZlcnNvLnYxLlN0YXJ0TWF0Y2hIABItCgxzdHJva2VfYmVnaW4YBiABKAsyFS52ZXJzby52MS5TdHJva2VCZWdpbkgAEi8KDXN0cm9rZV9wb2ludHMYByABKAsyFi52ZXJzby52MS5TdHJva2VQb2ludHNIABIpCgpzdHJva2VfZW5kGAggASgLMhMudmVyc28udjEuU3Ryb2tlRW5kSAASJwoJY2FzdF92b3RlGAkgASgLMhIudmVyc28udjEuQ2FzdFZvdGVIABI1ChByZXF1ZXN0X3NuYXBzaG90GAogASgLMhkudmVyc28udjEuUmVxdWVzdFNuYXBzaG90SAASJAoHcmVtYXRjaBgLIAEoCzIRLnZlcnNvLnYxLlJlbWF0Y2hIABIkCgRraWNrGAwgASgLMhQudmVyc28udjEuS2lja1BsYXllckgAQgUKA2NtZCLOAQoKTG9iYnlTdGF0ZRIRCglyb29tX2NvZGUYASABKAkSJQoHcGxheWVycxgCIAMoCzIULnZlcnNvLnYxLlBsYXllckluZm8SKQoIc2V0dGluZ3MYAyABKAsyFy52ZXJzby52MS5NYXRjaFNldHRpbmdzEh4KBXBoYXNlGAQgASgOMg8udmVyc28udjEuUGhhc2USEwoLbWluX3BsYXllcnMYBSABKAUSEwoLbWF4X3BsYXllcnMYBiABKAUSEQoJY2FuX3N0YXJ0GAcgASgIIjwKD1NldHRpbmdzQ2hhbmdlZBIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiXQoMUm91bmRTdGFydGVkEg0KBXJvdW5kGAEgASgFEhQKDHRvdGFsX3JvdW5kcxgCIAEoBRISCgp0dXJuX29yZGVyGAMgAygJEhQKDGFjdGl2ZV9jb3VudBgEIAEoBSJuCgtUdXJuU3RhcnRlZBINCgVyb3VuZBgBIAEoBRISCgp0dXJuX2luZGV4GAIgASgFEhEKCWFydGlzdF9pZBgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoBRIUCgxyZW1haW5pbmdfbXMYBSABKAUiYQoLU3Ryb2tlQmVnYW4SEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoERILCgNzZXEYBSABKAUiPQoLU3Ryb2tlRW5kZWQSEQoJc3Ryb2tlX2lkGAEgASgFEg4KBnBvaW50cxgCIAMoERILCgNzZXEYAyABKAUigAEKDFBoYXNlQ2hhbmdlZBIeCgVwaGFzZRgBIAEoDjIPLnZlcnNvLnYxLlBoYXNlEg0KBXJvdW5kGAIgASgFEhMKC2R1cmF0aW9uX21zGAMgASgFEhQKDHJlbWFpbmluZ19tcxgEIAEoBRIWCg5uZXh0X2FydGlzdF9pZBgFIAEoCSJICg1Wb3RlQ2FzdENvdW50Eg0KBXJvdW5kGAEgASgFEhIKCnZvdGVzX2Nhc3QYAiABKAUSFAoMYWN0aXZlX2NvdW50GAMgASgFIjAKCVZvdGVDb3VudBIUCgxjYW5kaWRhdGVfaWQYASABKAkSDQoFdm90ZXMYAiABKAUiiQEKCVZvdGVUYWxseRINCgVyb3VuZBgBIAEoBRIjCgZjb3VudHMYAiADKAsyEy52ZXJzby52MS5Wb3RlQ291bnQSEgoKc2tpcF9jb3VudBgDIAEoBRIUCgxhY3RpdmVfY291bnQYBCABKAUSHgoSbWFqb3JpdHlfdGhyZXNob2xkGAUgASgFQgIYASJeChBQbGF5ZXJFbGltaW5hdGVkEg0KBXJvdW5kGAEgASgFEhIKCmVsaW1pbmF0ZWQYAiABKAgSEQoJcGxheWVyX2lkGAMgASgJEhQKDHdhc19pbXBvc3RlchgEIAEoCCJHCgpSb3VuZFdvcmRzEg0KBXJvdW5kGAEgASgFEhMKC2NvbW1vbl93b3JkGAIgASgJEhUKDWltcG9zdGVyX3dvcmQYAyABKAkidgoMUGxheWVyUmV2ZWFsEhEKCXBsYXllcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHdvcmQYAyABKAkSFAoMd2FzX2ltcG9zdGVyGAQgASgIEhIKCmVsaW1pbmF0ZWQYBSABKAgSDQoFd29yZHMYBiADKAkiigIKCk1hdGNoRW5kZWQSJAoGd2lubmVyGAEgASgOMhQudmVyc28udjEuV2lubmVyU2lkZRIoCgZyZWFzb24YAiABKA4yGC52ZXJzby52MS5NYXRjaEVuZFJlYXNvbhITCgtjb21tb25fd29yZBgDIAEoCRIVCg1pbXBvc3Rlcl93b3JkGAQgASgJEhoKEmltcG9zdGVyX3BsYXllcl9pZBgFIAEoCRInCgdyZXZlYWxzGAYgAygLMhYudmVyc28udjEuUGxheWVyUmV2ZWFsEhUKDXJvdW5kc19wbGF5ZWQYByABKAUSJAoGcm91bmRzGAggAygLMhQudmVyc28udjEuUm91bmRXb3JkcyJXCg5QbGF5ZXJQcmVzZW5jZRIkCgZwbGF5ZXIYASABKAsyFC52ZXJzby52MS5QbGF5ZXJJbmZvEh8KF2dyYWNlX3NlY29uZHNfcmVtYWluaW5nGAIgASgFIjsKBUVycm9yEiEKBGNvZGUYASABKA4yEy52ZXJzby52MS5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCSKZAQoGSm9pbmVkEhEKCXJvb21fY29kZRgBIAEoCRIRCglwbGF5ZXJfaWQYAiABKAkSEgoKc2VhdF90b2tlbhgDIAEoCRIVCg1ncmFjZV9zZWNvbmRzGAQgASgFEg8KB2lzX2hvc3QYBSABKAgSEwoLcmVjb25uZWN0ZWQYBiABKAgSGAoQcHJvdG9jb2xfdmVyc2lvbhgHIAEoBSInCghZb3VyV29yZBIMCgR3b3JkGAEgASgJEg0KBXJvdW5kGAIgASgFItEDCghTbmFwc2hvdBIRCglyb29tX2NvZGUYASABKAkSEQoJcGxheWVyX2lkGAIgASgJEh4KBXBoYXNlGAMgASgOMg8udmVyc28udjEuUGhhc2USDQoFcm91bmQYBCABKAUSFAoMdG90YWxfcm91bmRzGAUgASgFEikKCHNldHRpbmdzGAYgASgLMhcudmVyc28udjEuTWF0Y2hTZXR0aW5ncxIlCgdwbGF5ZXJzGAcgAygLMhQudmVyc28udjEuUGxheWVySW5mbxISCgp0dXJuX29yZGVyGAggAygJEhIKCnR1cm5faW5kZXgYCSABKAUSEQoJYXJ0aXN0X2lkGAogASgJEhQKDHJlbWFpbmluZ19tcxgLIAEoBRIhCgdzdHJva2VzGAwgAygLMhAudmVyc28udjEuU3Ryb2tlEgsKA3NlcRgNIAEoBRIRCgl5b3VyX3dvcmQYDiABKAkSGgoSeW91X2FyZV9lbGltaW5hdGVkGA8gASgIEhYKDnlvdV9oYXZlX3ZvdGVkGBAgASgIEhIKCnZvdGVzX2Nhc3QYESABKAUSFAoMYWN0aXZlX2NvdW50GBIgASgFEhYKDm5leHRfYXJ0aXN0X2lkGBMgASgJIkIKDVNwZWN0YXRvckluZm8SGgoSaW1wb3N0ZXJfcGxheWVyX2lkGAEgASgJEhUKDWltcG9zdGVyX25hbWUYAiABKAkiQQoMVm90ZUFjY2VwdGVkEg0KBXJvdW5kGAEgASgFEhQKDGNhbmRpZGF0ZV9pZBgCIAEoCRIMCgRza2lwGAMgASgIIpoHCgtTZXJ2ZXJFdmVudBILCgNjaWQYASABKAkSKwoLbG9iYnlfc3RhdGUYAiABKAsyFC52ZXJzby52MS5Mb2JieVN0YXRlSAASNQoQc2V0dGluZ3NfY2hhbmdlZBgDIAEoCzIZLnZlcnNvLnYxLlNldHRpbmdzQ2hhbmdlZEgAEi8KDXJvdW5kX3N0YXJ0ZWQYBCABKAsyFi52ZXJzby52MS5Sb3VuZFN0YXJ0ZWRIABItCgx0dXJuX3N0YXJ0ZWQYBSABKAsyFS52ZXJzby52MS5UdXJuU3RhcnRlZEgAEi0KDHN0cm9rZV9iZWdhbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2FuSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEi0KDHN0cm9rZV9lbmRlZBgIIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUVuZGVkSAASLwoNcGhhc2VfY2hhbmdlZBgJIAEoCzIWLnZlcnNvLnYxLlBoYXNlQ2hhbmdlZEgAEjIKD3ZvdGVfY2FzdF9jb3VudBgKIAEoCzIXLnZlcnNvLnYxLlZvdGVDYXN0Q291bnRIABIpCgp2b3RlX3RhbGx5GAsgASgLMhMudmVyc28udjEuVm90ZVRhbGx5SAASNwoRcGxheWVyX2VsaW1pbmF0ZWQYDCABKAsyGi52ZXJzby52MS5QbGF5ZXJFbGltaW5hdGVkSAASKwoLbWF0Y2hfZW5kZWQYDSABKAsyFC52ZXJzby52MS5NYXRjaEVuZGVkSAASMwoPcGxheWVyX3ByZXNlbmNlGA4gASgLMhgudmVyc28udjEuUGxheWVyUHJlc2VuY2VIABIgCgVlcnJvchgPIAEoCzIPLnZlcnNvLnYxLkVycm9ySAASIgoGam9pbmVkGBAgASgLMhAudmVyc28udjEuSm9pbmVkSAASJwoJeW91cl93b3JkGBEgASgLMhIudmVyc28udjEuWW91cldvcmRIABImCghzbmFwc2hvdBgSIAEoCzISLnZlcnNvLnYxLlNuYXBzaG90SAASMQoOc3BlY3RhdG9yX2luZm8YEyABKAsyFy52ZXJzby52MS5TcGVjdGF0b3JJbmZvSAASLwoNdm90ZV9hY2NlcHRlZBgUIAEoCzIWLnZlcnNvLnYxLlZvdGVBY2NlcHRlZEgAQgUKA2V2dCppCgpEaWZmaWN1bHR5EhoKFkRJRkZJQ1VMVFlfVU5TUEVDSUZJRUQQABITCg9ESUZGSUNVTFRZX0VBU1kQARIVChFESUZGSUNVTFRZX01FRElVTRACEhMKD0RJRkZJQ1VMVFlfSEFSRBADKqsBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEg8KC1BIQVNFX0xPQkJZEAESEwoPUEhBU0VfQVNTSUdOSU5HEAISEQoNUEhBU0VfRFJBV0lORxADEhQKEFBIQVNFX0RJU0NVU1NJT04QBBITCg9QSEFTRV9SRVNPTFZJTkcQBRIPCgtQSEFTRV9FTkRFRBAGEhYKElBIQVNFX0lOVEVSTUlTU0lPThAHKloKCldpbm5lclNpZGUSGwoXV0lOTkVSX1NJREVfVU5TUEVDSUZJRUQQABIVChFXSU5ORVJfU0lERV9HUk9VUBABEhgKFFdJTk5FUl9TSURFX0lNUE9TVEVSEAIq/AEKDk1hdGNoRW5kUmVhc29uEiAKHE1BVENIX0VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIoCiRNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0VMSU1JTkFURUQQARIpCiVNQVRDSF9FTkRfUkVBU09OX0ZJTkFMX1JPVU5EX1NVUlZJVkVEEAISJwojTUFUQ0hfRU5EX1JFQVNPTl9UV09fUExBWUVSU19SRU1BSU4QAxIqCiZNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0RJU0NPTk5FQ1RFRBAEEh4KGk1BVENIX0VORF9SRUFTT05fQUJBTkRPTkVEEAUq9wMKCUVycm9yQ29kZRIaChZFUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASHQoZRVJST1JfQ09ERV9ST09NX05PVF9GT1VORBABEhgKFEVSUk9SX0NPREVfUk9PTV9GVUxMEAISIAocRVJST1JfQ09ERV9NQVRDSF9JTl9QUk9HUkVTUxADEhcKE0VSUk9SX0NPREVfQkFEX1NFQVQQBBIXChNFUlJPUl9DT0RFX05PVF9IT1NUEAUSGQoVRVJST1JfQ09ERV9OT1RfQVJUSVNUEAYSHAoYRVJST1JfQ09ERV9BTFJFQURZX1ZPVEVEEAcSHwobRVJST1JfQ09ERV9JTlZBTElEX1NFVFRJTkdTEAgSIQodRVJST1JfQ09ERV9OT1RfRU5PVUdIX1BMQVlFUlMQCRIYChRFUlJPUl9DT0RFX05PVF9SRUFEWRAKEh4KGkVSUk9SX0NPREVfSU5WQUxJRF9DT01NQU5EEAsSGQoVRVJST1JfQ09ERV9OT1RfQUNUSVZFEAwSGwoXRVJST1JfQ09ERV9SQVRFX0xJTUlURUQQDRIaChZFUlJPUl9DT0RFX1dST05HX1BIQVNFEA4SHwobRVJST1JfQ09ERV9QUk9UT0NPTF9WRVJTSU9OEA8SFQoRRVJST1JfQ09ERV9LSUNLRUQQEEKXAQoMY29tLnZlcnNvLnYxQglHYW1lUHJvdG9QAVo7Z2l0aHViLmNvbS9zcmV5YXMtZW5kb3IvdmVyc28vaW50ZXJuYWwvZ2VuL3ZlcnNvL3YxO3ZlcnNvdjGiAgNWWFiqAghWZXJzby5WMcoCCFZlcnNvXFYx4gIUVmVyc29cVjFcR1BCTWV0YWRhdGHqAglWZXJzbzo6VjFiBnByb3RvMw");
 
 /**
  * Host-configured match parameters (DESIGN.md:224). The server clamps every
@@ -295,6 +295,36 @@ export const StartMatchSchema: GenMessage<StartMatch> = /*@__PURE__*/
   messageDesc(file_verso_v1_game, 6);
 
 /**
+ * Remove another player's seat. Host only, and lobby only: outside
+ * PHASE_LOBBY a seat holds a word and a place in the turn order and the vote
+ * denominator, none of which a removal may quietly rewrite.
+ *
+ * Rejected with ERROR_CODE_NOT_HOST from a non-host, ERROR_CODE_WRONG_PHASE
+ * outside the lobby, and ERROR_CODE_INVALID_COMMAND for an unknown id or for
+ * the host's own id — a host leaves by closing the tab, which migrates the
+ * role, rather than by unseating themself.
+ *
+ * The removed player is told with an ERROR_CODE_KICKED Error and their seat
+ * token is destroyed, so they cannot reconnect into that seat. This does NOT
+ * ban them: the room code still works and they may take a fresh seat.
+ *
+ * @generated from message verso.v1.KickPlayer
+ */
+export type KickPlayer = Message<"verso.v1.KickPlayer"> & {
+  /**
+   * @generated from field: string target_player_id = 1;
+   */
+  targetPlayerId: string;
+};
+
+/**
+ * Describes the message verso.v1.KickPlayer.
+ * Use `create(KickPlayerSchema)` to create a new message.
+ */
+export const KickPlayerSchema: GenMessage<KickPlayer> = /*@__PURE__*/
+  messageDesc(file_verso_v1_game, 7);
+
+/**
  * Begin a stroke. Rejected from anyone who is not the current artist.
  *
  * @generated from message verso.v1.StrokeBegin
@@ -327,7 +357,7 @@ export type StrokeBegin = Message<"verso.v1.StrokeBegin"> & {
  * Use `create(StrokeBeginSchema)` to create a new message.
  */
 export const StrokeBeginSchema: GenMessage<StrokeBegin> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 7);
+  messageDesc(file_verso_v1_game, 8);
 
 /**
  * Points appended to the artist's currently open stroke.
@@ -367,7 +397,7 @@ export type StrokePoints = Message<"verso.v1.StrokePoints"> & {
  * Use `create(StrokePointsSchema)` to create a new message.
  */
 export const StrokePointsSchema: GenMessage<StrokePoints> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 8);
+  messageDesc(file_verso_v1_game, 9);
 
 /**
  * Finish the artist's currently open stroke.
@@ -389,7 +419,7 @@ export type StrokeEnd = Message<"verso.v1.StrokeEnd"> & {
  * Use `create(StrokeEndSchema)` to create a new message.
  */
 export const StrokeEndSchema: GenMessage<StrokeEnd> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 9);
+  messageDesc(file_verso_v1_game, 10);
 
 /**
  * One anonymous, irreversible vote (DESIGN.md:51). Valid choices are any active
@@ -425,7 +455,7 @@ export type CastVote = Message<"verso.v1.CastVote"> & {
  * Use `create(CastVoteSchema)` to create a new message.
  */
 export const CastVoteSchema: GenMessage<CastVote> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 10);
+  messageDesc(file_verso_v1_game, 11);
 
 /**
  * Ask for a full resync. Sent on a seq gap or on reconnect.
@@ -447,7 +477,7 @@ export type RequestSnapshot = Message<"verso.v1.RequestSnapshot"> & {
  * Use `create(RequestSnapshotSchema)` to create a new message.
  */
 export const RequestSnapshotSchema: GenMessage<RequestSnapshot> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 11);
+  messageDesc(file_verso_v1_game, 12);
 
 /**
  * Return the room to the lobby after a match (DESIGN.md:78). Host only.
@@ -462,7 +492,7 @@ export type Rematch = Message<"verso.v1.Rematch"> & {
  * Use `create(RematchSchema)` to create a new message.
  */
 export const RematchSchema: GenMessage<Rematch> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 12);
+  messageDesc(file_verso_v1_game, 13);
 
 /**
  * The only frame a client is ever allowed to send.
@@ -541,6 +571,12 @@ export type ClientCommand = Message<"verso.v1.ClientCommand"> & {
      */
     value: Rematch;
     case: "rematch";
+  } | {
+    /**
+     * @generated from field: verso.v1.KickPlayer kick = 12;
+     */
+    value: KickPlayer;
+    case: "kick";
   } | { case: undefined; value?: undefined };
 };
 
@@ -549,7 +585,7 @@ export type ClientCommand = Message<"verso.v1.ClientCommand"> & {
  * Use `create(ClientCommandSchema)` to create a new message.
  */
 export const ClientCommandSchema: GenMessage<ClientCommand> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 13);
+  messageDesc(file_verso_v1_game, 14);
 
 /**
  * Full lobby roster and settings. Re-sent on every roster or settings change
@@ -601,7 +637,7 @@ export type LobbyState = Message<"verso.v1.LobbyState"> & {
  * Use `create(LobbyStateSchema)` to create a new message.
  */
 export const LobbyStateSchema: GenMessage<LobbyState> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 14);
+  messageDesc(file_verso_v1_game, 15);
 
 /**
  * Host changed the settings. Values are already clamped to the documented
@@ -621,7 +657,7 @@ export type SettingsChanged = Message<"verso.v1.SettingsChanged"> & {
  * Use `create(SettingsChangedSchema)` to create a new message.
  */
 export const SettingsChangedSchema: GenMessage<SettingsChanged> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 15);
+  messageDesc(file_verso_v1_game, 16);
 
 /**
  * A round begins. Turn order is reshuffled independently every round
@@ -660,7 +696,7 @@ export type RoundStarted = Message<"verso.v1.RoundStarted"> & {
  * Use `create(RoundStartedSchema)` to create a new message.
  */
 export const RoundStartedSchema: GenMessage<RoundStarted> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 16);
+  messageDesc(file_verso_v1_game, 17);
 
 /**
  * One drawing turn begins. The interface identifies the artist while they draw
@@ -707,7 +743,7 @@ export type TurnStarted = Message<"verso.v1.TurnStarted"> & {
  * Use `create(TurnStartedSchema)` to create a new message.
  */
 export const TurnStartedSchema: GenMessage<TurnStarted> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 17);
+  messageDesc(file_verso_v1_game, 18);
 
 /**
  * The artist started a stroke. No artist id: the canvas is anonymous.
@@ -752,7 +788,7 @@ export type StrokeBegan = Message<"verso.v1.StrokeBegan"> & {
  * Use `create(StrokeBeganSchema)` to create a new message.
  */
 export const StrokeBeganSchema: GenMessage<StrokeBegan> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 18);
+  messageDesc(file_verso_v1_game, 19);
 
 /**
  * The artist's stroke is committed. Nothing further may be appended to it.
@@ -785,7 +821,7 @@ export type StrokeEnded = Message<"verso.v1.StrokeEnded"> & {
  * Use `create(StrokeEndedSchema)` to create a new message.
  */
 export const StrokeEndedSchema: GenMessage<StrokeEnded> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 19);
+  messageDesc(file_verso_v1_game, 20);
 
 /**
  * Phase transition, with the authoritative clock for the new phase.
@@ -831,7 +867,7 @@ export type PhaseChanged = Message<"verso.v1.PhaseChanged"> & {
  * Use `create(PhaseChangedSchema)` to create a new message.
  */
 export const PhaseChangedSchema: GenMessage<PhaseChanged> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 20);
+  messageDesc(file_verso_v1_game, 21);
 
 /**
  * Progress of the voting window. Aggregate only — this message exists so the
@@ -864,7 +900,7 @@ export type VoteCastCount = Message<"verso.v1.VoteCastCount"> & {
  * Use `create(VoteCastCountSchema)` to create a new message.
  */
 export const VoteCastCountSchema: GenMessage<VoteCastCount> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 21);
+  messageDesc(file_verso_v1_game, 22);
 
 /**
  * Per-candidate total for the vote result screen.
@@ -888,7 +924,7 @@ export type VoteCount = Message<"verso.v1.VoteCount"> & {
  * Use `create(VoteCountSchema)` to create a new message.
  */
 export const VoteCountSchema: GenMessage<VoteCount> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 22);
+  messageDesc(file_verso_v1_game, 23);
 
 /**
  * Aggregate tally only. The server never emits, logs, or retains a mapping from
@@ -944,7 +980,7 @@ export type VoteTally = Message<"verso.v1.VoteTally"> & {
  * Use `create(VoteTallySchema)` to create a new message.
  */
 export const VoteTallySchema: GenMessage<VoteTally> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 23);
+  messageDesc(file_verso_v1_game, 24);
 
 /**
  * Outcome of the tally. Always sent after VoteTally, including when nobody
@@ -990,7 +1026,7 @@ export type PlayerEliminated = Message<"verso.v1.PlayerEliminated"> & {
  * Use `create(PlayerEliminatedSchema)` to create a new message.
  */
 export const PlayerEliminatedSchema: GenMessage<PlayerEliminated> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 24);
+  messageDesc(file_verso_v1_game, 25);
 
 /**
  * One round's pair, revealed only when the match is over. Every round deals a
@@ -1025,7 +1061,7 @@ export type RoundWords = Message<"verso.v1.RoundWords"> & {
  * Use `create(RoundWordsSchema)` to create a new message.
  */
 export const RoundWordsSchema: GenMessage<RoundWords> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 25);
+  messageDesc(file_verso_v1_game, 26);
 
 /**
  * One row of the final reveal (DESIGN.md:75).
@@ -1078,7 +1114,7 @@ export type PlayerReveal = Message<"verso.v1.PlayerReveal"> & {
  * Use `create(PlayerRevealSchema)` to create a new message.
  */
 export const PlayerRevealSchema: GenMessage<PlayerReveal> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 26);
+  messageDesc(file_verso_v1_game, 27);
 
 /**
  * Final reveal. This is the ONLY broadcast that carries assigned words, and it
@@ -1145,7 +1181,7 @@ export type MatchEnded = Message<"verso.v1.MatchEnded"> & {
  * Use `create(MatchEndedSchema)` to create a new message.
  */
 export const MatchEndedSchema: GenMessage<MatchEnded> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 27);
+  messageDesc(file_verso_v1_game, 28);
 
 /**
  * A player's connection state or host flag changed. Also the host-migration
@@ -1172,7 +1208,7 @@ export type PlayerPresence = Message<"verso.v1.PlayerPresence"> & {
  * Use `create(PlayerPresenceSchema)` to create a new message.
  */
 export const PlayerPresenceSchema: GenMessage<PlayerPresence> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 28);
+  messageDesc(file_verso_v1_game, 29);
 
 /**
  * A command was rejected, or the room is shutting down.
@@ -1198,7 +1234,7 @@ export type Error = Message<"verso.v1.Error"> & {
  * Use `create(ErrorSchema)` to create a new message.
  */
 export const ErrorSchema: GenMessage<Error> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 29);
+  messageDesc(file_verso_v1_game, 30);
 
 /**
  * Seat granted. The seat_token is the bearer credential for reconnecting into
@@ -1254,7 +1290,7 @@ export type Joined = Message<"verso.v1.Joined"> & {
  * Use `create(JoinedSchema)` to create a new message.
  */
 export const JoinedSchema: GenMessage<Joined> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 30);
+  messageDesc(file_verso_v1_game, 31);
 
 /**
  * THE SECRET. A sibling variant of the broadcast messages above, deliberately
@@ -1289,7 +1325,7 @@ export type YourWord = Message<"verso.v1.YourWord"> & {
  * Use `create(YourWordSchema)` to create a new message.
  */
 export const YourWordSchema: GenMessage<YourWord> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 31);
+  messageDesc(file_verso_v1_game, 32);
 
 /**
  * Full state for a reconnecting or resyncing client. Unicast because it
@@ -1420,7 +1456,7 @@ export type Snapshot = Message<"verso.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 32);
+  messageDesc(file_verso_v1_game, 33);
 
 /**
  * Sent once, to a player who was just eliminated and was not the imposter: they
@@ -1446,7 +1482,7 @@ export type SpectatorInfo = Message<"verso.v1.SpectatorInfo"> & {
  * Use `create(SpectatorInfoSchema)` to create a new message.
  */
 export const SpectatorInfoSchema: GenMessage<SpectatorInfo> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 33);
+  messageDesc(file_verso_v1_game, 34);
 
 /**
  * Private acknowledgement that the voter's own irreversible vote was recorded.
@@ -1479,7 +1515,7 @@ export type VoteAccepted = Message<"verso.v1.VoteAccepted"> & {
  * Use `create(VoteAcceptedSchema)` to create a new message.
  */
 export const VoteAcceptedSchema: GenMessage<VoteAccepted> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 34);
+  messageDesc(file_verso_v1_game, 35);
 
 /**
  * The only frame a server is ever allowed to send.
@@ -1624,7 +1660,7 @@ export type ServerEvent = Message<"verso.v1.ServerEvent"> & {
  * Use `create(ServerEventSchema)` to create a new message.
  */
 export const ServerEventSchema: GenMessage<ServerEvent> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 35);
+  messageDesc(file_verso_v1_game, 36);
 
 /**
  * Word-pair deck tier. Difficulty is visual overlap, not word obscurity
@@ -1902,6 +1938,14 @@ export enum ErrorCode {
    * @generated from enum value: ERROR_CODE_PROTOCOL_VERSION = 15;
    */
   PROTOCOL_VERSION = 15,
+
+  /**
+   * The host removed this player from the lobby. Terminal: the seat and its
+   * token are gone, so a reconnect with that token cannot succeed.
+   *
+   * @generated from enum value: ERROR_CODE_KICKED = 16;
+   */
+  KICKED = 16,
 }
 
 /**

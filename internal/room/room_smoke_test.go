@@ -2,6 +2,7 @@ package room
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -17,9 +18,34 @@ func (smokeDeck) Pair(d genpb.Difficulty, rnd *mrand.Rand, _ []string) (string, 
 	return "CAT", "DOG"
 }
 
-type smokeSock struct{ ch chan *genpb.ServerEvent }
+// smokeSock is one fake client socket: the room's Session contract over a
+// buffered channel a test can drain, plus a record of whether the room asked
+// for it to be closed.
+type smokeSock struct {
+	ch chan *genpb.ServerEvent
+	// closed is atomic because the room goroutine sets it and the test
+	// goroutine reads it. Every other field here is written once, before the
+	// socket is handed to the room.
+	closed atomic.Bool
+}
 
 func newSmokeSock() *smokeSock { return &smokeSock{ch: make(chan *genpb.ServerEvent, 8192)} }
+
+// Send mirrors the real transport: non-blocking, drop on a full queue.
+func (s *smokeSock) Send(ev *genpb.ServerEvent) {
+	select {
+	case s.ch <- ev:
+	default:
+	}
+}
+
+// Close records the request. It does NOT shut the channel: the room's contract
+// is "write what is queued, then go", so anything already delivered must stay
+// readable — a test asserting the terminal error arrived reads it after this.
+func (s *smokeSock) Close() { s.closed.Store(true) }
+
+// wasClosed reports whether the room asked this session to close.
+func (s *smokeSock) wasClosed() bool { return s.closed.Load() }
 
 func (s *smokeSock) drain() []*genpb.ServerEvent {
 	var out []*genpb.ServerEvent
@@ -161,15 +187,15 @@ func TestRoomFullMatch(t *testing.T) {
 		go r.run(ctx)
 
 		s0 := newSmokeSock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, err := r.seat("bee", s1.ch)
+		p1, _, err := r.seat("bee", s1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p2, _, err := r.seat("cee", s2.ch)
+		p2, _, err := r.seat("cee", s2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -177,14 +203,14 @@ func TestRoomFullMatch(t *testing.T) {
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}},
 			}})
 		}
 		synctest.Wait()
 
 		// Non-host cannot start.
-		r.Submit(Command{PlayerID: p1, Out: s1.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: p1, Out: s1, Cmd: &genpb.ClientCommand{
 			Cid: "x", Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}},
 		}})
 		synctest.Wait()
@@ -194,7 +220,7 @@ func TestRoomFullMatch(t *testing.T) {
 		s0.drain()
 		s2.drain()
 
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}},
 		}})
 		synctest.Wait()
@@ -246,7 +272,7 @@ func TestRoomFullMatch(t *testing.T) {
 				oi = i
 			}
 		}
-		r.Submit(Command{PlayerID: other, Out: socks[oi].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: other, Out: socks[oi], Cmd: &genpb.ClientCommand{
 			Cid: "s", Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
 				ColorIndex: 1, Width: 4, Points: []int32{10, 10},
 			}},
@@ -268,7 +294,7 @@ func TestRoomFullMatch(t *testing.T) {
 				ai = i
 			}
 		}
-		r.Submit(Command{PlayerID: artist, Out: socks[ai].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: artist, Out: socks[ai], Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
 				ColorIndex: 1, Width: 999, Points: []int32{10, 10},
 			}},
@@ -287,7 +313,7 @@ func TestRoomFullMatch(t *testing.T) {
 		// Everyone votes for the same target: strict majority of 3 is 2.
 		target := ids[1]
 		for i, id := range ids {
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_CastVote{CastVote: &genpb.CastVote{
 					Choice: &genpb.CastVote_CandidateId{CandidateId: target},
 				}},
@@ -332,7 +358,7 @@ func TestRoomFullMatch(t *testing.T) {
 		t.Logf("winner=%v reason=%v", me.GetWinner(), me.GetReason())
 
 		// Rematch returns to the lobby with words cleared.
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_Rematch{Rematch: &genpb.Rematch{}},
 		}})
 		synctest.Wait()
@@ -360,20 +386,20 @@ func TestRoomImposterDisconnectEndsMatch(t *testing.T) {
 		go r.run(ctx)
 
 		s0 := newSmokeSock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, _ := r.seat("bee", s1.ch)
-		p2, _, _ := r.seat("cee", s2.ch)
+		p1, _, _ := r.seat("bee", s1)
+		p2, _, _ := r.seat("cee", s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}},
 			}})
 		}
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}},
 		}})
 		synctest.Wait()
@@ -385,7 +411,7 @@ func TestRoomImposterDisconnectEndsMatch(t *testing.T) {
 				oi = i
 			}
 		}
-		r.detach(imposter, socks[oi].ch)
+		r.detach(imposter, socks[oi])
 		synctest.Wait()
 		if smokePhase(r) == genpb.Phase_PHASE_ENDED {
 			t.Fatal("match ended before the grace window expired")
@@ -416,20 +442,20 @@ func TestRoomReconnectReplaysCanvas(t *testing.T) {
 		hostID, hostTok := r.HostSeat()
 		go r.run(ctx)
 		s0 := newSmokeSock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, tok1, _ := r.seat("bee", s1.ch)
-		p2, _, _ := r.seat("cee", s2.ch)
+		p1, tok1, _ := r.seat("bee", s1)
+		p2, _, _ := r.seat("cee", s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}},
 			}})
 		}
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}},
 		}})
 		synctest.Wait()
@@ -445,22 +471,22 @@ func TestRoomReconnectReplaysCanvas(t *testing.T) {
 				ai = i
 			}
 		}
-		r.Submit(Command{PlayerID: artist, Out: socks[ai].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: artist, Out: socks[ai], Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
 				ColorIndex: 2, Width: 5, Points: []int32{1, 2},
 			}},
 		}})
-		r.Submit(Command{PlayerID: artist, Out: socks[ai].ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: artist, Out: socks[ai], Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StrokeEnd{StrokeEnd: &genpb.StrokeEnd{}},
 		}})
 		synctest.Wait()
 
 		// p1 drops and returns inside the grace window.
-		r.detach(p1, s1.ch)
+		r.detach(p1, s1)
 		synctest.Wait()
 		time.Sleep(5 * time.Second)
 		s1b := newSmokeSock()
-		if _, err := r.attach(tok1, s1b.ch); err != nil {
+		if _, err := r.attach(tok1, s1b); err != nil {
 			t.Fatal(err)
 		}
 		synctest.Wait()
@@ -503,20 +529,20 @@ func TestRoomNoWordCrossesSockets(t *testing.T) {
 		hostID, hostTok := r.HostSeat()
 		go r.run(ctx)
 		s0 := newSmokeSock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, _ := r.seat("bee", s1.ch)
-		p2, _, _ := r.seat("cee", s2.ch)
+		p1, _, _ := r.seat("bee", s1)
+		p2, _, _ := r.seat("cee", s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
-			r.Submit(Command{PlayerID: id, Out: socks[i].ch, Cmd: &genpb.ClientCommand{
+			r.Submit(Command{PlayerID: id, Out: socks[i], Cmd: &genpb.ClientCommand{
 				Cmd: &genpb.ClientCommand_SetReady{SetReady: &genpb.SetReady{Ready: true}},
 			}})
 		}
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{
 			Cmd: &genpb.ClientCommand_StartMatch{StartMatch: &genpb.StartMatch{}},
 		}})
 		synctest.Wait()

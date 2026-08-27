@@ -29,15 +29,15 @@ func TestExportedSeatLifecycle(t *testing.T) {
 	go func() { r.Run(ctx); close(done) }()
 
 	s0 := newSmokeSock()
-	if id, err := r.Attach(hostTok, s0.ch); err != nil || id != hostID {
+	if id, err := r.Attach(hostTok, s0); err != nil || id != hostID {
 		t.Fatalf("Attach = %q, %v", id, err)
 	}
-	if _, err := r.Attach("nope", newSmokeSock().ch); !errors.Is(err, ErrBadSeat) {
+	if _, err := r.Attach("nope", newSmokeSock()); !errors.Is(err, ErrBadSeat) {
 		t.Fatalf("Attach with a bad token = %v, want ErrBadSeat", err)
 	}
 
 	s1 := newSmokeSock()
-	p1, tok1, err := r.Seat("bee", s1.ch)
+	p1, tok1, err := r.Seat("bee", s1)
 	if err != nil {
 		t.Fatalf("Seat: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestExportedSeatLifecycle(t *testing.T) {
 		t.Fatalf("ActivePlayers() = %d, want 2", got)
 	}
 
-	r.Detach(p1, s1.ch)
+	r.Detach(p1, s1)
 	if got := r.ActiveCount(); got != 1 {
 		t.Fatalf("ActiveCount() = %d after a detach, want 1", got)
 	}
@@ -88,10 +88,10 @@ func TestExportedSeatLifecycle(t *testing.T) {
 	// forever on a select nobody is servicing.
 	cancel()
 	<-done
-	if _, _, err := r.Seat("late", newSmokeSock().ch); !errors.Is(err, ErrClosed) {
+	if _, _, err := r.Seat("late", newSmokeSock()); !errors.Is(err, ErrClosed) {
 		t.Fatalf("Seat after close = %v, want ErrClosed", err)
 	}
-	if _, err := r.Attach(tok1, newSmokeSock().ch); !errors.Is(err, ErrClosed) {
+	if _, err := r.Attach(tok1, newSmokeSock()); !errors.Is(err, ErrClosed) {
 		t.Fatalf("Attach after close = %v, want ErrClosed", err)
 	}
 	r.Detach(p1, nil) // must not block or panic
@@ -107,10 +107,10 @@ func TestSubmitIgnoresAnEmptyEnvelopeAndAnUnseatedSender(t *testing.T) {
 		defer h.stop()
 		h.discard()
 
-		h.r.Submit(Command{PlayerID: h.ids[0], Out: h.socks[0].ch, Cmd: nil})
-		h.r.Submit(Command{PlayerID: h.ids[0], Out: h.socks[0].ch,
+		h.r.Submit(Command{PlayerID: h.ids[0], Out: h.socks[0], Cmd: nil})
+		h.r.Submit(Command{PlayerID: h.ids[0], Out: h.socks[0],
 			Cmd: &genpb.ClientCommand{Cid: "empty"}})
-		h.r.Submit(Command{PlayerID: "ffffffffffffffff", Out: h.socks[0].ch,
+		h.r.Submit(Command{PlayerID: "ffffffffffffffff", Out: h.socks[0],
 			Cmd: &genpb.ClientCommand{Cmd: &genpb.ClientCommand_StartMatch{
 				StartMatch: &genpb.StartMatch{}}}})
 		synctest.Wait()

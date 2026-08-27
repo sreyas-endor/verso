@@ -14,6 +14,7 @@ import { create } from "@bufbuild/protobuf";
 import {
   CastVoteSchema,
   JoinRoomSchema,
+  KickPlayerSchema,
   MatchSettingsSchema,
   RematchSchema,
   RequestSnapshotSchema,
@@ -128,6 +129,14 @@ export function requestSnapshot(haveSeq: number): ClientCommandBody {
 
 export function rematch(): ClientCommandBody {
   return { case: "rematch", value: create(RematchSchema) };
+}
+
+/**
+ * Remove another player's seat. Host only, lobby only; the server enforces
+ * both, and refuses the host's own id.
+ */
+export function kickPlayer(targetPlayerId: string): ClientCommandBody {
+  return { case: "kick", value: create(KickPlayerSchema, { targetPlayerId }) };
 }
 
 // Every field the server reads has to be set here. A missing one is not a

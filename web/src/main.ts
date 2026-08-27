@@ -4,7 +4,7 @@ import "./styles/index.css";
 import { Phase } from "../gen/verso/v1/game_pb.js";
 import { createAudio, createAudioDriver } from "./audio/index.js";
 import { CanvasEngine, LOGICAL_W, paint, renderPng, savePng, type ExportStroke } from "./canvas/index.js";
-import { castVote, rematch, requestSnapshot, setReady, startMatch, strokeBegin, strokeEnd, strokePoints, updateSettings } from "./net/commands.js";
+import { castVote, kickPlayer, rematch, requestSnapshot, setReady, startMatch, strokeBegin, strokeEnd, strokePoints, updateSettings } from "./net/commands.js";
 import { VersoSocket } from "./net/socket.js";
 import { GameStore } from "./state/store.js";
 import { setDeepLink } from "./state/routes.js";
@@ -21,7 +21,11 @@ const engine = new CanvasEngine({
     strokeBegin: (colorIndex, width, points) => socket.send(strokeBegin({ colorIndex, width, points })),
     strokePoints: (points) => socket.send(strokePoints(points)),
     strokeEnd: (points) => socket.send(strokeEnd(points)),
-    requestSnapshot: (haveSeq) => socket.request(requestSnapshot(haveSeq)),
+    // Not socket.request(requestSnapshot(...)): the socket owns `resyncing`
+    // and the only bounded retry policy, so the engine's own sequence-gap
+    // detector enters through it rather than firing a bare request that
+    // nothing would follow up on if the answer were dropped.
+    requestSnapshot: () => socket.resync(),
   },
 });
 
@@ -118,6 +122,9 @@ const actions: Actions = {
   },
   rematch() {
     socket.request(rematch());
+  },
+  kickPlayer(playerId) {
+    socket.request(kickPlayer(playerId));
   },
   requestSnapshot() {
     socket.request(requestSnapshot(0));

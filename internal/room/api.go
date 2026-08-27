@@ -198,6 +198,37 @@ type Deck interface {
 	Pair(difficulty genpb.Difficulty, rnd *mrand.Rand, avoid []string) (a, b string)
 }
 
+// Session is the room's view of one client connection.
+//
+// The room cannot see a socket and must not learn how to: this package does not
+// import transport, and this interface is the whole of what a room may do to a
+// connection. Implemented by transport's conn, and by a plain channel wrapper
+// in tests.
+//
+// Both methods are called from the room goroutine only, and neither may block.
+// The room actor owns every other seat in the room; waiting on any one client
+// would stall the match for all of them.
+//
+// Implementations MUST be comparable — a pointer type — because identity is
+// load-bearing. A reconnect replaces a seat's session while the displaced one
+// still has frames and a Detach in flight, and the only thing that tells the
+// two apart is comparing against the seat's current session.
+type Session interface {
+	// Send queues one event. A full queue drops the frame rather than
+	// blocking: a slow client must never stall the room, and it recovers with
+	// RequestSnapshot.
+	Send(ev *genpb.ServerEvent)
+
+	// Close asks the connection to write what is already queued — including a
+	// terminal Error queued immediately before this call — and then shut down.
+	//
+	// It must return immediately, it must NOT discard or interrupt the queued
+	// frames, and it must be safe to call more than once. Closing a displaced
+	// socket by cancelling it outright would race the writer and swallow the
+	// one message explaining why it is going away.
+	Close()
+}
+
 // Registry is the small callback surface the room needs from its owner.
 // Implemented by internal/registry.
 type Registry interface {
@@ -224,9 +255,9 @@ type Command struct {
 	Cmd *genpb.ClientCommand
 
 	// Out is the connection that sent the frame. The room compares it against
-	// the player's current queue and ignores frames from a socket that has
+	// the player's current session and ignores frames from a socket that has
 	// already been replaced by a reconnect.
-	Out chan<- *genpb.ServerEvent
+	Out Session
 }
 
 // ---------------------------------------------------------------------------
@@ -279,9 +310,10 @@ type Player struct {
 	// connected.
 	DisconnectedAt time.Time
 
-	// outbound is the bounded queue for this player's live socket, or nil while
-	// disconnected. The room goroutine writes into it with a non-blocking send.
-	outbound chan<- *genpb.ServerEvent
+	// outbound is this player's live connection, or nil while disconnected. The
+	// room goroutine hands it events and, when the seat is displaced or
+	// removed, asks it to close.
+	outbound Session
 }
 
 // Active reports whether the player counts as an active player for turn order,
@@ -561,7 +593,7 @@ func (r *Room) Submit(cmd Command) {
 //
 // On success the room sends EvJoined followed by EvLobbyState on out.
 // Implemented in reconnect.go.
-func (r *Room) Seat(displayName string, out chan<- *genpb.ServerEvent) (playerID, seatToken string, err error) {
+func (r *Room) Seat(displayName string, out Session) (playerID, seatToken string, err error) {
 	return r.seat(displayName, out)
 }
 
@@ -572,16 +604,19 @@ func (r *Room) Seat(displayName string, out chan<- *genpb.ServerEvent) (playerID
 // Returns ErrBadSeat for an unknown or expired token, and ErrClosed once Run
 // has returned. A token that is already live on another socket is honoured: the
 // old connection is displaced, because that is what a flaky network looks like.
+// The displaced session is told why with an ERROR_CODE_BAD_SEAT and then asked
+// to close, so a reconnect loop cannot leave a pile of live sockets behind that
+// will never receive another room event.
 //
 // On success the room sends EvJoined, then the player's EvSnapshot built by
 // viewFor, and broadcasts EvPlayerPresence.
 // Implemented in reconnect.go.
-func (r *Room) Attach(seatToken string, out chan<- *genpb.ServerEvent) (playerID string, err error) {
+func (r *Room) Attach(seatToken string, out Session) (playerID string, err error) {
 	return r.attach(seatToken, out)
 }
 
 // Detach releases a connection. out is compared against the player's current
-// queue and the call is ignored if it does not match, so a late detach from a
+// session and the call is ignored if it does not match, so a late detach from a
 // socket that has already been replaced cannot knock the new one offline.
 //
 // The seat survives for GraceWindow. If the detaching player is the imposter and
@@ -589,7 +624,7 @@ func (r *Room) Attach(seatToken string, out chan<- *genpb.ServerEvent) (playerID
 // (DESIGN.md:125); if they are the host, the longest-connected active player is
 // promoted. It runs on the room goroutine via r.ctl.
 // Implemented in reconnect.go.
-func (r *Room) Detach(playerID string, out chan<- *genpb.ServerEvent) { r.detach(playerID, out) }
+func (r *Room) Detach(playerID string, out Session) { r.detach(playerID, out) }
 
 // Broadcast delivers e to every connected socket in the room.
 //
@@ -638,18 +673,14 @@ func (r *Room) SendError(playerID, cid string, err error) {
 	}})
 }
 
-// deliver does the one non-blocking send. A full queue is a slow client; the
-// frame is dropped and the client recovers with RequestSnapshot. The room must
-// never block on a socket.
+// deliver hands one event to one seat's connection. Session.Send is
+// non-blocking by contract — a full queue drops the frame and the client
+// recovers with RequestSnapshot — so the room never blocks on a socket.
 func (r *Room) deliver(p *Player, env *genpb.ServerEvent) {
 	if p.outbound == nil {
 		return
 	}
-	select {
-	case p.outbound <- env:
-	default:
-		r.log.Warn("outbound queue full, frame dropped", "player", p.ID)
-	}
+	p.outbound.Send(env)
 }
 
 // ---------------------------------------------------------------------------

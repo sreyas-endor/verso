@@ -120,6 +120,9 @@ enum ErrorCode {
   ERROR_CODE_RATE_LIMITED = 13;
   ERROR_CODE_WRONG_PHASE = 14;
   ERROR_CODE_PROTOCOL_VERSION = 15;
+  // The host removed this player from the lobby. Terminal: the seat and its
+  // token are gone, so a reconnect with that token cannot succeed.
+  ERROR_CODE_KICKED = 16;
 }
 
 // Host-configured match parameters (DESIGN.md:224). The server clamps every
@@ -195,6 +198,22 @@ message UpdateSettings {
 // Host only. Requires 3..10 seated players, all ready.
 message StartMatch {}
 
+// Remove another player's seat. Host only, and lobby only: outside
+// PHASE_LOBBY a seat holds a word and a place in the turn order and the vote
+// denominator, none of which a removal may quietly rewrite.
+//
+// Rejected with ERROR_CODE_NOT_HOST from a non-host, ERROR_CODE_WRONG_PHASE
+// outside the lobby, and ERROR_CODE_INVALID_COMMAND for an unknown id or for
+// the host's own id — a host leaves by closing the tab, which migrates the
+// role, rather than by unseating themself.
+//
+// The removed player is told with an ERROR_CODE_KICKED Error and their seat
+// token is destroyed, so they cannot reconnect into that seat. This does NOT
+// ban them: the room code still works and they may take a fresh seat.
+message KickPlayer {
+  string target_player_id = 1;
+}
+
 // Begin a stroke. Rejected from anyone who is not the current artist.
 message StrokeBegin {
   // Palette index; out-of-range values are rejected, not clamped.
@@ -266,6 +285,7 @@ message ClientCommand {
     CastVote cast_vote = 9;
     RequestSnapshot request_snapshot = 10;
     Rematch rematch = 11;
+    KickPlayer kick = 12;
   }
 }
 

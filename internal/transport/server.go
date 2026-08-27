@@ -26,11 +26,23 @@ import (
 
 // Defaults for Config.
 const (
-	// DefaultReadLimit caps one inbound frame. The largest legitimate command is
-	// a StrokeBegin or StrokePoints carrying room.MaxPointsPerStroke pairs,
-	// which is a few kilobytes of varints. 64 KiB is generous and still stops a
-	// client from asking the server to buffer a megabyte.
-	DefaultReadLimit = 64 << 10
+	// DefaultReadLimit caps one inbound frame.
+	//
+	// The largest legitimate command is a StrokeBegin or StrokeEnd carrying a
+	// full room.MaxPointsPerStroke-pair stroke: 2,400 sint32 values, each a
+	// zigzag varint of at most 3 bytes because room.CoordMin/CoordMax hold them
+	// to the signed 16-bit range. That is ~7.2 KiB of coordinates, plus a
+	// packed-field header, a colour index, a width, the command envelope, and a
+	// correlation id bounded by MaxCidLen — call it 7.5 KiB in the worst case.
+	// TestTheReadLimitFitsTheLargestLegalCommand measures the real number and
+	// fails if this constant stops covering it.
+	//
+	// 16 KiB leaves better than 2x headroom over that and is still a quarter of
+	// the 64 KiB it replaces. The point is not the buffer itself but everything
+	// downstream of it: every byte accepted here is decoded, and a frame that
+	// is mostly padding costs allocation and CPU in proto.Unmarshal before any
+	// validation gets a chance to reject it.
+	DefaultReadLimit = 16 << 10
 
 	// DefaultPingInterval is how often the shared sweep pings every live socket.
 	// There is no per-connection ping timer (IMPLEMENTATION_PLAN.md §4.4).
@@ -62,6 +74,25 @@ const (
 	DefaultCreateBurst = 5
 	DefaultCreateRate  = 1.0 / 20.0
 
+	// DefaultSnapshotBurst and DefaultSnapshotRate bound RequestSnapshot per
+	// connection, on top of the generic command bucket.
+	//
+	// A snapshot is the one command whose cost is unbounded by the frame that
+	// asks for it: the room walks the entire stroke log, copies every point
+	// slice, and the write pump marshals the result — up to room.MaxPointsPerTurn
+	// coordinates per turn, for one 30-byte request. Under the generic limiter
+	// alone one authenticated client could ask 40 times a second and turn a
+	// legal seat into a CPU and bandwidth amplifier against its own room.
+	//
+	// Two in reserve and one a second is deliberately generous for the honest
+	// case, which is a gap in the stroke sequence: the client asks once and
+	// waits (web/src/net/socket.ts, RESYNC_RETRY_BASE_MS backs off from 2 s).
+	// The snapshot every client gets on join and reconnect does not come from a
+	// command at all — the room sends it out of Attach — so this cannot delay
+	// or refuse it.
+	DefaultSnapshotBurst = 2
+	DefaultSnapshotRate  = 1.0
+
 	// DefaultMaxConns caps concurrent sockets for the whole process.
 	DefaultMaxConns = 4096
 
@@ -69,6 +100,39 @@ const (
 	// before it is closed rather than merely told off. A well-behaved client
 	// backs off after the first Error.
 	maxRateStrikes = 20
+)
+
+// Protocol string limits, enforced at the socket boundary.
+//
+// Sanitizing or truncating a decoded string is not a resource limit: by the
+// time sanitizeName runs, the megabyte has already been read, allocated and
+// scanned. These are the lengths a frame may carry at all, checked before any
+// of that. They are generous next to what an honest client sends — a seat token
+// is 64 hex characters, a room code is registry.CodeLen — because the job is to
+// stop amplification, not to second-guess the room's own validation.
+const (
+	// MaxCidLen bounds the correlation id. It is echoed back on the event a
+	// command produced, so an unbounded one is an amplifier the client aims
+	// at itself and at any log that records it.
+	MaxCidLen = 64
+
+	// MaxRawNameLen bounds a display name as received, in bytes, before
+	// sanitizing collapses it and the room truncates it to
+	// room.MaxDisplayNameLen runes. Wide enough for 24 runes of any script
+	// plus the whitespace and combining marks a real name carries.
+	MaxRawNameLen = 256
+
+	// MaxRoomCodeLen bounds a join code as received. NormalizeCode drops every
+	// character outside the alphabet, so a long one is simply a long scan.
+	MaxRoomCodeLen = 64
+
+	// MaxSeatTokenLen bounds a seat token as received. Real ones are 64 hex
+	// characters; this leaves room to lengthen them without a protocol change.
+	MaxSeatTokenLen = 256
+
+	// MaxPlayerIDLen bounds a player id as received, currently the kick
+	// target. Real ones are 16 hex characters.
+	MaxPlayerIDLen = 64
 )
 
 // Config configures a Server. Only Registry is required.
@@ -95,6 +159,11 @@ type Config struct {
 	CommandRate  float64
 	CreateBurst  int
 	CreateRate   float64
+
+	// SnapshotBurst and SnapshotRate bound RequestSnapshot per connection, on
+	// top of the generic command bucket. See DefaultSnapshotBurst.
+	SnapshotBurst int
+	SnapshotRate  float64
 
 	MaxConns int
 }
@@ -132,6 +201,12 @@ func (c Config) withDefaults() Config {
 	}
 	if c.CreateRate <= 0 {
 		c.CreateRate = DefaultCreateRate
+	}
+	if c.SnapshotBurst <= 0 {
+		c.SnapshotBurst = DefaultSnapshotBurst
+	}
+	if c.SnapshotRate <= 0 {
+		c.SnapshotRate = DefaultSnapshotRate
 	}
 	if c.MaxConns <= 0 {
 		c.MaxConns = DefaultMaxConns
@@ -223,6 +298,9 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A cheap pre-upgrade read, so an over-capacity server answers with an HTTP
+	// error instead of completing a handshake it is about to abandon. It is not
+	// the enforcement point: see add, which re-checks under the lock.
 	if s.live.Load() >= int64(s.cfg.MaxConns) {
 		http.Error(w, "too many connections", http.StatusServiceUnavailable)
 		return
@@ -238,8 +316,10 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		cancel: cancel,
 		out:    make(chan *genpb.ServerEvent, room.OutboundQueueDepth),
 		ping:   make(chan struct{}, 1),
+		term:   make(chan struct{}, 1),
 		wdone:  make(chan struct{}),
 		cmds:   newBucket(s.cfg.CommandBurst, s.cfg.CommandRate),
+		snaps:  newBucket(s.cfg.SnapshotBurst, s.cfg.SnapshotRate),
 		remote: remoteAddr(r),
 	}
 	c.touch(time.Now())
@@ -290,8 +370,8 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	ws.SetReadLimit(s.cfg.ReadLimit)
 	c.ws = ws
 
-	if !s.add(c) {
-		_ = ws.Close(websocket.StatusGoingAway, "server shutting down")
+	if status, reason := s.add(c); reason != "" {
+		_ = ws.Close(status, reason)
 		return
 	}
 	defer s.remove(c)
@@ -311,17 +391,32 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 // add registers a connection and takes its WaitGroup count. It returns false
-// once the server is shutting down.
-func (s *Server) add(c *conn) bool {
+// once the server is shutting down, or once MaxConns is actually reached.
+//
+// The cap is enforced HERE and not only at the pre-upgrade read in serve. That
+// read is racy by construction: every handler that passes it goes on to run an
+// upgrade before it registers, so a burst of simultaneous handshakes — exactly
+// what a reconnect storm is — can all observe the same under-capacity count and
+// all admit. Checking against s.conns under the same lock that publishes it is
+// what makes MaxConns a number rather than an estimate.
+//
+// It returns the close status and reason to send when it refuses, and an empty
+// reason when the connection is registered.
+func (s *Server) add(c *conn) (websocket.StatusCode, string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.shut {
-		return false
+		return websocket.StatusGoingAway, "server shutting down"
+	}
+	if len(s.conns) >= s.cfg.MaxConns {
+		// 1013 Try Again Later, not 1001 Going Away: the server is fine, it is
+		// full, and the client should come back rather than give up.
+		return websocket.StatusTryAgainLater, "too many connections"
 	}
 	s.wg.Add(1)
 	s.conns[c] = struct{}{}
 	s.live.Add(1)
-	return true
+	return 0, ""
 }
 
 func (s *Server) remove(c *conn) {

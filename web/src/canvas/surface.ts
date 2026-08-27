@@ -20,12 +20,49 @@
 //     query is rebuilt each time it stops matching.
 //   - the size cap is on AREA, not on either dimension. Exceeding it fails
 //     silently in Chrome and Safari: blank canvas, no throw, no console message.
+//   - the AREA cap is per canvas, and this surface has two of them. The budget
+//     that actually matters is the pair's, so MAX_SURFACE_BYTES is what sets
+//     the effective DPR; the browser's own devicePixelRatio is an input to that
+//     decision, not the answer to it.
 
 import { LOGICAL_H, LOGICAL_W } from "./grid.js";
 
 /** 4096^2 device pixels. Safe on every current target including pre-18 iOS. */
 const MAX_CANVAS_AREA = 16_777_216;
 const MAX_CANVAS_DIM = 8192;
+
+/** Layers whose backing stores are live at once: base and overlay. */
+const LAYER_COUNT = 2;
+/** RGBA. Browsers may keep a second copy for the compositor; this is the floor. */
+const BYTES_PER_PIXEL = 4;
+/**
+ * Raw bitmap budget for BOTH layers together.
+ *
+ * The per-canvas area cap alone permits two 16.7-megapixel backing stores, or
+ * ~128 MiB of RGBA before the compositor and GPU copies that sit behind them —
+ * on a phone that is the whole tab budget spent on a canvas nobody asked to be
+ * that sharp. 64 MiB is the mobile-safe starting point: at 4 bytes a pixel over
+ * two layers it allows 8.4 megapixels each, which still covers a 4K-wide pad at
+ * DPR 1 and a full-width pad at DPR 2 on every phone-sized viewport. Sharpness
+ * is given up only past that, and only by fractions of a device pixel.
+ */
+const MAX_SURFACE_BYTES = 64 << 20;
+/** The per-layer pixel ceiling the byte budget implies. */
+const MAX_LAYER_PIXELS = MAX_SURFACE_BYTES / (LAYER_COUNT * BYTES_PER_PIXEL);
+
+/** What the surface currently costs. Diagnostics only; safe to call anywhere. */
+export interface SurfaceMetrics {
+  /** Backing-store width in device pixels, per layer. */
+  readonly width: number;
+  /** Backing-store height in device pixels, per layer. */
+  readonly height: number;
+  /** The browser's reported ratio. */
+  readonly devicePixelRatio: number;
+  /** The ratio actually used, after the byte budget. Lower means downscaled. */
+  readonly effectiveRatio: number;
+  /** Estimated raw bytes for both layers. Excludes compositor copies. */
+  readonly bytes: number;
+}
 
 const STYLE_ID = "verso-canvas-style";
 
@@ -83,6 +120,7 @@ export class Surface {
   private onResize: () => void = () => {};
   private lastW = 0;
   private lastH = 0;
+  private resizeRaf: number | null = null;
 
   constructor() {
     installStyle();
@@ -116,9 +154,11 @@ export class Surface {
   mount(container: HTMLElement, onResize: () => void): void {
     this.onResize = onResize;
     container.append(this.stage);
-    this.observer = new ResizeObserver(() => this.resize());
+    this.observer = new ResizeObserver(() => this.scheduleResize());
     this.observer.observe(this.pad);
     this.watchDpr();
+    // The first one is synchronous: mounting a frame late means presenting an
+    // unsized canvas, and there is nothing yet to coalesce with.
     this.resize();
   }
 
@@ -127,13 +167,39 @@ export class Surface {
     this.observer = null;
     this.mq?.removeEventListener("change", this.onDprChange);
     this.mq = null;
+    if (this.resizeRaf !== null) {
+      cancelAnimationFrame(this.resizeRaf);
+      this.resizeRaf = null;
+    }
     this.onResize = () => {};
     this.stage.remove();
   }
 
+  /**
+   * Coalesce every resize signal down to at most one evaluation per frame.
+   *
+   * A drag on a window edge fires ResizeObserver many times between two paints,
+   * and each one that changed the dimensions used to reallocate two backing
+   * stores and re-render the entire committed stroke log synchronously. None of
+   * that work but the last could ever be seen. Rotating a phone fires the
+   * observer and the DPR media query together, which is the same waste twice.
+   *
+   * The resize itself stays atomic within its frame: both layers are resized,
+   * both transforms are restored, and one redraw repaints the whole canvas
+   * before the browser presents anything — so the paper is never handed to the
+   * compositor blank.
+   */
+  private scheduleResize(): void {
+    if (this.resizeRaf !== null) return;
+    this.resizeRaf = requestAnimationFrame(() => {
+      this.resizeRaf = null;
+      this.resize();
+    });
+  }
+
   private onDprChange = (): void => {
     this.watchDpr();
-    this.resize();
+    this.scheduleResize();
   };
 
   private watchDpr(): void {
@@ -157,9 +223,13 @@ export class Surface {
     let scale = (dpr * rect.width) / LOGICAL_W;
 
     // Clamp by area first, then by either dimension. Both fail silently when
-    // exceeded, so neither may be left to chance.
+    // exceeded, so neither may be left to chance. The area ceiling is the
+    // tighter of what the browser tolerates per canvas and what the two-layer
+    // byte budget allows, so an honest DPR on a large display is downscaled to
+    // fit rather than accepted and paid for twice.
+    const areaCap = Math.min(MAX_CANVAS_AREA, MAX_LAYER_PIXELS);
     const area = LOGICAL_W * LOGICAL_H * scale * scale;
-    if (area > MAX_CANVAS_AREA) scale *= Math.sqrt(MAX_CANVAS_AREA / area);
+    if (area > areaCap) scale *= Math.sqrt(areaCap / area);
     scale = Math.min(scale, MAX_CANVAS_DIM / LOGICAL_W, MAX_CANVAS_DIM / LOGICAL_H);
 
     const w = Math.max(1, Math.round(LOGICAL_W * scale));
@@ -180,6 +250,22 @@ export class Surface {
     this.overlayCtx.setTransform(w / LOGICAL_W, 0, 0, h / LOGICAL_H, 0, 0);
 
     if (changed) this.onResize();
+  }
+
+  /**
+   * What the two backing stores currently cost. Nothing reads this in the
+   * running game; it exists so a profiling session can state the number rather
+   * than infer it from a screenshot.
+   */
+  metrics(): SurfaceMetrics {
+    const rect = this.pad.getBoundingClientRect();
+    return {
+      width: this.lastW,
+      height: this.lastH,
+      devicePixelRatio: window.devicePixelRatio || 1,
+      effectiveRatio: rect.width > 0 ? this.lastW / rect.width : 0,
+      bytes: this.lastW * this.lastH * BYTES_PER_PIXEL * LAYER_COUNT,
+    };
   }
 
   /**

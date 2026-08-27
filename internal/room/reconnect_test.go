@@ -81,7 +81,7 @@ func TestReconnectMidTurnRestoresIdenticalState(t *testing.T) {
 				"(one committed, one still open)", n)
 		}
 
-		h.r.detach(h.ids[victim], h.socks[victim].ch)
+		h.r.detach(h.ids[victim], h.socks[victim])
 		synctest.Wait()
 		if h.active(victim) {
 			t.Fatal("a detached seat is still active")
@@ -95,7 +95,7 @@ func TestReconnectMidTurnRestoresIdenticalState(t *testing.T) {
 		// A brand new socket, the same seat token.
 		sock := newSmokeSock()
 		h.socks[victim] = sock
-		id, err := h.r.attach(h.toks[victim], sock.ch)
+		id, err := h.r.attach(h.toks[victim], sock)
 		if err != nil {
 			t.Fatalf("reattach: %v", err)
 		}
@@ -179,7 +179,7 @@ func TestSeatReclaimableUntilTheGraceWindowExpires(t *testing.T) {
 		h.toDrawing()
 
 		victim := h.anyIdxExcept(h.artistIdx(), h.imposterIdx())
-		h.r.detach(h.ids[victim], h.socks[victim].ch)
+		h.r.detach(h.ids[victim], h.socks[victim])
 		synctest.Wait()
 
 		// The countdown is published so the UI can show it.
@@ -204,7 +204,7 @@ func TestSeatReclaimableUntilTheGraceWindowExpires(t *testing.T) {
 
 		sock := newSmokeSock()
 		h.socks[victim] = sock
-		if _, err := h.r.attach(h.toks[victim], sock.ch); err != nil {
+		if _, err := h.r.attach(h.toks[victim], sock); err != nil {
 			t.Fatalf("reattach inside the window: %v", err)
 		}
 		synctest.Wait()
@@ -237,7 +237,7 @@ func TestGraceWindowExpiryRetiresTheSeat(t *testing.T) {
 
 		victim := h.anyIdxExcept(h.artistIdx(), h.imposterIdx())
 		word := h.word(victim)
-		h.r.detach(h.ids[victim], h.socks[victim].ch)
+		h.r.detach(h.ids[victim], h.socks[victim])
 		synctest.Wait()
 
 		h.advance(GraceWindow + 2*SweepInterval)
@@ -260,7 +260,7 @@ func TestGraceWindowExpiryRetiresTheSeat(t *testing.T) {
 		// The token still works — a late return is allowed, as a spectator.
 		sock := newSmokeSock()
 		h.socks[victim] = sock
-		if _, err := h.r.attach(h.toks[victim], sock.ch); err != nil {
+		if _, err := h.r.attach(h.toks[victim], sock); err != nil {
 			t.Fatalf("late reattach: %v", err)
 		}
 		synctest.Wait()
@@ -301,7 +301,7 @@ func TestDisconnectedSeatLeavesTheVotingDenominator(t *testing.T) {
 		h.toDiscussion()
 
 		gone := 5
-		h.r.detach(h.ids[gone], h.socks[gone].ch)
+		h.r.detach(h.ids[gone], h.socks[gone])
 		synctest.Wait()
 
 		if got := h.activeCount(); got != 5 {
@@ -365,7 +365,7 @@ func TestReconnectingSeatRejoinsTheDenominator(t *testing.T) {
 		h.toDiscussion()
 
 		gone := 5
-		h.r.detach(h.ids[gone], h.socks[gone].ch)
+		h.r.detach(h.ids[gone], h.socks[gone])
 		synctest.Wait()
 		if got := h.activeCount(); got != 5 {
 			t.Fatalf("active = %d, want 5", got)
@@ -374,7 +374,7 @@ func TestReconnectingSeatRejoinsTheDenominator(t *testing.T) {
 
 		sock := newSmokeSock()
 		h.socks[gone] = sock
-		if _, err := h.r.attach(h.toks[gone], sock.ch); err != nil {
+		if _, err := h.r.attach(h.toks[gone], sock); err != nil {
 			t.Fatalf("reattach: %v", err)
 		}
 		synctest.Wait()
@@ -432,7 +432,7 @@ func TestVoteIsDroppedWhenTheVoterDisconnects(t *testing.T) {
 		h.vote(5, target)
 		synctest.Wait()
 
-		h.r.detach(h.ids[5], h.socks[5].ch)
+		h.r.detach(h.ids[5], h.socks[5])
 		synctest.Wait()
 		h.discard()
 
@@ -475,11 +475,11 @@ func TestHostMigrationPromotesTheLongestConnectedActivePlayer(t *testing.T) {
 
 		// The next-longest-connected player goes dark first, so promotion has
 		// to skip them.
-		h.r.detach(h.ids[1], h.socks[1].ch)
+		h.r.detach(h.ids[1], h.socks[1])
 		synctest.Wait()
 		h.discard()
 
-		h.r.detach(h.ids[0], h.socks[0].ch)
+		h.r.detach(h.ids[0], h.socks[0])
 		synctest.Wait()
 
 		if got := h.hostIdx(); got != 2 {
@@ -502,7 +502,7 @@ func TestHostMigrationPromotesTheLongestConnectedActivePlayer(t *testing.T) {
 		// Coming back does not take the room back.
 		sock := newSmokeSock()
 		h.socks[1] = sock
-		if _, err := h.r.attach(h.toks[1], sock.ch); err != nil {
+		if _, err := h.r.attach(h.toks[1], sock); err != nil {
 			t.Fatalf("reattach: %v", err)
 		}
 		synctest.Wait()
@@ -512,7 +512,7 @@ func TestHostMigrationPromotesTheLongestConnectedActivePlayer(t *testing.T) {
 
 		// And the next migration picks seat 1, now the longest-connected
 		// active player again.
-		h.r.detach(h.ids[2], h.socks[2].ch)
+		h.r.detach(h.ids[2], h.socks[2])
 		synctest.Wait()
 		if got := h.hostIdx(); got != 1 {
 			t.Fatalf("host = %d, want 1", got)
@@ -553,7 +553,7 @@ func TestHostMigrationSkipsEliminatedPlayers(t *testing.T) {
 			t.Fatal("the match ended; nothing left to migrate")
 		}
 
-		h.r.detach(h.ids[0], h.socks[0].ch)
+		h.r.detach(h.ids[0], h.socks[0])
 		synctest.Wait()
 		got := h.hostIdx()
 		if got == victim {
@@ -577,7 +577,7 @@ func TestDisplacedSocketCannotDisturbTheNewOne(t *testing.T) {
 
 		old := h.socks[1]
 		fresh := newSmokeSock()
-		if _, err := h.r.attach(h.toks[1], fresh.ch); err != nil {
+		if _, err := h.r.attach(h.toks[1], fresh); err != nil {
 			t.Fatalf("attach: %v", err)
 		}
 		synctest.Wait()
@@ -588,7 +588,7 @@ func TestDisplacedSocketCannotDisturbTheNewOne(t *testing.T) {
 
 		// A frame from the stale socket is dropped: identity comes from the
 		// seat, not from the frame body.
-		h.r.Submit(Command{PlayerID: h.ids[1], Out: old.ch, Cmd: &genpb.ClientCommand{
+		h.r.Submit(Command{PlayerID: h.ids[1], Out: old, Cmd: &genpb.ClientCommand{
 			Cid: "stale", Cmd: &genpb.ClientCommand_SetReady{
 				SetReady: &genpb.SetReady{Ready: false}}}})
 		synctest.Wait()
@@ -600,7 +600,7 @@ func TestDisplacedSocketCannotDisturbTheNewOne(t *testing.T) {
 		}
 
 		// And a late detach for the old socket is ignored.
-		h.r.detach(h.ids[1], old.ch)
+		h.r.detach(h.ids[1], old)
 		synctest.Wait()
 		if !smokeGet(h.r, func(r *Room) bool { return r.byID[h.ids[1]].Connected }) {
 			t.Fatal("a late detach from a replaced socket knocked the live one offline")
@@ -624,7 +624,7 @@ func TestUnknownSeatTokenRejected(t *testing.T) {
 		defer h.stop()
 
 		sock := newSmokeSock()
-		if _, err := h.r.attach("not-a-real-token", sock.ch); err != ErrBadSeat {
+		if _, err := h.r.attach("not-a-real-token", sock); err != ErrBadSeat {
 			t.Fatalf("attach with a bogus token returned %v, want ErrBadSeat", err)
 		}
 		if got := h.seatCount(); got != 3 {
@@ -643,7 +643,7 @@ func TestLobbyDisconnectFreesTheSeatOutright(t *testing.T) {
 		defer h.stop()
 		h.discard()
 
-		h.r.detach(h.ids[3], h.socks[3].ch)
+		h.r.detach(h.ids[3], h.socks[3])
 		synctest.Wait()
 		h.advance(GraceWindow + 2*SweepInterval)
 
@@ -655,7 +655,7 @@ func TestLobbyDisconnectFreesTheSeatOutright(t *testing.T) {
 		}
 		// The token is dead with it.
 		sock := newSmokeSock()
-		if _, err := h.r.attach(h.toks[3], sock.ch); err != ErrBadSeat {
+		if _, err := h.r.attach(h.toks[3], sock); err != ErrBadSeat {
 			t.Fatalf("attach with a freed seat token returned %v, want ErrBadSeat", err)
 		}
 		// The remaining three can still start.
@@ -677,7 +677,7 @@ func TestSeatExpiringOnTheResultScreenWaitsForIt(t *testing.T) {
 		h.toDiscussion()
 
 		victim := h.anyIdxExcept(h.imposterIdx())
-		h.r.detach(h.ids[victim], h.socks[victim].ch)
+		h.r.detach(h.ids[victim], h.socks[victim])
 		synctest.Wait()
 
 		// Sit inside the voting window until the grace deadline is a few
@@ -718,7 +718,7 @@ func TestEmptyRoomClosesItself(t *testing.T) {
 		defer h.stop()
 
 		for i := range h.ids {
-			h.r.detach(h.ids[i], h.socks[i].ch)
+			h.r.detach(h.ids[i], h.socks[i])
 		}
 		synctest.Wait()
 		h.advance(GraceWindow + 2*SweepInterval)
@@ -732,7 +732,7 @@ func TestEmptyRoomClosesItself(t *testing.T) {
 			t.Fatal("Run returned without closing done")
 		}
 		// Every entry point is safe after the actor is gone.
-		if _, _, err := h.r.Seat("late", newSmokeSock().ch); err != ErrClosed {
+		if _, _, err := h.r.Seat("late", newSmokeSock()); err != ErrClosed {
 			t.Fatalf("Seat on a closed room = %v, want ErrClosed", err)
 		}
 	})
@@ -751,9 +751,9 @@ func TestHostPromotionWhenTheLastDarkSeatIsCollected(t *testing.T) {
 
 		// Order matters: the host leaves last, so bestHost has no candidate and
 		// the flag stays on a disconnected seat.
-		h.r.detach(h.ids[1], h.socks[1].ch)
-		h.r.detach(h.ids[2], h.socks[2].ch)
-		h.r.detach(h.ids[0], h.socks[0].ch)
+		h.r.detach(h.ids[1], h.socks[1])
+		h.r.detach(h.ids[2], h.socks[2])
+		h.r.detach(h.ids[0], h.socks[0])
 		synctest.Wait()
 		if got := h.hostIdx(); got != 0 {
 			t.Fatalf("host = %d, want the original host to keep the flag with "+
@@ -763,7 +763,7 @@ func TestHostPromotionWhenTheLastDarkSeatIsCollected(t *testing.T) {
 		h.advance(GraceWindow / 2)
 		sock := newSmokeSock()
 		h.socks[2] = sock
-		if _, err := h.r.attach(h.toks[2], sock.ch); err != nil {
+		if _, err := h.r.attach(h.toks[2], sock); err != nil {
 			t.Fatalf("reattach: %v", err)
 		}
 		synctest.Wait()
@@ -801,7 +801,7 @@ func TestEveryoneButTheImposterLeavingAbandonsTheMatch(t *testing.T) {
 			if i == oi {
 				continue
 			}
-			h.r.detach(h.ids[i], h.socks[i].ch)
+			h.r.detach(h.ids[i], h.socks[i])
 		}
 		synctest.Wait()
 		if got := h.activeCount(); got != 1 {

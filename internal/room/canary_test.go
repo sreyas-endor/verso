@@ -76,6 +76,17 @@ func newCnrySock() *cnrySock {
 	return &cnrySock{ch: make(chan *genpb.ServerEvent, 16384)}
 }
 
+// Send and Close are the room's Session contract. Close is a no-op recorded
+// nowhere: this test cares about what reached the wire, not about lifecycle.
+func (s *cnrySock) Send(ev *genpb.ServerEvent) {
+	select {
+	case s.ch <- ev:
+	default:
+	}
+}
+
+func (s *cnrySock) Close() {}
+
 // harvest drains the queue and freezes each frame's wire form. It must be
 // called often: the queue is bounded, and a dropped frame is a frame this test
 // never gets to examine.
@@ -160,7 +171,7 @@ func cnryCarries(raw []byte, word string) bool {
 
 // cnryDraw puts one real stroke on the canvas as the current artist, so
 // StrokeBegan, StrokePoints and StrokeEnded are genuinely on the wire.
-func cnryDraw(r *Room, id string, out chan *genpb.ServerEvent) {
+func cnryDraw(r *Room, id string, out Session) {
 	r.Submit(Command{PlayerID: id, Out: out, Cmd: &genpb.ClientCommand{
 		Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
 			ColorIndex: 3, Width: 6, Points: []int32{10, 20, 30, 40},
@@ -254,7 +265,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 		go r.run(ctx)
 
 		s0 := newCnrySock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		ids := []string{hostID}
@@ -262,7 +273,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 		tokens := []string{hostTok}
 		for i := 1; i < players; i++ {
 			sk := newCnrySock()
-			id, tok, err := r.seat("player", sk.ch)
+			id, tok, err := r.seat("player", sk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -286,7 +297,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 			return -1
 		}
 		submit := func(i int, c *genpb.ClientCommand) {
-			r.Submit(Command{PlayerID: ids[i], Out: socks[i].ch, Cmd: c})
+			r.Submit(Command{PlayerID: ids[i], Out: socks[i], Cmd: c})
 		}
 
 		// A host settings change, so SettingsChanged is exercised too.
@@ -362,7 +373,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 			case genpb.Phase_PHASE_DRAWING:
 				artist := cnryArtist(r)
 				if artist != "" {
-					cnryDraw(r, artist, socks[idx(artist)].ch)
+					cnryDraw(r, artist, socks[idx(artist)])
 					synctest.Wait()
 					harvest()
 
@@ -391,10 +402,10 @@ func TestCanaryCompleteMatch(t *testing.T) {
 				if !droppedOnce && artist != dropper && cnryRound(r) == 1 {
 					droppedOnce = true
 					di := idx(dropper)
-					r.detach(dropper, socks[di].ch)
+					r.detach(dropper, socks[di])
 					synctest.Wait()
 					harvest()
-					if _, err := r.attach(tokens[di], socks[di].ch); err != nil {
+					if _, err := r.attach(tokens[di], socks[di]); err != nil {
 						t.Fatal(err)
 					}
 					synctest.Wait()
@@ -697,14 +708,14 @@ func TestCanaryImposterRevealOnlyOnAGroupWin(t *testing.T) {
 		go r.run(ctx)
 
 		s0 := newCnrySock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		ids := []string{hostID}
 		socks := []*cnrySock{s0}
 		for i := 1; i < 5; i++ {
 			sk := newCnrySock()
-			id, _, err := r.seat("player", sk.ch)
+			id, _, err := r.seat("player", sk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -712,7 +723,7 @@ func TestCanaryImposterRevealOnlyOnAGroupWin(t *testing.T) {
 			socks = append(socks, sk)
 		}
 		submit := func(i int, c *genpb.ClientCommand) {
-			r.Submit(Command{PlayerID: ids[i], Out: socks[i].ch, Cmd: c})
+			r.Submit(Command{PlayerID: ids[i], Out: socks[i], Cmd: c})
 		}
 		harvest := func() {
 			for _, s := range socks {

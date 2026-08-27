@@ -296,6 +296,19 @@ func TestGCCollectsAnEmptyRoomAndTheActorExits(t *testing.T) {
 	})
 }
 
+// chanSession adapts a buffered channel to room.Session. The registry has no
+// opinion about what a connection is; it only ever hands one to a room.
+type chanSession struct{ ch chan *genpb.ServerEvent }
+
+func (s *chanSession) Send(ev *genpb.ServerEvent) {
+	select {
+	case s.ch <- ev:
+	default:
+	}
+}
+
+func (s *chanSession) Close() {}
+
 // TestGCCollectsARoomWhoseSeatsAllExpired is the other GC route: the room
 // closes itself once its last seat times out, and the registry follows.
 func TestGCCollectsARoomWhoseSeatsAllExpired(t *testing.T) {
@@ -310,8 +323,9 @@ func TestGCCollectsARoomWhoseSeatsAllExpired(t *testing.T) {
 			t.Fatal(err)
 		}
 		// Generously buffered rather than drained by a goroutine: an unclosed
-		// reader would still be parked when the bubble ends.
-		out := make(chan *genpb.ServerEvent, 4096)
+		// reader would still be parked when the bubble ends. One session per
+		// channel and reused, because the room tells sockets apart by identity.
+		out := &chanSession{ch: make(chan *genpb.ServerEvent, 4096)}
 		if _, err := c.Room.Attach(c.HostToken, out); err != nil {
 			t.Fatal(err)
 		}

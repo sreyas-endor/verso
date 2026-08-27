@@ -1,7 +1,7 @@
 package room
 
-// reconnect.go — seats, the grace window, host migration and the liveness
-// sweep (IMPLEMENTATION_PLAN.md §4.6).
+// reconnect.go — seats, the grace window, host migration, the host's kick and
+// the liveness sweep (IMPLEMENTATION_PLAN.md §4.6).
 //
 // Seat, Attach and Detach are synchronous round trips over r.ctl: they run on
 // the room goroutine like everything else, so they are not a second way into
@@ -27,7 +27,7 @@ import (
 
 // seat takes a new seat for a first-time player. See Seat in api.go for the
 // contract.
-func (r *Room) seat(displayName string, out chan<- *genpb.ServerEvent) (string, string, error) {
+func (r *Room) seat(displayName string, out Session) (string, string, error) {
 	var id, token string
 	var serr error
 	if err := r.do(func() { id, token, serr = r.seatOnActor(displayName, out) }); err != nil {
@@ -36,7 +36,7 @@ func (r *Room) seat(displayName string, out chan<- *genpb.ServerEvent) (string, 
 	return id, token, serr
 }
 
-func (r *Room) seatOnActor(displayName string, out chan<- *genpb.ServerEvent) (string, string, error) {
+func (r *Room) seatOnActor(displayName string, out Session) (string, string, error) {
 	if r.phase != genpb.Phase_PHASE_LOBBY {
 		return "", "", ErrMatchInProgress
 	}
@@ -68,7 +68,7 @@ func (r *Room) seatOnActor(displayName string, out chan<- *genpb.ServerEvent) (s
 }
 
 // attach binds a live connection to an existing seat. See Attach in api.go.
-func (r *Room) attach(seatToken string, out chan<- *genpb.ServerEvent) (string, error) {
+func (r *Room) attach(seatToken string, out Session) (string, error) {
 	var id string
 	var serr error
 	if err := r.do(func() { id, serr = r.attachOnActor(seatToken, out) }); err != nil {
@@ -77,7 +77,7 @@ func (r *Room) attach(seatToken string, out chan<- *genpb.ServerEvent) (string, 
 	return id, serr
 }
 
-func (r *Room) attachOnActor(seatToken string, out chan<- *genpb.ServerEvent) (string, error) {
+func (r *Room) attachOnActor(seatToken string, out Session) (string, error) {
 	p := r.bySeatToken[seatToken]
 	if p == nil {
 		return "", ErrBadSeat
@@ -96,15 +96,22 @@ func (r *Room) attachOnActor(seatToken string, out chan<- *genpb.ServerEvent) (s
 	}
 
 	if old != nil && old != out {
-		// Best effort: tell the displaced socket why it is about to go quiet.
-		env := EvError{&genpb.Error{
+		// Tell the displaced socket why it is about to go quiet, THEN ask it to
+		// leave. Order matters and so does the split: the error goes on its
+		// queue first, and Close is a request to drain that queue and shut
+		// down, never a cancellation — cancelling here would race the writer
+		// and swallow the explanation.
+		//
+		// Closing at all is the point. Without it the old socket stays open,
+		// answers pings, and holds a connection slot and a 64-frame queue for
+		// as long as the client leaves the tab alone, while receiving nothing:
+		// the room has already moved the seat to the new session. A phone
+		// flapping between wifi and cellular can leave a trail of them.
+		old.Send(EvError{&genpb.Error{
 			Code:    genpb.ErrorCode_ERROR_CODE_BAD_SEAT,
 			Message: "seat reclaimed by another connection",
-		}}.Envelope("")
-		select {
-		case old <- env:
-		default:
-		}
+		}}.Envelope(""))
+		old.Close()
 	}
 
 	r.SendTo(p.ID, r.joinedFor(p, reclaim))
@@ -135,11 +142,11 @@ func (r *Room) attachOnActor(seatToken string, out chan<- *genpb.ServerEvent) (s
 }
 
 // detach releases a connection. See Detach in api.go.
-func (r *Room) detach(playerID string, out chan<- *genpb.ServerEvent) {
+func (r *Room) detach(playerID string, out Session) {
 	_ = r.do(func() { r.detachOnActor(playerID, out) })
 }
 
-func (r *Room) detachOnActor(playerID string, out chan<- *genpb.ServerEvent) {
+func (r *Room) detachOnActor(playerID string, out Session) {
 	p := r.byID[playerID]
 	if p == nil {
 		return
@@ -286,6 +293,60 @@ func (r *Room) expireSeat(p *Player) {
 
 	// Lobby or post-match: free the seat outright.
 	r.removeSeat(p)
+}
+
+// onKick removes another player's seat at the host's request.
+//
+// Lobby only, and that restriction is the whole reason this is cheap: outside
+// PHASE_LOBBY a seat holds a word, a place in the turn order and a place in the
+// vote denominator, and unseating it would have to answer what happens when the
+// target is the imposter — which cannot be answered without telling the room
+// that they were. In the lobby a seat holds nothing, so removeSeat is the
+// entire operation.
+//
+// The kick is not a ban. It destroys the seat token so the target cannot
+// reconnect into that seat, but the room code still works and they may take a
+// fresh seat; there is no stable identity here to ban on.
+func (r *Room) onKick(p *Player, cid string, k *genpb.KickPlayer) {
+	if r.phase != genpb.Phase_PHASE_LOBBY {
+		r.SendError(p.ID, cid, ErrWrongPhase)
+		return
+	}
+	if !p.IsHost {
+		r.SendError(p.ID, cid, ErrNotHost)
+		return
+	}
+	target := r.byID[k.GetTargetPlayerId()]
+	// Self-kick is refused rather than treated as leaving: it would unseat the
+	// host and migrate the role in one step, and there is no UI that wants
+	// that. A host leaves by closing the tab.
+	if target == nil || target == p {
+		r.SendError(p.ID, cid, ErrInvalidCommand)
+		return
+	}
+
+	// Told before the seat goes: SendReply resolves the socket through byID,
+	// which removeSeat is about to empty. Uncorrelated — this answers the
+	// host's command, not the target's.
+	r.sendErrorCode(target.ID, "", genpb.ErrorCode_ERROR_CODE_KICKED,
+		"The host removed you from the room. You can rejoin with the room code.")
+
+	// Held across removeSeat, which unlinks the player from every index. The
+	// close is requested after, and only after, the KICKED error is on the
+	// target's queue, so the socket drains that frame before it goes.
+	sess := target.outbound
+	r.removeSeat(target)
+	if sess != nil {
+		// A kick that relied on the client closing voluntarily leaves the
+		// removed player holding a live connection slot in a room that will
+		// never send them anything again — and a client that ignores the error
+		// holds it indefinitely.
+		sess.Close()
+	}
+	r.log.Info("player kicked", "host", p.ID, "player", target.ID)
+	// Carries the shrunk roster and the recomputed can_start. The target is no
+	// longer in r.players, so this does not reach them.
+	r.BroadcastReply(cid, r.lobbyState())
 }
 
 // removeSeat drops a seat entirely. Only legal outside a running match, where

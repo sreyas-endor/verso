@@ -34,6 +34,17 @@ type strkSock struct{ ch chan *genpb.ServerEvent }
 
 func newStrkSock() *strkSock { return &strkSock{ch: make(chan *genpb.ServerEvent, 32768)} }
 
+// The room's Session contract. These tests only ever read frames back, so Close
+// has nothing to record.
+func (s *strkSock) Send(ev *genpb.ServerEvent) {
+	select {
+	case s.ch <- ev:
+	default:
+	}
+}
+
+func (s *strkSock) Close() {}
+
 func (s *strkSock) drain() []*genpb.ServerEvent {
 	var out []*genpb.ServerEvent
 	for {
@@ -111,7 +122,7 @@ func (m *strkMatch) idx(id string) int {
 }
 
 func (m *strkMatch) submit(i int, c *genpb.ClientCommand) {
-	m.r.Submit(Command{PlayerID: m.ids[i], Out: m.socks[i].ch, Cmd: c})
+	m.r.Submit(Command{PlayerID: m.ids[i], Out: m.socks[i], Cmd: c})
 }
 
 // artist returns the index of the current artist, and the index of somebody who
@@ -169,13 +180,13 @@ func strkStart(t *testing.T, n int) *strkMatch {
 	go r.run(ctx)
 
 	s0 := newStrkSock()
-	if _, err := r.attach(hostTok, s0.ch); err != nil {
+	if _, err := r.attach(hostTok, s0); err != nil {
 		t.Fatal(err)
 	}
 	m := &strkMatch{r: r, ids: []string{hostID}, socks: []*strkSock{s0}, cancel: cancel}
 	for i := 1; i < n; i++ {
 		sk := newStrkSock()
-		id, _, err := r.seat("player", sk.ch)
+		id, _, err := r.seat("player", sk)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -563,11 +574,11 @@ func TestStrokeCommandsOutsideTheDrawingPhaseAreRejected(t *testing.T) {
 		hostID, hostTok := r.HostSeat()
 		go r.run(ctx)
 		s0 := newStrkSock()
-		if _, err := r.attach(hostTok, s0.ch); err != nil {
+		if _, err := r.attach(hostTok, s0); err != nil {
 			t.Fatal(err)
 		}
 		s0.drain()
-		r.Submit(Command{PlayerID: hostID, Out: s0.ch, Cmd: &genpb.ClientCommand{Cid: "lobby",
+		r.Submit(Command{PlayerID: hostID, Out: s0, Cmd: &genpb.ClientCommand{Cid: "lobby",
 			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
 				ColorIndex: 1, Width: 4, Points: []int32{1, 1}}}}})
 		synctest.Wait()

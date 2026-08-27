@@ -5,6 +5,7 @@
 
 import type {
   Difficulty,
+  ErrorCode,
   MatchEnded,
   MatchSettings,
   Phase,
@@ -90,6 +91,8 @@ export interface ViewState {
   busy: boolean;
   /** Last server Error rendered inline on home/lobby. Toasts handle the rest. */
   lastError: string | null;
+  /** The code behind `lastError`, for the few screens that branch on it. */
+  lastErrorCode: ErrorCode | null;
 }
 
 export interface Actions {
@@ -100,6 +103,8 @@ export interface Actions {
   startMatch(): void;
   castVote(choice: VoteChoice): void;
   rematch(): void;
+  /** Host only, lobby only. The server rejects it from anyone else. */
+  kickPlayer(playerId: string): void;
   requestSnapshot(): void;
 }
 

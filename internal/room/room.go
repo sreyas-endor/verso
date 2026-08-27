@@ -151,6 +151,8 @@ func (r *Room) handle(m Command) {
 		r.onRequestSnapshot(p, cid)
 	case *genpb.ClientCommand_Rematch:
 		r.onRematch(p, cid)
+	case *genpb.ClientCommand_Kick:
+		r.onKick(p, cid, c.Kick)
 	default:
 		// Includes the nil case a proto3 oneof leaves when a newer client sends
 		// a variant this build does not know.

@@ -331,6 +331,9 @@ const (
 	ErrorCode_ERROR_CODE_RATE_LIMITED       ErrorCode = 13
 	ErrorCode_ERROR_CODE_WRONG_PHASE        ErrorCode = 14
 	ErrorCode_ERROR_CODE_PROTOCOL_VERSION   ErrorCode = 15
+	// The host removed this player from the lobby. Terminal: the seat and its
+	// token are gone, so a reconnect with that token cannot succeed.
+	ErrorCode_ERROR_CODE_KICKED ErrorCode = 16
 )
 
 // Enum value maps for ErrorCode.
@@ -352,6 +355,7 @@ var (
 		13: "ERROR_CODE_RATE_LIMITED",
 		14: "ERROR_CODE_WRONG_PHASE",
 		15: "ERROR_CODE_PROTOCOL_VERSION",
+		16: "ERROR_CODE_KICKED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":        0,
@@ -370,6 +374,7 @@ var (
 		"ERROR_CODE_RATE_LIMITED":       13,
 		"ERROR_CODE_WRONG_PHASE":        14,
 		"ERROR_CODE_PROTOCOL_VERSION":   15,
+		"ERROR_CODE_KICKED":             16,
 	}
 )
 
@@ -855,6 +860,62 @@ func (*StartMatch) Descriptor() ([]byte, []int) {
 	return file_verso_v1_game_proto_rawDescGZIP(), []int{6}
 }
 
+// Remove another player's seat. Host only, and lobby only: outside
+// PHASE_LOBBY a seat holds a word and a place in the turn order and the vote
+// denominator, none of which a removal may quietly rewrite.
+//
+// Rejected with ERROR_CODE_NOT_HOST from a non-host, ERROR_CODE_WRONG_PHASE
+// outside the lobby, and ERROR_CODE_INVALID_COMMAND for an unknown id or for
+// the host's own id — a host leaves by closing the tab, which migrates the
+// role, rather than by unseating themself.
+//
+// The removed player is told with an ERROR_CODE_KICKED Error and their seat
+// token is destroyed, so they cannot reconnect into that seat. This does NOT
+// ban them: the room code still works and they may take a fresh seat.
+type KickPlayer struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TargetPlayerId string                 `protobuf:"bytes,1,opt,name=target_player_id,json=targetPlayerId,proto3" json:"target_player_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *KickPlayer) Reset() {
+	*x = KickPlayer{}
+	mi := &file_verso_v1_game_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KickPlayer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KickPlayer) ProtoMessage() {}
+
+func (x *KickPlayer) ProtoReflect() protoreflect.Message {
+	mi := &file_verso_v1_game_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KickPlayer.ProtoReflect.Descriptor instead.
+func (*KickPlayer) Descriptor() ([]byte, []int) {
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *KickPlayer) GetTargetPlayerId() string {
+	if x != nil {
+		return x.TargetPlayerId
+	}
+	return ""
+}
+
 // Begin a stroke. Rejected from anyone who is not the current artist.
 type StrokeBegin struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -870,7 +931,7 @@ type StrokeBegin struct {
 
 func (x *StrokeBegin) Reset() {
 	*x = StrokeBegin{}
-	mi := &file_verso_v1_game_proto_msgTypes[7]
+	mi := &file_verso_v1_game_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +943,7 @@ func (x *StrokeBegin) String() string {
 func (*StrokeBegin) ProtoMessage() {}
 
 func (x *StrokeBegin) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[7]
+	mi := &file_verso_v1_game_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +956,7 @@ func (x *StrokeBegin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrokeBegin.ProtoReflect.Descriptor instead.
 func (*StrokeBegin) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{7}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StrokeBegin) GetColorIndex() int32 {
@@ -940,7 +1001,7 @@ type StrokePoints struct {
 
 func (x *StrokePoints) Reset() {
 	*x = StrokePoints{}
-	mi := &file_verso_v1_game_proto_msgTypes[8]
+	mi := &file_verso_v1_game_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -952,7 +1013,7 @@ func (x *StrokePoints) String() string {
 func (*StrokePoints) ProtoMessage() {}
 
 func (x *StrokePoints) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[8]
+	mi := &file_verso_v1_game_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -965,7 +1026,7 @@ func (x *StrokePoints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrokePoints.ProtoReflect.Descriptor instead.
 func (*StrokePoints) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{8}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StrokePoints) GetStrokeId() int32 {
@@ -1001,7 +1062,7 @@ type StrokeEnd struct {
 
 func (x *StrokeEnd) Reset() {
 	*x = StrokeEnd{}
-	mi := &file_verso_v1_game_proto_msgTypes[9]
+	mi := &file_verso_v1_game_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1013,7 +1074,7 @@ func (x *StrokeEnd) String() string {
 func (*StrokeEnd) ProtoMessage() {}
 
 func (x *StrokeEnd) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[9]
+	mi := &file_verso_v1_game_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1026,7 +1087,7 @@ func (x *StrokeEnd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrokeEnd.ProtoReflect.Descriptor instead.
 func (*StrokeEnd) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{9}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StrokeEnd) GetPoints() []int32 {
@@ -1051,7 +1112,7 @@ type CastVote struct {
 
 func (x *CastVote) Reset() {
 	*x = CastVote{}
-	mi := &file_verso_v1_game_proto_msgTypes[10]
+	mi := &file_verso_v1_game_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1063,7 +1124,7 @@ func (x *CastVote) String() string {
 func (*CastVote) ProtoMessage() {}
 
 func (x *CastVote) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[10]
+	mi := &file_verso_v1_game_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1076,7 +1137,7 @@ func (x *CastVote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CastVote.ProtoReflect.Descriptor instead.
 func (*CastVote) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{10}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CastVote) GetChoice() isCastVote_Choice {
@@ -1135,7 +1196,7 @@ type RequestSnapshot struct {
 
 func (x *RequestSnapshot) Reset() {
 	*x = RequestSnapshot{}
-	mi := &file_verso_v1_game_proto_msgTypes[11]
+	mi := &file_verso_v1_game_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1147,7 +1208,7 @@ func (x *RequestSnapshot) String() string {
 func (*RequestSnapshot) ProtoMessage() {}
 
 func (x *RequestSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[11]
+	mi := &file_verso_v1_game_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1221,7 @@ func (x *RequestSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestSnapshot.ProtoReflect.Descriptor instead.
 func (*RequestSnapshot) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{11}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RequestSnapshot) GetHaveSeq() int32 {
@@ -1179,7 +1240,7 @@ type Rematch struct {
 
 func (x *Rematch) Reset() {
 	*x = Rematch{}
-	mi := &file_verso_v1_game_proto_msgTypes[12]
+	mi := &file_verso_v1_game_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1252,7 @@ func (x *Rematch) String() string {
 func (*Rematch) ProtoMessage() {}
 
 func (x *Rematch) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[12]
+	mi := &file_verso_v1_game_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1265,7 @@ func (x *Rematch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Rematch.ProtoReflect.Descriptor instead.
 func (*Rematch) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{12}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{13}
 }
 
 // The only frame a client is ever allowed to send.
@@ -1225,6 +1286,7 @@ type ClientCommand struct {
 	//	*ClientCommand_CastVote
 	//	*ClientCommand_RequestSnapshot
 	//	*ClientCommand_Rematch
+	//	*ClientCommand_Kick
 	Cmd           isClientCommand_Cmd `protobuf_oneof:"cmd"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1232,7 +1294,7 @@ type ClientCommand struct {
 
 func (x *ClientCommand) Reset() {
 	*x = ClientCommand{}
-	mi := &file_verso_v1_game_proto_msgTypes[13]
+	mi := &file_verso_v1_game_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1244,7 +1306,7 @@ func (x *ClientCommand) String() string {
 func (*ClientCommand) ProtoMessage() {}
 
 func (x *ClientCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[13]
+	mi := &file_verso_v1_game_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1257,7 +1319,7 @@ func (x *ClientCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientCommand.ProtoReflect.Descriptor instead.
 func (*ClientCommand) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{13}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ClientCommand) GetCid() string {
@@ -1364,6 +1426,15 @@ func (x *ClientCommand) GetRematch() *Rematch {
 	return nil
 }
 
+func (x *ClientCommand) GetKick() *KickPlayer {
+	if x != nil {
+		if x, ok := x.Cmd.(*ClientCommand_Kick); ok {
+			return x.Kick
+		}
+	}
+	return nil
+}
+
 type isClientCommand_Cmd interface {
 	isClientCommand_Cmd()
 }
@@ -1408,6 +1479,10 @@ type ClientCommand_Rematch struct {
 	Rematch *Rematch `protobuf:"bytes,11,opt,name=rematch,proto3,oneof"`
 }
 
+type ClientCommand_Kick struct {
+	Kick *KickPlayer `protobuf:"bytes,12,opt,name=kick,proto3,oneof"`
+}
+
 func (*ClientCommand_Join) isClientCommand_Cmd() {}
 
 func (*ClientCommand_SetReady) isClientCommand_Cmd() {}
@@ -1428,6 +1503,8 @@ func (*ClientCommand_RequestSnapshot) isClientCommand_Cmd() {}
 
 func (*ClientCommand_Rematch) isClientCommand_Cmd() {}
 
+func (*ClientCommand_Kick) isClientCommand_Cmd() {}
+
 // Full lobby roster and settings. Re-sent on every roster or settings change
 // while in PHASE_LOBBY.
 type LobbyState struct {
@@ -1446,7 +1523,7 @@ type LobbyState struct {
 
 func (x *LobbyState) Reset() {
 	*x = LobbyState{}
-	mi := &file_verso_v1_game_proto_msgTypes[14]
+	mi := &file_verso_v1_game_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1458,7 +1535,7 @@ func (x *LobbyState) String() string {
 func (*LobbyState) ProtoMessage() {}
 
 func (x *LobbyState) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[14]
+	mi := &file_verso_v1_game_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1471,7 +1548,7 @@ func (x *LobbyState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LobbyState.ProtoReflect.Descriptor instead.
 func (*LobbyState) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{14}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LobbyState) GetRoomCode() string {
@@ -1534,7 +1611,7 @@ type SettingsChanged struct {
 
 func (x *SettingsChanged) Reset() {
 	*x = SettingsChanged{}
-	mi := &file_verso_v1_game_proto_msgTypes[15]
+	mi := &file_verso_v1_game_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1546,7 +1623,7 @@ func (x *SettingsChanged) String() string {
 func (*SettingsChanged) ProtoMessage() {}
 
 func (x *SettingsChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[15]
+	mi := &file_verso_v1_game_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1559,7 +1636,7 @@ func (x *SettingsChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingsChanged.ProtoReflect.Descriptor instead.
 func (*SettingsChanged) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{15}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SettingsChanged) GetSettings() *MatchSettings {
@@ -1585,7 +1662,7 @@ type RoundStarted struct {
 
 func (x *RoundStarted) Reset() {
 	*x = RoundStarted{}
-	mi := &file_verso_v1_game_proto_msgTypes[16]
+	mi := &file_verso_v1_game_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1597,7 +1674,7 @@ func (x *RoundStarted) String() string {
 func (*RoundStarted) ProtoMessage() {}
 
 func (x *RoundStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[16]
+	mi := &file_verso_v1_game_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1610,7 +1687,7 @@ func (x *RoundStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundStarted.ProtoReflect.Descriptor instead.
 func (*RoundStarted) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{16}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RoundStarted) GetRound() int32 {
@@ -1660,7 +1737,7 @@ type TurnStarted struct {
 
 func (x *TurnStarted) Reset() {
 	*x = TurnStarted{}
-	mi := &file_verso_v1_game_proto_msgTypes[17]
+	mi := &file_verso_v1_game_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1672,7 +1749,7 @@ func (x *TurnStarted) String() string {
 func (*TurnStarted) ProtoMessage() {}
 
 func (x *TurnStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[17]
+	mi := &file_verso_v1_game_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +1762,7 @@ func (x *TurnStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TurnStarted.ProtoReflect.Descriptor instead.
 func (*TurnStarted) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{17}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TurnStarted) GetRound() int32 {
@@ -1740,7 +1817,7 @@ type StrokeBegan struct {
 
 func (x *StrokeBegan) Reset() {
 	*x = StrokeBegan{}
-	mi := &file_verso_v1_game_proto_msgTypes[18]
+	mi := &file_verso_v1_game_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1752,7 +1829,7 @@ func (x *StrokeBegan) String() string {
 func (*StrokeBegan) ProtoMessage() {}
 
 func (x *StrokeBegan) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[18]
+	mi := &file_verso_v1_game_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1765,7 +1842,7 @@ func (x *StrokeBegan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrokeBegan.ProtoReflect.Descriptor instead.
 func (*StrokeBegan) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{18}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *StrokeBegan) GetStrokeId() int32 {
@@ -1818,7 +1895,7 @@ type StrokeEnded struct {
 
 func (x *StrokeEnded) Reset() {
 	*x = StrokeEnded{}
-	mi := &file_verso_v1_game_proto_msgTypes[19]
+	mi := &file_verso_v1_game_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1830,7 +1907,7 @@ func (x *StrokeEnded) String() string {
 func (*StrokeEnded) ProtoMessage() {}
 
 func (x *StrokeEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[19]
+	mi := &file_verso_v1_game_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1843,7 +1920,7 @@ func (x *StrokeEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrokeEnded.ProtoReflect.Descriptor instead.
 func (*StrokeEnded) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{19}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *StrokeEnded) GetStrokeId() int32 {
@@ -1885,7 +1962,7 @@ type PhaseChanged struct {
 
 func (x *PhaseChanged) Reset() {
 	*x = PhaseChanged{}
-	mi := &file_verso_v1_game_proto_msgTypes[20]
+	mi := &file_verso_v1_game_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1897,7 +1974,7 @@ func (x *PhaseChanged) String() string {
 func (*PhaseChanged) ProtoMessage() {}
 
 func (x *PhaseChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[20]
+	mi := &file_verso_v1_game_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1910,7 +1987,7 @@ func (x *PhaseChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseChanged.ProtoReflect.Descriptor instead.
 func (*PhaseChanged) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{20}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PhaseChanged) GetPhase() Phase {
@@ -1963,7 +2040,7 @@ type VoteCastCount struct {
 
 func (x *VoteCastCount) Reset() {
 	*x = VoteCastCount{}
-	mi := &file_verso_v1_game_proto_msgTypes[21]
+	mi := &file_verso_v1_game_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1975,7 +2052,7 @@ func (x *VoteCastCount) String() string {
 func (*VoteCastCount) ProtoMessage() {}
 
 func (x *VoteCastCount) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[21]
+	mi := &file_verso_v1_game_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1988,7 +2065,7 @@ func (x *VoteCastCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteCastCount.ProtoReflect.Descriptor instead.
 func (*VoteCastCount) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{21}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *VoteCastCount) GetRound() int32 {
@@ -2023,7 +2100,7 @@ type VoteCount struct {
 
 func (x *VoteCount) Reset() {
 	*x = VoteCount{}
-	mi := &file_verso_v1_game_proto_msgTypes[22]
+	mi := &file_verso_v1_game_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2035,7 +2112,7 @@ func (x *VoteCount) String() string {
 func (*VoteCount) ProtoMessage() {}
 
 func (x *VoteCount) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[22]
+	mi := &file_verso_v1_game_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2048,7 +2125,7 @@ func (x *VoteCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteCount.ProtoReflect.Descriptor instead.
 func (*VoteCount) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{22}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *VoteCount) GetCandidateId() string {
@@ -2094,7 +2171,7 @@ type VoteTally struct {
 
 func (x *VoteTally) Reset() {
 	*x = VoteTally{}
-	mi := &file_verso_v1_game_proto_msgTypes[23]
+	mi := &file_verso_v1_game_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2106,7 +2183,7 @@ func (x *VoteTally) String() string {
 func (*VoteTally) ProtoMessage() {}
 
 func (x *VoteTally) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[23]
+	mi := &file_verso_v1_game_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2119,7 +2196,7 @@ func (x *VoteTally) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteTally.ProtoReflect.Descriptor instead.
 func (*VoteTally) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{23}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *VoteTally) GetRound() int32 {
@@ -2180,7 +2257,7 @@ type PlayerEliminated struct {
 
 func (x *PlayerEliminated) Reset() {
 	*x = PlayerEliminated{}
-	mi := &file_verso_v1_game_proto_msgTypes[24]
+	mi := &file_verso_v1_game_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2192,7 +2269,7 @@ func (x *PlayerEliminated) String() string {
 func (*PlayerEliminated) ProtoMessage() {}
 
 func (x *PlayerEliminated) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[24]
+	mi := &file_verso_v1_game_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2205,7 +2282,7 @@ func (x *PlayerEliminated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerEliminated.ProtoReflect.Descriptor instead.
 func (*PlayerEliminated) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{24}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PlayerEliminated) GetRound() int32 {
@@ -2253,7 +2330,7 @@ type RoundWords struct {
 
 func (x *RoundWords) Reset() {
 	*x = RoundWords{}
-	mi := &file_verso_v1_game_proto_msgTypes[25]
+	mi := &file_verso_v1_game_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2265,7 +2342,7 @@ func (x *RoundWords) String() string {
 func (*RoundWords) ProtoMessage() {}
 
 func (x *RoundWords) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[25]
+	mi := &file_verso_v1_game_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2355,7 @@ func (x *RoundWords) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundWords.ProtoReflect.Descriptor instead.
 func (*RoundWords) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{25}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RoundWords) GetRound() int32 {
@@ -2324,7 +2401,7 @@ type PlayerReveal struct {
 
 func (x *PlayerReveal) Reset() {
 	*x = PlayerReveal{}
-	mi := &file_verso_v1_game_proto_msgTypes[26]
+	mi := &file_verso_v1_game_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2336,7 +2413,7 @@ func (x *PlayerReveal) String() string {
 func (*PlayerReveal) ProtoMessage() {}
 
 func (x *PlayerReveal) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[26]
+	mi := &file_verso_v1_game_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2349,7 +2426,7 @@ func (x *PlayerReveal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerReveal.ProtoReflect.Descriptor instead.
 func (*PlayerReveal) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{26}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *PlayerReveal) GetPlayerId() string {
@@ -2420,7 +2497,7 @@ type MatchEnded struct {
 
 func (x *MatchEnded) Reset() {
 	*x = MatchEnded{}
-	mi := &file_verso_v1_game_proto_msgTypes[27]
+	mi := &file_verso_v1_game_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2432,7 +2509,7 @@ func (x *MatchEnded) String() string {
 func (*MatchEnded) ProtoMessage() {}
 
 func (x *MatchEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[27]
+	mi := &file_verso_v1_game_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2445,7 +2522,7 @@ func (x *MatchEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchEnded.ProtoReflect.Descriptor instead.
 func (*MatchEnded) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{27}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *MatchEnded) GetWinner() WinnerSide {
@@ -2517,7 +2594,7 @@ type PlayerPresence struct {
 
 func (x *PlayerPresence) Reset() {
 	*x = PlayerPresence{}
-	mi := &file_verso_v1_game_proto_msgTypes[28]
+	mi := &file_verso_v1_game_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2529,7 +2606,7 @@ func (x *PlayerPresence) String() string {
 func (*PlayerPresence) ProtoMessage() {}
 
 func (x *PlayerPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[28]
+	mi := &file_verso_v1_game_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2542,7 +2619,7 @@ func (x *PlayerPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerPresence.ProtoReflect.Descriptor instead.
 func (*PlayerPresence) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{28}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PlayerPresence) GetPlayer() *PlayerInfo {
@@ -2571,7 +2648,7 @@ type Error struct {
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_verso_v1_game_proto_msgTypes[29]
+	mi := &file_verso_v1_game_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2583,7 +2660,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[29]
+	mi := &file_verso_v1_game_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2596,7 +2673,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{29}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Error) GetCode() ErrorCode {
@@ -2633,7 +2710,7 @@ type Joined struct {
 
 func (x *Joined) Reset() {
 	*x = Joined{}
-	mi := &file_verso_v1_game_proto_msgTypes[30]
+	mi := &file_verso_v1_game_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2645,7 +2722,7 @@ func (x *Joined) String() string {
 func (*Joined) ProtoMessage() {}
 
 func (x *Joined) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[30]
+	mi := &file_verso_v1_game_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2658,7 +2735,7 @@ func (x *Joined) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Joined.ProtoReflect.Descriptor instead.
 func (*Joined) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{30}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *Joined) GetRoomCode() string {
@@ -2731,7 +2808,7 @@ type YourWord struct {
 
 func (x *YourWord) Reset() {
 	*x = YourWord{}
-	mi := &file_verso_v1_game_proto_msgTypes[31]
+	mi := &file_verso_v1_game_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2743,7 +2820,7 @@ func (x *YourWord) String() string {
 func (*YourWord) ProtoMessage() {}
 
 func (x *YourWord) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[31]
+	mi := &file_verso_v1_game_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2756,7 +2833,7 @@ func (x *YourWord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use YourWord.ProtoReflect.Descriptor instead.
 func (*YourWord) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{31}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *YourWord) GetWord() string {
@@ -2815,7 +2892,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_verso_v1_game_proto_msgTypes[32]
+	mi := &file_verso_v1_game_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2827,7 +2904,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[32]
+	mi := &file_verso_v1_game_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2840,7 +2917,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{32}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *Snapshot) GetRoomCode() string {
@@ -2989,7 +3066,7 @@ type SpectatorInfo struct {
 
 func (x *SpectatorInfo) Reset() {
 	*x = SpectatorInfo{}
-	mi := &file_verso_v1_game_proto_msgTypes[33]
+	mi := &file_verso_v1_game_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3001,7 +3078,7 @@ func (x *SpectatorInfo) String() string {
 func (*SpectatorInfo) ProtoMessage() {}
 
 func (x *SpectatorInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[33]
+	mi := &file_verso_v1_game_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3014,7 +3091,7 @@ func (x *SpectatorInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpectatorInfo.ProtoReflect.Descriptor instead.
 func (*SpectatorInfo) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{33}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SpectatorInfo) GetImposterPlayerId() string {
@@ -3046,7 +3123,7 @@ type VoteAccepted struct {
 
 func (x *VoteAccepted) Reset() {
 	*x = VoteAccepted{}
-	mi := &file_verso_v1_game_proto_msgTypes[34]
+	mi := &file_verso_v1_game_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3058,7 +3135,7 @@ func (x *VoteAccepted) String() string {
 func (*VoteAccepted) ProtoMessage() {}
 
 func (x *VoteAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[34]
+	mi := &file_verso_v1_game_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3071,7 +3148,7 @@ func (x *VoteAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteAccepted.ProtoReflect.Descriptor instead.
 func (*VoteAccepted) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{34}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *VoteAccepted) GetRound() int32 {
@@ -3129,7 +3206,7 @@ type ServerEvent struct {
 
 func (x *ServerEvent) Reset() {
 	*x = ServerEvent{}
-	mi := &file_verso_v1_game_proto_msgTypes[35]
+	mi := &file_verso_v1_game_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3141,7 +3218,7 @@ func (x *ServerEvent) String() string {
 func (*ServerEvent) ProtoMessage() {}
 
 func (x *ServerEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[35]
+	mi := &file_verso_v1_game_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3154,7 +3231,7 @@ func (x *ServerEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerEvent.ProtoReflect.Descriptor instead.
 func (*ServerEvent) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{35}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ServerEvent) GetCid() string {
@@ -3504,7 +3581,10 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x0eUpdateSettings\x123\n" +
 	"\bsettings\x18\x01 \x01(\v2\x17.verso.v1.MatchSettingsR\bsettings\"\f\n" +
 	"\n" +
-	"StartMatch\"\\\n" +
+	"StartMatch\"6\n" +
+	"\n" +
+	"KickPlayer\x12(\n" +
+	"\x10target_player_id\x18\x01 \x01(\tR\x0etargetPlayerId\"\\\n" +
 	"\vStrokeBegin\x12\x1f\n" +
 	"\vcolor_index\x18\x01 \x01(\x05R\n" +
 	"colorIndex\x12\x14\n" +
@@ -3522,7 +3602,7 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x06choice\",\n" +
 	"\x0fRequestSnapshot\x12\x19\n" +
 	"\bhave_seq\x18\x01 \x01(\x05R\ahaveSeq\"\t\n" +
-	"\aRematch\"\xde\x04\n" +
+	"\aRematch\"\x8a\x05\n" +
 	"\rClientCommand\x12\x10\n" +
 	"\x03cid\x18\x01 \x01(\tR\x03cid\x12(\n" +
 	"\x04join\x18\x02 \x01(\v2\x12.verso.v1.JoinRoomH\x00R\x04join\x121\n" +
@@ -3537,7 +3617,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\tcast_vote\x18\t \x01(\v2\x12.verso.v1.CastVoteH\x00R\bcastVote\x12F\n" +
 	"\x10request_snapshot\x18\n" +
 	" \x01(\v2\x19.verso.v1.RequestSnapshotH\x00R\x0frequestSnapshot\x12-\n" +
-	"\arematch\x18\v \x01(\v2\x11.verso.v1.RematchH\x00R\arematchB\x05\n" +
+	"\arematch\x18\v \x01(\v2\x11.verso.v1.RematchH\x00R\arematch\x12*\n" +
+	"\x04kick\x18\f \x01(\v2\x14.verso.v1.KickPlayerH\x00R\x04kickB\x05\n" +
 	"\x03cmd\"\x94\x02\n" +
 	"\n" +
 	"LobbyState\x12\x1b\n" +
@@ -3733,7 +3814,7 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"%MATCH_END_REASON_FINAL_ROUND_SURVIVED\x10\x02\x12'\n" +
 	"#MATCH_END_REASON_TWO_PLAYERS_REMAIN\x10\x03\x12*\n" +
 	"&MATCH_END_REASON_IMPOSTER_DISCONNECTED\x10\x04\x12\x1e\n" +
-	"\x1aMATCH_END_REASON_ABANDONED\x10\x05*\xe0\x03\n" +
+	"\x1aMATCH_END_REASON_ABANDONED\x10\x05*\xf7\x03\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19ERROR_CODE_ROOM_NOT_FOUND\x10\x01\x12\x18\n" +
@@ -3751,7 +3832,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x15ERROR_CODE_NOT_ACTIVE\x10\f\x12\x1b\n" +
 	"\x17ERROR_CODE_RATE_LIMITED\x10\r\x12\x1a\n" +
 	"\x16ERROR_CODE_WRONG_PHASE\x10\x0e\x12\x1f\n" +
-	"\x1bERROR_CODE_PROTOCOL_VERSION\x10\x0fB\x97\x01\n" +
+	"\x1bERROR_CODE_PROTOCOL_VERSION\x10\x0f\x12\x15\n" +
+	"\x11ERROR_CODE_KICKED\x10\x10B\x97\x01\n" +
 	"\fcom.verso.v1B\tGameProtoP\x01Z;github.com/sreyas-endor/verso/internal/gen/verso/v1;versov1\xa2\x02\x03VXX\xaa\x02\bVerso.V1\xca\x02\bVerso\\V1\xe2\x02\x14Verso\\V1\\GPBMetadata\xea\x02\tVerso::V1b\x06proto3"
 
 var (
@@ -3767,7 +3849,7 @@ func file_verso_v1_game_proto_rawDescGZIP() []byte {
 }
 
 var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_verso_v1_game_proto_goTypes = []any{
 	(Difficulty)(0),          // 0: verso.v1.Difficulty
 	(Phase)(0),               // 1: verso.v1.Phase
@@ -3781,35 +3863,36 @@ var file_verso_v1_game_proto_goTypes = []any{
 	(*SetReady)(nil),         // 9: verso.v1.SetReady
 	(*UpdateSettings)(nil),   // 10: verso.v1.UpdateSettings
 	(*StartMatch)(nil),       // 11: verso.v1.StartMatch
-	(*StrokeBegin)(nil),      // 12: verso.v1.StrokeBegin
-	(*StrokePoints)(nil),     // 13: verso.v1.StrokePoints
-	(*StrokeEnd)(nil),        // 14: verso.v1.StrokeEnd
-	(*CastVote)(nil),         // 15: verso.v1.CastVote
-	(*RequestSnapshot)(nil),  // 16: verso.v1.RequestSnapshot
-	(*Rematch)(nil),          // 17: verso.v1.Rematch
-	(*ClientCommand)(nil),    // 18: verso.v1.ClientCommand
-	(*LobbyState)(nil),       // 19: verso.v1.LobbyState
-	(*SettingsChanged)(nil),  // 20: verso.v1.SettingsChanged
-	(*RoundStarted)(nil),     // 21: verso.v1.RoundStarted
-	(*TurnStarted)(nil),      // 22: verso.v1.TurnStarted
-	(*StrokeBegan)(nil),      // 23: verso.v1.StrokeBegan
-	(*StrokeEnded)(nil),      // 24: verso.v1.StrokeEnded
-	(*PhaseChanged)(nil),     // 25: verso.v1.PhaseChanged
-	(*VoteCastCount)(nil),    // 26: verso.v1.VoteCastCount
-	(*VoteCount)(nil),        // 27: verso.v1.VoteCount
-	(*VoteTally)(nil),        // 28: verso.v1.VoteTally
-	(*PlayerEliminated)(nil), // 29: verso.v1.PlayerEliminated
-	(*RoundWords)(nil),       // 30: verso.v1.RoundWords
-	(*PlayerReveal)(nil),     // 31: verso.v1.PlayerReveal
-	(*MatchEnded)(nil),       // 32: verso.v1.MatchEnded
-	(*PlayerPresence)(nil),   // 33: verso.v1.PlayerPresence
-	(*Error)(nil),            // 34: verso.v1.Error
-	(*Joined)(nil),           // 35: verso.v1.Joined
-	(*YourWord)(nil),         // 36: verso.v1.YourWord
-	(*Snapshot)(nil),         // 37: verso.v1.Snapshot
-	(*SpectatorInfo)(nil),    // 38: verso.v1.SpectatorInfo
-	(*VoteAccepted)(nil),     // 39: verso.v1.VoteAccepted
-	(*ServerEvent)(nil),      // 40: verso.v1.ServerEvent
+	(*KickPlayer)(nil),       // 12: verso.v1.KickPlayer
+	(*StrokeBegin)(nil),      // 13: verso.v1.StrokeBegin
+	(*StrokePoints)(nil),     // 14: verso.v1.StrokePoints
+	(*StrokeEnd)(nil),        // 15: verso.v1.StrokeEnd
+	(*CastVote)(nil),         // 16: verso.v1.CastVote
+	(*RequestSnapshot)(nil),  // 17: verso.v1.RequestSnapshot
+	(*Rematch)(nil),          // 18: verso.v1.Rematch
+	(*ClientCommand)(nil),    // 19: verso.v1.ClientCommand
+	(*LobbyState)(nil),       // 20: verso.v1.LobbyState
+	(*SettingsChanged)(nil),  // 21: verso.v1.SettingsChanged
+	(*RoundStarted)(nil),     // 22: verso.v1.RoundStarted
+	(*TurnStarted)(nil),      // 23: verso.v1.TurnStarted
+	(*StrokeBegan)(nil),      // 24: verso.v1.StrokeBegan
+	(*StrokeEnded)(nil),      // 25: verso.v1.StrokeEnded
+	(*PhaseChanged)(nil),     // 26: verso.v1.PhaseChanged
+	(*VoteCastCount)(nil),    // 27: verso.v1.VoteCastCount
+	(*VoteCount)(nil),        // 28: verso.v1.VoteCount
+	(*VoteTally)(nil),        // 29: verso.v1.VoteTally
+	(*PlayerEliminated)(nil), // 30: verso.v1.PlayerEliminated
+	(*RoundWords)(nil),       // 31: verso.v1.RoundWords
+	(*PlayerReveal)(nil),     // 32: verso.v1.PlayerReveal
+	(*MatchEnded)(nil),       // 33: verso.v1.MatchEnded
+	(*PlayerPresence)(nil),   // 34: verso.v1.PlayerPresence
+	(*Error)(nil),            // 35: verso.v1.Error
+	(*Joined)(nil),           // 36: verso.v1.Joined
+	(*YourWord)(nil),         // 37: verso.v1.YourWord
+	(*Snapshot)(nil),         // 38: verso.v1.Snapshot
+	(*SpectatorInfo)(nil),    // 39: verso.v1.SpectatorInfo
+	(*VoteAccepted)(nil),     // 40: verso.v1.VoteAccepted
+	(*ServerEvent)(nil),      // 41: verso.v1.ServerEvent
 }
 var file_verso_v1_game_proto_depIdxs = []int32{
 	0,  // 0: verso.v1.MatchSettings.difficulty:type_name -> verso.v1.Difficulty
@@ -3818,52 +3901,53 @@ var file_verso_v1_game_proto_depIdxs = []int32{
 	9,  // 3: verso.v1.ClientCommand.set_ready:type_name -> verso.v1.SetReady
 	10, // 4: verso.v1.ClientCommand.update_settings:type_name -> verso.v1.UpdateSettings
 	11, // 5: verso.v1.ClientCommand.start_match:type_name -> verso.v1.StartMatch
-	12, // 6: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
-	13, // 7: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
-	14, // 8: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
-	15, // 9: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
-	16, // 10: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
-	17, // 11: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
-	6,  // 12: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
-	5,  // 13: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
-	1,  // 14: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
-	5,  // 15: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
-	1,  // 16: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
-	27, // 17: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
-	2,  // 18: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
-	3,  // 19: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
-	31, // 20: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
-	30, // 21: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
-	6,  // 22: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
-	4,  // 23: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
-	1,  // 24: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
-	5,  // 25: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
-	6,  // 26: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
-	7,  // 27: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
-	19, // 28: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
-	20, // 29: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
-	21, // 30: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
-	22, // 31: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
-	23, // 32: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
-	13, // 33: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
-	24, // 34: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
-	25, // 35: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
-	26, // 36: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
-	28, // 37: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
-	29, // 38: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
-	32, // 39: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
-	33, // 40: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
-	34, // 41: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
-	35, // 42: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
-	36, // 43: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
-	37, // 44: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
-	38, // 45: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
-	39, // 46: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	13, // 6: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
+	14, // 7: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
+	15, // 8: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
+	16, // 9: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
+	17, // 10: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
+	18, // 11: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
+	12, // 12: verso.v1.ClientCommand.kick:type_name -> verso.v1.KickPlayer
+	6,  // 13: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
+	5,  // 14: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
+	1,  // 15: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
+	5,  // 16: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
+	1,  // 17: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
+	28, // 18: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
+	2,  // 19: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
+	3,  // 20: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
+	32, // 21: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
+	31, // 22: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
+	6,  // 23: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
+	4,  // 24: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
+	1,  // 25: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
+	5,  // 26: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
+	6,  // 27: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
+	7,  // 28: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
+	20, // 29: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
+	21, // 30: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
+	22, // 31: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
+	23, // 32: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
+	24, // 33: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
+	14, // 34: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
+	25, // 35: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
+	26, // 36: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
+	27, // 37: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
+	29, // 38: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
+	30, // 39: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
+	33, // 40: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
+	34, // 41: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
+	35, // 42: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
+	36, // 43: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
+	37, // 44: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
+	38, // 45: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
+	39, // 46: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
+	40, // 47: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
+	48, // [48:48] is the sub-list for method output_type
+	48, // [48:48] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_verso_v1_game_proto_init() }
@@ -3871,11 +3955,11 @@ func file_verso_v1_game_proto_init() {
 	if File_verso_v1_game_proto != nil {
 		return
 	}
-	file_verso_v1_game_proto_msgTypes[10].OneofWrappers = []any{
+	file_verso_v1_game_proto_msgTypes[11].OneofWrappers = []any{
 		(*CastVote_CandidateId)(nil),
 		(*CastVote_Skip)(nil),
 	}
-	file_verso_v1_game_proto_msgTypes[13].OneofWrappers = []any{
+	file_verso_v1_game_proto_msgTypes[14].OneofWrappers = []any{
 		(*ClientCommand_Join)(nil),
 		(*ClientCommand_SetReady)(nil),
 		(*ClientCommand_UpdateSettings)(nil),
@@ -3886,8 +3970,9 @@ func file_verso_v1_game_proto_init() {
 		(*ClientCommand_CastVote)(nil),
 		(*ClientCommand_RequestSnapshot)(nil),
 		(*ClientCommand_Rematch)(nil),
+		(*ClientCommand_Kick)(nil),
 	}
-	file_verso_v1_game_proto_msgTypes[35].OneofWrappers = []any{
+	file_verso_v1_game_proto_msgTypes[36].OneofWrappers = []any{
 		(*ServerEvent_LobbyState)(nil),
 		(*ServerEvent_SettingsChanged)(nil),
 		(*ServerEvent_RoundStarted)(nil),
@@ -3914,7 +3999,7 @@ func file_verso_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_verso_v1_game_proto_rawDesc), len(file_verso_v1_game_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   36,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
