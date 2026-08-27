@@ -40,6 +40,12 @@ export interface ViewState {
   connection: ConnectionStatus;
   /** Seconds left in the reconnect grace window, or 0 when not reconnecting. */
   graceSeconds: number;
+  /**
+   * Smoothed round trip in milliseconds, 0 before the first measurement. Half
+   * of it is the lead time every deadline here has already been aged by, and
+   * the drawing screen spends the other half closing the pen before the buzzer.
+   */
+  rttMs: number;
 
   selfId: string;
   roomCode: string;
@@ -117,6 +123,13 @@ export interface CanvasHandle {
   detach(): void;
   /** Enable pointer input. Only ever true for the current artist. */
   setInteractive(on: boolean): void;
+  /**
+   * Allow or refuse the START of a stroke, leaving one already under the
+   * pointer alone. The drawing screen closes this a half-RTT before the turn's
+   * deadline: a stroke begun later cannot reach the room in time and would be
+   * drawn locally only to vanish. See CanvasEngine.setAcceptingNewStrokes.
+   */
+  setAcceptingNewStrokes(on: boolean): void;
   setColorIndex(index: number): void;
   setWidth(width: number): void;
   /**

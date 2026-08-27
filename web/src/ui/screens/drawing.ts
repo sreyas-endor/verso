@@ -44,6 +44,14 @@ function ruleSpoken(rule: PenRule): string {
   return "";
 }
 
+/**
+ * Cap on the half-RTT the pen closes early by, matching the one the store ages
+ * its deadlines with. A connection bad enough to exceed it has bigger problems
+ * than a lost stroke tail, and locking the pen a full second before the buzzer
+ * would be worse than the thing it prevents.
+ */
+const MAX_START_LEAD_MS = 250;
+
 function turnsAway(s: ViewState): number {
   const at = s.turnOrder.indexOf(s.selfId);
   if (at < 0 || at <= s.turnIndex) return -1;
@@ -129,6 +137,37 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   let liveRule: PenRule = PenRule.FREE;
   let liveArtist = false;
 
+  /**
+   * Open or close the pen against the turn's own clock rather than against the
+   * announcement that it ran out.
+   *
+   * PhaseChanged only says the turn is over one one-way latency after it was,
+   * and until it lands PointerInput keeps taking points that the room refuses
+   * (artistGate) — the artist then watches the tail of their own line vanish
+   * when StrokeEnded re-cuts the overlay to the geometry the room kept. So the
+   * pen closes on the predicted deadline instead, and the StrokeEnd that closes
+   * it lands inside room.TurnGrace, which exists to catch exactly that.
+   *
+   * Starting a stroke shuts off a half-RTT earlier still: a StrokeBegin sent
+   * later than that cannot reach the room before the deadline, and the room has
+   * no grace for a NEW stroke — only for finishing the open one.
+   *
+   * `s.deadline` is already aged by the other half of the round trip by the
+   * store, so it is this client's best estimate of the room's own instant.
+   */
+  const applyPenGates = (s: ViewState, iAmArtist: boolean) => {
+    if (!iAmArtist) {
+      ctx.canvas.setInteractive(false);
+      return;
+    }
+    // A drawing turn always has its timer armed, so a null deadline here is not
+    // "untimed" — it is a turn whose clock the room already reports as spent,
+    // which is what a reconnect landing inside the grace window sees.
+    const left = s.deadline === null ? 0 : s.deadline - performance.now();
+    ctx.canvas.setInteractive(left > 0);
+    ctx.canvas.setAcceptingNewStrokes(left > Math.min(s.rttMs / 2, MAX_START_LEAD_MS));
+  };
+
   /** Push the canvas's own count into the gauge. Cheap enough for every frame. */
   const paintBudget = () => {
     if (!liveArtist || liveRule === PenRule.FREE) {
@@ -163,7 +202,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
     pens.setEnabled(iAmArtist);
     ctx.canvas.setStrokeLimit(strokeLimit(rule));
-    ctx.canvas.setInteractive(iAmArtist);
+    applyPenGates(s, iAmArtist);
     board.setLocked(!iAmArtist);
     paintBudget();
 
@@ -229,6 +268,10 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   dd.raf(() => {
     const s = ctx.state();
     clock.update(s.deadline, s.durationMs);
+    // The buzzer is a moment, not an event: nothing in the store fires when the
+    // clock reaches zero, so the pen has to be closed from the same loop that
+    // draws the countdown.
+    if (liveArtist) applyPenGates(s, true);
     // A stroke starting or ending is a local event the store never republishes,
     // so the gauge rides the clock's loop. setBudget() drops a repeat before it
     // reaches the DOM, and under FREE nothing is read at all.

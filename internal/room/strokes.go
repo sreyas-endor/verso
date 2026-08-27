@@ -29,6 +29,10 @@ import (
 )
 
 // artistGate is authority (1). It is the only place a stroke command may pass.
+//
+// A turn running out its TurnGrace window is still PHASE_DRAWING with the same
+// artist, so points and the end for the open stroke pass here unchanged. Only
+// StrokeBegin is turned away, in onStrokeBegin itself.
 func (r *Room) artistGate(p *Player, cid string) bool {
 	if r.phase != genpb.Phase_PHASE_DRAWING {
 		r.SendError(p.ID, cid, ErrWrongPhase)
@@ -64,6 +68,14 @@ func (r *Room) onStrokeBegin(p *Player, cid string, c *genpb.StrokeBegin) {
 	// clamped — a silently repainted canvas hides the bug.
 	if !ValidColorIndex(c.GetColorIndex()) || !ValidPoints(c.GetPoints()) {
 		r.SendError(p.ID, cid, ErrInvalidCommand)
+		return
+	}
+	// The turn's clock is out and the room is only waiting for the tail of the
+	// stroke that was already under the pen (see TurnGrace). A new one is past
+	// the buzzer. Silent, like the stroke cap below: the artist's own pen has
+	// already closed on the same deadline, so this is a straggler, not news.
+	if r.turnGrace {
+		r.log.Debug("stroke begun after the turn expired, dropping", "player", p.ID)
 		return
 	}
 	// A begin without a matching end means the client dropped a frame; commit
@@ -151,6 +163,12 @@ func (r *Room) onStrokeEnd(p *Player, cid string, c *genpb.StrokeEnd) {
 		}
 	}
 	r.commitOpen(replacement)
+	// The whole reason the turn was still open. The tail is in, so nothing is
+	// left to wait for and the handoff runs now rather than at the end of a
+	// window that has served its purpose.
+	if r.turnGrace {
+		r.endTurn()
+	}
 }
 
 // commitOpen moves the in-flight stroke onto the append-only log and announces

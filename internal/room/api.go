@@ -91,6 +91,23 @@ const (
 	// their own word (DESIGN.md:29).
 	AssignDuration = 6 * time.Second
 
+	// TurnGrace is how long a turn whose clock expired mid-stroke keeps
+	// accepting points and the end for THAT stroke, and nothing else.
+	//
+	// The artist's pen is not on the room's clock. A point leaves the browser
+	// in a StrokeBatchWindow batch and then spends one one-way latency on the
+	// wire, so at the instant the turn expires the room is always missing the
+	// last ~50 ms + RTT/2 of a live stroke. Committing on the tick throws that
+	// tail away, and because the client re-cuts its overlay to the geometry the
+	// room acknowledged, the artist watches the end of their own line vanish.
+	//
+	// The window is not extra drawing time: StrokeBegin is refused for its whole
+	// length (internal/room/strokes.go), so nothing new can be started, and it
+	// closes early the moment the stroke's own StrokeEnd lands — which is the
+	// usual case, since the client shuts its pen at the same deadline. It is
+	// sized to cover one batch plus a poor connection's half-RTT.
+	TurnGrace = 400 * time.Millisecond
+
 	// ResolveDuration is how long PHASE_RESOLVING holds on the vote-result
 	// screen before the next round or the final reveal.
 	ResolveDuration = 8 * time.Second
@@ -451,6 +468,12 @@ type Room struct {
 
 	// open is the artist's in-flight stroke, or nil.
 	open *openStroke
+
+	// turnGrace is set while a drawing turn is running out the TurnGrace window
+	// that follows its expired clock. The phase is still PHASE_DRAWING and the
+	// artist still holds the seat, but only the open stroke may be finished:
+	// see TurnGrace and beginTurnGrace.
+	turnGrace bool
 
 	// seq is the monotonic per-room stroke-event counter. A client that sees a
 	// gap sends RequestSnapshot.

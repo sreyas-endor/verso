@@ -67,6 +67,14 @@ func regToDiscussion(t *testing.T, r *Room) {
 			return
 		case genpb.Phase_PHASE_ASSIGNING, genpb.Phase_PHASE_INTERMISSION, genpb.Phase_PHASE_DRAWING:
 			remain := smokeGet(r, func(r *Room) int32 { return r.RemainingMS() })
+			if remain == 0 {
+				// A drawing turn that expired mid-stroke holds on for TurnGrace
+				// while the tail of that stroke arrives (phase.go,
+				// beginTurnGrace). Its clock is genuinely at zero, so sleeping
+				// the remainder would not advance anything.
+				time.Sleep(TurnGrace + time.Millisecond)
+				break
+			}
 			time.Sleep(time.Duration(remain)*time.Millisecond + time.Millisecond)
 		default:
 			t.Fatalf("regToDiscussion: stuck in %v", ph)

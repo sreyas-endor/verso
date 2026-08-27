@@ -159,6 +159,7 @@ export class CanvasEngine implements PointerSink {
    */
   private strokeLimit = Number.POSITIVE_INFINITY;
   private strokesThisTurn = 0;
+  private acceptNew = true;
 
   private pending: number[] = [];
   private batchTimer: number | null = null;
@@ -239,9 +240,11 @@ export class CanvasEngine implements PointerSink {
    * is what makes a turn that expires mid-stroke end cleanly on both sides.
    */
   setDrawingEnabled(enabled: boolean): void {
-    if (enabled && !this.enabled) {
+    if (enabled === this.enabled) return;
+    if (enabled) {
       this.pointsThisTurn = 0;
       this.strokesThisTurn = 0;
+      this.acceptNew = true;
     }
     this.enabled = enabled;
     this.surface.setDrawingAffordance(enabled);
@@ -263,6 +266,22 @@ export class CanvasEngine implements PointerSink {
   }
 
   /**
+   * Close the pen to NEW strokes while leaving the one in progress alone.
+   *
+   * A StrokeBegin only reaches the room one one-way latency after the pointer
+   * went down, so a stroke started in the last sliver of a turn arrives after
+   * the deadline and is refused (internal/room/strokes.go). Nothing is echoed
+   * back for it, and the artist watches ink appear and then evaporate when the
+   * unadopted prediction times out. Refusing it here is the same outcome, said
+   * honestly and a few milliseconds earlier — and unlike setDrawingEnabled it
+   * leaves the live stroke alone, because that one CAN still land: the room
+   * holds an expired turn open for its tail (room.TurnGrace).
+   */
+  setAcceptingNewStrokes(on: boolean): void {
+    this.acceptNew = on;
+  }
+
+  /**
    * The stroke budget as the UI draws it. `used` counts strokes started this
    * turn — including the one under the pointer, which `penDown` separates out
    * so the gauge can show it as in progress rather than already spent.
@@ -281,7 +300,7 @@ export class CanvasEngine implements PointerSink {
   // -------------------------------------------------------------------------
 
   begin(x: number, y: number, widthScale: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.acceptNew) return;
     if (this.pointsThisTurn >= MAX_POINTS_PER_TURN) return;
     // Out of strokes locks the pen for the rest of the turn; it never ends the
     // turn early, so the clock simply runs out with the canvas as it stands.

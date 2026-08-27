@@ -59,6 +59,9 @@ const canvas: CanvasHandle = {
   setInteractive(on) {
     engine.setDrawingEnabled(on);
   },
+  setAcceptingNewStrokes(on) {
+    engine.setAcceptingNewStrokes(on);
+  },
   setColorIndex(index) {
     engine.setColorIndex(index);
   },

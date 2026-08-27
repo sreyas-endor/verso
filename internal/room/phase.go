@@ -25,6 +25,13 @@ import (
 
 // onDeadline runs when the phase timer fires.
 func (r *Room) onDeadline() {
+	if r.turnGrace {
+		// The turn's clock expired a moment ago and the artist was mid-stroke.
+		// Nothing arrived to close it, so the room closes it now: the deadline
+		// was already spent and consumed on the firing that opened the window.
+		r.endTurn()
+		return
+	}
 	if r.phaseDeadline.IsZero() {
 		// A disarmed timer that fired anyway. Nothing is owed.
 		return
@@ -43,6 +50,9 @@ func (r *Room) onDeadline() {
 		}
 		r.beginTurn()
 	case genpb.Phase_PHASE_DRAWING:
+		if r.beginTurnGrace() {
+			return
+		}
 		r.endTurn()
 	case genpb.Phase_PHASE_DISCUSSION:
 		// Time expired with votes missing. Those players abstained: they are
@@ -124,6 +134,7 @@ func (r *Room) openWordReveal() {
 	// never mistake a new round for a replayed gap (see resetToLobby).
 	r.strokes = nil
 	r.open = nil
+	r.turnGrace = false
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
 	clear(r.votes)
@@ -216,6 +227,7 @@ func (r *Room) beginTurn() {
 	r.artistID = r.nextArtistID
 	r.nextArtistID = ""
 	r.open = nil
+	r.turnGrace = false
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
 
@@ -236,10 +248,35 @@ func (r *Room) beginTurn() {
 	}})
 }
 
+// beginTurnGrace holds an expired drawing turn open for TurnGrace so the stroke
+// under the artist's pen can finish arriving. It reports whether the turn is
+// now in that window, i.e. whether the caller must not end it yet.
+//
+// Only a turn that expired mid-stroke gets one. With nothing open there is
+// nothing in flight to wait for, and the turn ends on the tick exactly as it
+// always did — which is the common case, so the ordinary handoff is unchanged.
+func (r *Room) beginTurnGrace() bool {
+	if r.turnGrace || r.open == nil {
+		return false
+	}
+	r.turnGrace = true
+	// Deliberately not armPhase: phaseDeadline stays zero, because the turn's
+	// clock really has run out and RemainingMS must keep saying so. A client
+	// that joins or resyncs inside the window is told the turn has no time
+	// left, which is the truth — the window buys the room the tail of one
+	// stroke, it does not hand the artist another 400 ms to draw in.
+	r.phaseTimer.Stop()
+	r.phaseTimer.Reset(TurnGrace)
+	r.log.Debug("turn expired mid-stroke, holding for the tail", "artist", r.artistID)
+	return true
+}
+
 // endTurn closes the current turn and moves to the next one.
 func (r *Room) endTurn() {
 	// A turn that expires mid-stroke still commits what was drawn: the canvas
-	// is append-only evidence (DESIGN.md:85).
+	// is append-only evidence (DESIGN.md:85). By here the stroke has either
+	// arrived in full through the grace window or run that window out.
+	r.turnGrace = false
 	r.commitOpen(nil)
 	r.artistID = ""
 	r.disarmPhase()
@@ -336,6 +373,7 @@ func (r *Room) resetToLobby() {
 	r.nextArtistID = ""
 	r.strokes = nil
 	r.open = nil
+	r.turnGrace = false
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
 	clear(r.votes)

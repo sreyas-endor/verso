@@ -1091,3 +1091,143 @@ func TestStrokeSeqIsStrictlyMonotonic(t *testing.T) {
 		}
 	})
 }
+
+// ---------------------------------------------------------------------------
+// TurnGrace — the tail of the stroke under the pen when the clock runs out
+// ---------------------------------------------------------------------------
+
+// strkExpireTurn runs the drawing clock out and settles. It deliberately does
+// NOT assume the turn ended: with a stroke open it enters the grace window
+// instead (phase.go, beginTurnGrace), which is the whole point of these tests.
+func (m *strkMatch) strkExpireTurn() {
+	draw := strkGet(m.r, func(r *Room) int32 { return r.settings.GetDrawSeconds() })
+	time.Sleep(time.Duration(draw)*time.Second + time.Millisecond)
+	synctest.Wait()
+}
+
+// The artist's pen is not on the room's clock: the last ~50 ms of a live stroke
+// is still in the client's batch when the turn expires, and one one-way latency
+// behind that. Committing on the tick threw it away.
+func TestATurnExpiringMidStrokeKeepsTheTail(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStart(t, 4)
+		a, _ := m.artist(t)
+		artist := m.ids[a]
+
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
+				ColorIndex: 1, Width: 4, Points: strkPoints(4, 0)}}})
+		synctest.Wait()
+		m.strkExpireTurn()
+
+		st := strkSnap(m.r)
+		if st.phase != genpb.Phase_PHASE_DRAWING || st.artist != artist {
+			t.Fatalf("grace: phase = %v artist = %q, want DRAWING and the same artist", st.phase, st.artist)
+		}
+		if st.openLen != 8 {
+			t.Fatalf("grace: open stroke holds %d coordinates, want the 8 it had", st.openLen)
+		}
+		if st.strokes != 0 {
+			t.Fatalf("grace: %d strokes committed, want the open one still open", st.strokes)
+		}
+		// The clock really is spent — the window buys the room a tail, it does
+		// not hand the artist more time, and RemainingMS must not pretend it did.
+		if ms := strkGet(m.r, func(r *Room) int32 { return r.RemainingMS() }); ms != 0 {
+			t.Fatalf("grace: RemainingMS = %d, want 0", ms)
+		}
+
+		// The tail the client was still holding when the buzzer went.
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokePoints{StrokePoints: &genpb.StrokePoints{
+				Points: strkPoints(3, 100)}}})
+		synctest.Wait()
+		if st := strkSnap(m.r); st.openLen != 14 {
+			t.Fatalf("grace: open stroke holds %d coordinates after the tail, want 14", st.openLen)
+		}
+
+		// And the end that closes it, which closes the turn with it rather than
+		// sitting out the rest of a window that has served its purpose.
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokeEnd{StrokeEnd: &genpb.StrokeEnd{}}})
+		synctest.Wait()
+
+		st = strkSnap(m.r)
+		if st.strokes != 1 || st.points != 14 {
+			t.Fatalf("after the end: %d strokes / %d coordinates, want 1 / 14", st.strokes, st.points)
+		}
+		if st.phase != genpb.Phase_PHASE_INTERMISSION {
+			t.Fatalf("after the end: phase = %v, want the handoff to have run", st.phase)
+		}
+	})
+}
+
+// The window is for finishing one stroke, not for starting another. Nothing new
+// may be laid down after the buzzer.
+func TestTurnGraceRefusesANewStroke(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStart(t, 4)
+		a, _ := m.artist(t)
+
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
+				ColorIndex: 1, Width: 4, Points: strkPoints(2, 0)}}})
+		synctest.Wait()
+		m.strkExpireTurn()
+		before := strkSnap(m.r)
+
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
+				ColorIndex: 2, Width: 4, Points: strkPoints(2, 500)}}})
+		synctest.Wait()
+
+		after := strkSnap(m.r)
+		if after.openID != before.openID || after.openLen != before.openLen {
+			t.Fatalf("a begin inside the grace window displaced the open stroke: %+v -> %+v", before, after)
+		}
+		if after.nextID != before.nextID || after.perTurnS != before.perTurnS {
+			t.Fatalf("a begin inside the grace window spent budget: %+v -> %+v", before, after)
+		}
+	})
+}
+
+// Nothing arrives — the artist's tab froze, or their socket is molasses. The
+// window is a bound, not a promise, and the turn ends on its own.
+func TestTurnGraceEndsTheTurnOnItsOwn(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStart(t, 4)
+		a, _ := m.artist(t)
+
+		m.submit(a, &genpb.ClientCommand{
+			Cmd: &genpb.ClientCommand_StrokeBegin{StrokeBegin: &genpb.StrokeBegin{
+				ColorIndex: 1, Width: 4, Points: strkPoints(4, 0)}}})
+		synctest.Wait()
+		m.strkExpireTurn()
+
+		time.Sleep(TurnGrace)
+		synctest.Wait()
+
+		st := strkSnap(m.r)
+		if st.strokes != 1 || st.points != 8 {
+			t.Fatalf("%d strokes / %d coordinates, want the open one committed as 1 / 8", st.strokes, st.points)
+		}
+		if st.phase != genpb.Phase_PHASE_INTERMISSION {
+			t.Fatalf("phase = %v, want the handoff to have run", st.phase)
+		}
+	})
+}
+
+// A turn with the pen already up has nothing in flight to wait for, so the
+// ordinary handoff — every turn in a normal match — keeps its exact timing.
+func TestATurnWithNothingOpenEndsOnTheTick(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := strkStart(t, 4)
+		a, _ := m.artist(t)
+		m.stroke(a, 10)
+		synctest.Wait()
+		m.strkExpireTurn()
+
+		if st := strkSnap(m.r); st.phase != genpb.Phase_PHASE_INTERMISSION {
+			t.Fatalf("phase = %v, want INTERMISSION on the tick", st.phase)
+		}
+	})
+}
