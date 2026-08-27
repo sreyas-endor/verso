@@ -103,6 +103,13 @@ const RESYNC_RETRY_CAP_MS = 15_000;
  */
 const MAX_RESYNC_ATTEMPTS = 4;
 
+/**
+ * How long to wait after the server refuses a RequestSnapshot outright. Sized
+ * against transport.DefaultSnapshotRate (one token per second) with a little
+ * headroom, so the retry meets a bucket that has actually refilled.
+ */
+const SNAPSHOT_REFUSAL_BACKOFF_MS = 1_200;
+
 /** Correlation entries older than this stop being usable as RTT samples. */
 const RTT_TTL_MS = 30_000;
 
@@ -154,6 +161,8 @@ export class VersoSocket {
   /** The single owner of automatic resync retry. Never more than one armed. */
   private resyncTimer: ReturnType<typeof setTimeout> | null = null;
   private resyncAttempt = 0;
+  /** cid of the RequestSnapshot in flight, so its refusal can be recognised. */
+  private resyncCid = "";
 
   private readonly frameListeners = new Set<FrameListener>();
   private readonly stateListeners = new Set<StateListener>();
@@ -481,6 +490,29 @@ export class VersoSocket {
           this.emitState();
           break;
         }
+        // A refused RequestSnapshot is not a lost one. The server keeps its own
+        // bucket for this command (transport.DefaultSnapshotBurst), and a
+        // refusal arrives at once instead of the Snapshot that clears
+        // `resyncing` — so without this the socket discards every stroke event
+        // until the ladder's next rung, having asked for nothing. Re-arm at the
+        // refill period rather than the ladder delay, and do not spend an
+        // attempt: the request never reached the room, so it is no evidence
+        // that asking again will not work.
+        if (
+          this.resyncing &&
+          frame.cid !== "" &&
+          frame.cid === this.resyncCid &&
+          narrowErrorCode(body.value.code) === ErrorCode.RATE_LIMITED
+        ) {
+          this.log("snapshot request refused, re-arming");
+          this.resyncCid = "";
+          this.clearResyncTimer();
+          this.resyncTimer = setTimeout(() => {
+            this.resyncTimer = null;
+            this.onResyncTimeout();
+          }, SNAPSHOT_REFUSAL_BACKOFF_MS);
+          break;
+        }
         if (frame.cid !== "" && frame.cid === this.joinCid) {
           if (this.handleJoinError(body.value.code, body.value.message)) return;
         }
@@ -491,8 +523,25 @@ export class VersoSocket {
         // or answered twice. Duplicate snapshots are idempotent here and in the
         // engine, which rebuilds from the log rather than appending to it.
         this.lastSeq = body.value.seq;
+        // The log is re-seeded, not just cleared. A Snapshot bakes the stroke
+        // currently under the artist's pen into `strokes` (internal/room/api.go
+        // viewFor), so the server keeps streaming StrokePoints for an id that
+        // is already in the log. Clearing alone made the next batch look like
+        // geometry for a stroke we never saw begin, which tripped the second
+        // detector below, dropped the frame and asked for another Snapshot —
+        // which arrived carrying the same open stroke. That loop ran at one
+        // request per batch until the server's snapshot bucket refused it,
+        // after which every stroke event was discarded until the retry ladder
+        // got an answer, and the loop resumed on the answer. A viewer lost the
+        // interior of the stroke and saw it arrive in second-long jumps; under
+        // PEN_RULE_ONE_LINE, where the turn is a single stroke, that is the
+        // whole turn. The engine has always handled these frames correctly
+        // (canvas/engine.ts, applyStrokePoints); only this layer disagreed
+        // about what a Snapshot means.
         this.openStrokeIds.clear();
+        for (const s of body.value.strokes) this.openStrokeIds.add(s.strokeId);
         this.resyncing = false;
+        this.resyncCid = "";
         this.resyncAttempt = 0;
         this.clearResyncTimer();
         break;
@@ -580,7 +629,7 @@ export class VersoSocket {
     this.resyncing = true;
     this.resyncAt = now;
     // have_seq is advisory; the server always answers with the whole state.
-    this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
+    this.resyncCid = this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
     this.armResyncRetry();
   }
 
@@ -629,7 +678,7 @@ export class VersoSocket {
       return;
     }
     this.resyncAt = this.now();
-    this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
+    this.resyncCid = this.request(cmd.requestSnapshot(this.lastSeq ?? 0));
     this.armResyncRetry();
   }
 
@@ -652,6 +701,7 @@ export class VersoSocket {
     this.lastSeq = null;
     this.openStrokeIds.clear();
     this.resyncing = false;
+    this.resyncCid = "";
     this.resyncAttempt = 0;
     this.clearResyncTimer();
   }
