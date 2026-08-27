@@ -33,6 +33,7 @@ export type {
   Screen,
   ScreenCtx,
   ScreenName,
+  SoundToggle,
   ViewState,
   VoteChoice,
 } from "./context.js";

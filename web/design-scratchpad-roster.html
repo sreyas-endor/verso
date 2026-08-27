@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verso — roster turn states</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800;900&display=swap");
+
+      /* Tokens lifted verbatim from web/src/styles/tokens.css, so anything that
+         reads well here reads the same in the app. */
+      :root {
+        --bg:#f4eddf; --surface:#fffdf7; --surface-2:#f8f0e3;
+        --border:#e5d9c6; --border-str:#cbbca6;
+        --ink:#263238; --ink-2:#69716c; --ink-3:#958d80;
+        --accent:#ef5d5a; --accent-ink:#fff; --accent-sf:#ffe7df; --accent-dk:#bd4544;
+        --amber:#f5c744; --amber-dk:#a36c10; --amber-sf:#fff3cc;
+        --good:#3f966d; --good-dk:#256146; --good-sf:#e0f2e6;
+        --bad:#df5553; --bad-dk:#a73535; --bad-sf:#fbe3dd;
+        --radius:18px; --radius-sm:11px;
+        --shadow:3px 4px 0 rgba(38,50,56,.12);
+        --font:"Nunito",ui-rounded,system-ui,sans-serif;
+        --mono:ui-monospace,"SF Mono",Menlo,monospace;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); }
+      .wrap { max-width:1500px; margin:0 auto; padding:34px 26px 70px; }
+      h1 { margin:0 0 6px; font:700 clamp(2rem,4vw,3.1rem)/.98 Fredoka,sans-serif; letter-spacing:-.05em; }
+      h1 span { color:var(--accent); }
+      .lede { max-width:74ch; margin:0 0 8px; font-size:1.02rem; line-height:1.55; color:var(--ink-2); }
+      .lede b { color:var(--ink); }
+      .gap { max-width:74ch; margin:14px 0 30px; padding:13px 15px; border-left:4px solid var(--accent);
+             background:var(--accent-sf); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+             font-size:.92rem; line-height:1.5; }
+      .gap b { font-weight:900; }
+
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:22px; align-items:start; }
+
+      .opt { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+             box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
+      .opt > header { padding:14px 16px 12px; border-bottom:2px dashed var(--border-str); }
+      .opt h2 { margin:0; font:800 1.06rem/1.2 var(--font); }
+      .opt .num { display:inline-grid; place-items:center; width:1.45rem; height:1.45rem; margin-right:.45rem;
+                  border-radius:999px; background:var(--ink); color:#fff; font:900 .78rem var(--mono); vertical-align:.05em; }
+      .opt .how { margin:7px 0 0; font-size:.83rem; line-height:1.45; color:var(--ink-2); }
+      .rec { display:inline-block; margin-left:.4rem; padding:.1rem .4rem; border-radius:999px;
+             background:var(--good); color:#fff; font:900 .6rem/1.5 var(--mono); letter-spacing:.06em; vertical-align:.1em; }
+      .states { padding:14px 16px 16px; display:flex; flex-direction:column; gap:16px; }
+      .state > .lbl { margin:0 0 7px; font:900 .62rem var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+      .verdict { margin:0; padding:11px 16px 15px; border-top:2px dashed var(--border-str); font-size:.81rem; line-height:1.5; color:var(--ink-2); }
+      .verdict b { color:var(--ink); }
+      .verdict .minus { color:var(--accent-dk); font-weight:800; }
+
+      /* ---- the real card + roster, copied from components.css ---- */
+      .card { background:var(--surface); border:2px solid var(--border); border-radius:var(--radius); padding:.7rem .75rem; }
+      .card-title { font:900 .68rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:.5rem; }
+      .plist { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.3rem; }
+      .pitem { display:flex; align-items:center; gap:.55rem; padding:.35rem .45rem;
+               border-radius:var(--radius-sm); background:var(--surface-2); border:2px solid transparent; }
+      .grow { min-width:0; flex:1 1 auto; }
+      .pitem-name { font-weight:800; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .pitem-sub { font-size:.74rem; color:var(--ink-3); font-weight:700; white-space:nowrap; }
+      .pitem-artist { border-color:var(--good); background:var(--good-sf); box-shadow:3px 3px 0 rgba(63,150,109,.2); }
+      .pitem-out .pitem-name { text-decoration:line-through; color:var(--ink-3); }
+      .pitem-out .avatar { filter:grayscale(1); opacity:.55; }
+      .pitem-off { opacity:.62; }
+      .pitem-marks { display:flex; gap:.25rem; align-items:center; margin-left:auto; flex:none; }
+      .avatar { flex:none; width:2.1rem; height:2.1rem; border-radius:999px; display:inline-flex;
+                align-items:center; justify-content:center; font-weight:900; font-size:.8rem; color:#fff; }
+      .badge { padding:.1rem .32rem; border-radius:999px; font:900 .56rem/1.6 var(--mono); letter-spacing:.05em; }
+      .badge-you  { background:var(--ink); color:#fff; }
+      .badge-out  { background:var(--bad-sf); color:var(--bad-dk); }
+
+      /* the sliding pen, as it exists today */
+      .plist-rail { position:relative; padding-left:1.5rem; }
+      .baton { position:absolute; left:.1rem; width:1.15rem; pointer-events:none;
+               filter:drop-shadow(1.5px 2px 0 rgba(38,50,56,.16)); }
+      .baton svg { display:block; width:100%; height:auto; }
+      .pt-pen { fill:var(--nib,var(--accent)); stroke:var(--ink); stroke-width:2.4; }
+      .pt-nib { fill:var(--ink); }
+      .pt-cap { fill:none; stroke:var(--ink); stroke-width:2.4; }
+
+      /* =====================================================================
+         1 — ink blob fills up
+         ===================================================================== */
+      .o1 .blob { flex:none; width:.85rem; height:.85rem; border-radius:999px;
+                  border:2.5px solid var(--nib); background:transparent; }
+      .o1 .blob.done { background:var(--nib); box-shadow:inset 0 0 0 2px var(--surface-2); }
+      .o1 .pitem-artist .blob { border-color:var(--good-dk); }
+      .o1 .is-next { border-color:var(--amber); background:var(--amber-sf); }
+      .o1 .is-next .pitem-sub { color:var(--amber-dk); }
+
+      /* =====================================================================
+         2 — dim the done, tint the next
+         ===================================================================== */
+      .o2 .is-done { opacity:.5; }
+      .o2 .is-next { border-color:var(--amber); background:var(--amber-sf); }
+      .o2 .is-next .pitem-sub { color:var(--amber-dk); }
+      .badge-drew { background:var(--border); color:var(--ink-2); }
+      .badge-next { background:var(--amber); color:var(--ink); }
+
+      /* =====================================================================
+         3 — numbered turn rail
+         ===================================================================== */
+      .o3 .plist { counter-reset:none; }
+      .o3 .seq { flex:none; display:grid; place-items:center; width:1.35rem; height:1.35rem;
+                 font:900 .7rem var(--mono); color:var(--ink-3); }
+      .o3 .seq.done { text-decoration:line-through; opacity:.6; }
+      .o3 .seq.now { background:var(--good); color:#fff; border-radius:.35rem; }
+      .o3 .seq.next { box-shadow:inset 0 0 0 2px var(--amber); border-radius:.35rem; color:var(--amber-dk); }
+
+      /* =====================================================================
+         4 — left edge status strip
+         ===================================================================== */
+      .o4 .pitem { position:relative; overflow:hidden; padding-left:.75rem; }
+      .o4 .pitem::before { content:""; position:absolute; left:0; top:0; bottom:0; width:.28rem; background:transparent; }
+      .o4 .is-done::before { background:var(--border-str); }
+      .o4 .pitem-artist::before { background:var(--good); width:.42rem; }
+      .o4 .is-next::before { background:var(--amber); width:.42rem; }
+      .o4 .is-next { background:var(--amber-sf); }
+      .o4 .is-next .pitem-sub { color:var(--amber-dk); }
+
+      /* =====================================================================
+         5 — turn track (stepper in the rail)
+         ===================================================================== */
+      .o5 .track { position:relative; padding-left:1.55rem; }
+      .o5 .track::before { content:""; position:absolute; left:.62rem; top:1.1rem; bottom:1.1rem;
+                           width:2px; background:var(--border-str); }
+      .o5 .pitem { position:relative; }
+      .o5 .node { position:absolute; left:-1.02rem; top:50%; transform:translateY(-50%);
+                  width:.78rem; height:.78rem; border-radius:999px; background:var(--bg);
+                  border:2.5px solid var(--border-str); }
+      .o5 .is-done .node { background:var(--ink-3); border-color:var(--ink-3); }
+      .o5 .pitem-artist .node { width:1.05rem; height:1.05rem; left:-1.15rem;
+                                background:var(--good); border-color:var(--good-dk);
+                                box-shadow:0 0 0 3px var(--good-sf); }
+      .o5 .is-next .node { border-color:var(--amber); background:var(--amber-sf); }
+      .o5 .is-next { border-color:var(--amber); background:var(--amber-sf); }
+      .o5 .is-next .pitem-sub { color:var(--amber-dk); }
+
+      footer { max-width:74ch; margin:34px 0 0; font-size:.9rem; line-height:1.6; color:var(--ink-2); }
+      footer b { color:var(--ink); }
+      code { font:600 .86em var(--mono); background:var(--surface-2); padding:.05em .3em; border-radius:4px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Roster turn states <span>·</span> five directions</h1>
+      <p class="lede">
+        Each column is one way for the players bar to say <b>who already drew</b>,
+        <b>who is drawing</b>, and <b>who is next</b>. Every mockup uses the real
+        tokens, the real avatar hues and the real pen glyph, so what reads well
+        here reads the same in the app.
+      </p>
+      <p class="lede">
+        Both states are shown per option, because they are different problems.
+        <b>Mid-turn</b> has a live artist. <b>Handoff</b> does not — the server
+        clears the artist for the intermission and names the next one instead.
+      </p>
+
+      <p class="gap">
+        <b>The gap this fixes.</b> Today the roster says nothing during a handoff:
+        the artist highlight disappears with <code>artistId</code>, the incoming
+        artist gets no subtitle at all (their index equals <code>turnIndex</code>,
+        which the code reads as “already drew”), and the player <i>after</i> them
+        is wrongly labelled “up next”. Fern is offline in every mockup below, and
+        Gus is eliminated — they are there to show what a new treatment has to
+        avoid colliding with.
+      </p>
+
+      <div class="grid" id="grid"></div>
+
+      <footer>
+        <b>Reading these.</b> Option 2 is the boldest at a glance but spends
+        opacity, which is already spoken for twice — Fern at 62% for offline and
+        Gus greyscaled for eliminated. Options 1, 4 and 5 add an affirmative mark
+        instead, so nothing has to be dimmer than anything else. Option 3 wants
+        the same rail the sliding pen already occupies.
+      </footer>
+    </div>
+
+    <script>
+      const PEN = `<svg viewBox="0 0 26 44" aria-hidden="true"><rect class="pt-pen" x="3" y="3" width="20" height="29" rx="8"/><rect class="pt-nib" x="8.5" y="31" width="9" height="10" rx="4"/><path class="pt-cap" d="M3.6 13h18.8"/></svg>`;
+
+      // Five active players in this round's shuffled order, plus one offline and
+      // one eliminated, which is what a real 7-seat room looks like by round 2.
+      const P = [
+        { n: "Bao",  i: "BA", c: "#4f7cff" },
+        { n: "Chen", i: "CH", c: "#ef4c4c" },
+        { n: "Dia",  i: "DI", c: "#2fbf71" },
+        { n: "Eli",  i: "EL", c: "#ff8a1f", you: true },
+        { n: "Fern", i: "FE", c: "#7a5cff", off: true },
+        { n: "Gus",  i: "GU", c: "#0fb5ba", out: true },
+      ];
+      // Turn order is active players only. Fern is dark, so the server skips her.
+      const ORDER = ["Bao", "Chen", "Dia", "Eli"];
+
+      /** state: {artist} mid-turn, or {next} during a handoff. */
+      function roster(opt, state) {
+        const at = state.artist ? ORDER.indexOf(state.artist) : ORDER.indexOf(state.next);
+        const rows = P.map((p) => {
+          const seq = ORDER.indexOf(p.n);
+          const now = p.n === state.artist;
+          const next = p.n === state.next;
+          // "Drew" means strictly earlier in the order than the live position.
+          const done = seq >= 0 && seq < at && !now;
+          const away = seq - at;
+
+          let sub = "";
+          if (p.off) sub = "offline — seat held";
+          else if (p.out) sub = "spectating";
+          else if (now) sub = "drawing now";
+          else if (next) sub = "drawing next";
+          else if (done) sub = "drew this round";
+          else if (seq > at) sub = away === 1 ? "up next" : `in ${away} turns`;
+
+          const cls = ["pitem"];
+          if (now) cls.push("pitem-artist");
+          if (next) cls.push("is-next");
+          if (done) cls.push("is-done");
+          if (p.out) cls.push("pitem-out");
+          if (p.off) cls.push("pitem-off");
+
+          const marks = [];
+          if (p.you) marks.push('<span class="badge badge-you">YOU</span>');
+          if (p.out) marks.push('<span class="badge badge-out">OUT</span>');
+          if (opt === 2 && done) marks.push('<span class="badge badge-drew">DREW</span>');
+          if (opt === 2 && next) marks.push('<span class="badge badge-next">NEXT</span>');
+          if (opt === 1 && seq >= 0) {
+            marks.push(`<span class="blob ${done ? "done" : ""}" style="--nib:${p.c}"></span>`);
+          }
+
+          const node = opt === 5 ? '<span class="node"></span>' : "";
+          const sequ = opt === 3
+            ? `<span class="seq ${done ? "done" : now ? "now" : next ? "next" : ""}">${seq >= 0 ? seq + 1 : "·"}</span>`
+            : "";
+
+          return `<li class="${cls.join(" ")}">${node}${sequ}
+            <span class="avatar" style="background:${p.c}">${p.i}</span>
+            <span class="grow">
+              <span class="pitem-name">${p.n}</span>
+              ${sub ? `<span class="pitem-sub">${sub}</span>` : ""}
+            </span>
+            <span class="pitem-marks">${marks.join("")}</span>
+          </li>`;
+        });
+
+        // The pen rides the live artist; during a handoff it waits on the
+        // incoming one, which is the whole point of showing both states.
+        // Option 3 wants the rail for its numbers and option 5 for its track,
+        // so neither gets a pen — that tradeoff is the point.
+        const target = state.artist || state.next;
+        const idx = P.findIndex((p) => p.n === target);
+        const railed = opt !== 3 && opt !== 5;
+        // Placed by measurement after layout, exactly as playerList.ts does it:
+        // a guessed stride drifts the moment a row wraps to two lines.
+        const rail = railed
+          ? `<div class="baton" data-row="${idx}" style="--nib:${P[idx].c}; transform:rotate(-13deg)">${PEN}</div>`
+          : "";
+
+        return `<div class="card">
+          <div class="card-title">Players · ${P.length}</div>
+          <div class="${railed ? "plist-rail" : ""}" style="position:relative">
+            <ul class="${opt === 5 ? "plist track" : "plist"}">${rows.join("")}</ul>
+            ${rail}
+          </div>
+        </div>`;
+      }
+
+      const OPTS = [
+        {
+          n: 1, name: "Ink blob fills up", rec: true,
+          how: "A blob per player in <i>their own ink colour</i> — the colour their strokes already are on the canvas. Hollow before their turn, filled after.",
+          verdict: "<b>Self-explanatory without a legend:</b> your blob fills when you have made your mark. Shape carries it, not just colour, so it survives greyscale and colour blindness. Adds one small element per row and nothing has to be dimmed.",
+        },
+        {
+          n: 2, name: "Dim done, tint next",
+          how: "Rows that have drawn fade back and get a DREW badge; the next player gets an amber row and a NEXT badge.",
+          verdict: "Boldest read at a glance. <span class='minus'>But look at Fern and Gus:</span> opacity already means “offline” and greyscale already means “eliminated”, so a third faded state competes with both — Bao now looks half-disconnected.",
+        },
+        {
+          n: 3, name: "Numbered turn rail",
+          how: "Each row carries its position in this round's order. Struck through once they have drawn, boxed green for the live artist, amber-ringed for next.",
+          verdict: "Most information on screen — you can count your own wait exactly. <span class='minus'>Two costs:</span> it wants the rail the sliding pen already lives in, and the numbers reshuffle every round, so they are not a stable identity.",
+        },
+        {
+          n: 4, name: "Left edge strip",
+          how: "A coloured strip down the left edge of each row: grey once drawn, thick green for the artist, thick amber for next.",
+          verdict: "The quietest of the five and the least new furniture — no glyph, no badge, no number. <span class='minus'>The weakest at a distance,</span> though: on a phone the strip is a few pixels, and it leans entirely on hue.",
+        },
+        {
+          n: 5, name: "Turn track", rec: false,
+          how: "The rail becomes a track with a node per player. Filled nodes are behind you, the big green node is the pen, the amber ring is next.",
+          verdict: "Reads as progress through the round rather than per-row state, which is the actual thing you want to know. <span class='minus'>Replaces the sliding pen</span> — the track and the baton cannot share the rail — and it implies the order is fixed, which it is not across rounds.",
+        },
+      ];
+
+      document.getElementById("grid").innerHTML = OPTS.map((o) => `
+        <section class="opt o${o.n}">
+          <header>
+            <h2><span class="num">${o.n}</span>${o.name}${o.rec ? '<span class="rec">SUGGESTED</span>' : ""}</h2>
+            <p class="how">${o.how}</p>
+          </header>
+          <div class="states">
+            <div class="state">
+              <p class="lbl">Mid-turn — Chen is drawing</p>
+              ${roster(o.n, { artist: "Chen" })}
+            </div>
+            <div class="state">
+              <p class="lbl">Handoff — Dia is up, no live artist</p>
+              ${roster(o.n, { next: "Dia" })}
+            </div>
+          </div>
+          <p class="verdict">${o.verdict}</p>
+        </section>`).join("");
+
+      // Park every pen on its row's centre line, the same measure-then-place
+      // the app uses, so nothing here depends on a hard-coded row height.
+      for (const baton of document.querySelectorAll(".baton")) {
+        const rows = baton.parentElement.querySelectorAll(".pitem");
+        const row = rows[Number(baton.dataset.row)];
+        if (!row) continue;
+        baton.style.top = `${Math.round(row.offsetTop + row.offsetHeight / 2 - baton.offsetHeight / 2)}px`;
+      }
+    </script>
+  </body>
+</html>

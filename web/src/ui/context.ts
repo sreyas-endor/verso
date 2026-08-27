@@ -117,6 +117,16 @@ export interface CanvasHandle {
   savePng(): Promise<void>;
 }
 
+/**
+ * The sound layer, as the UI sees it. Arranged like CanvasHandle: the app
+ * chrome renders a control for it without importing the implementation, so
+ * nothing under web/src/ui/ knows a cue name or an AudioContext exists.
+ */
+export interface SoundToggle {
+  enabled(): boolean;
+  setEnabled(on: boolean): void;
+}
+
 export interface ScreenCtx {
   state(): ViewState;
   /** Returns an unsubscribe function. Screens must call it in unmount(). */

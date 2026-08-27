@@ -6,7 +6,10 @@ import { avatarColor } from "./palette.js";
 import type { ViewState } from "./context.js";
 
 export interface PlayerListOptions {
-  /** Highlight the current artist and show their turn position. */
+  /**
+   * Order the roster by this round's turn order and draw the turn track. Only
+   * the two screens with a round in progress ask for it.
+   */
   showTurnQueue?: boolean;
   /** Show ready checkmarks (lobby only). */
   showReady?: boolean;
@@ -15,6 +18,64 @@ export interface PlayerListOptions {
 export interface PlayerListView {
   root: HTMLElement;
   update(s: ViewState): void;
+}
+
+/** Where one player stands in this round's running order. */
+type TurnState = "drew" | "now" | "next" | "waiting" | "offTrack";
+
+interface Seat {
+  readonly player: PlayerInfo;
+  readonly state: TurnState;
+  /** Turns that must finish before this player's own starts. */
+  readonly away: number;
+}
+
+/**
+ * Splits the roster into the players this round's turn order covers — in that
+ * order — and everyone else, in seat order.
+ *
+ * The track is drawn only when somebody is holding the pen or about to. The
+ * client's `turnOrder` outlives the round it belongs to, because nothing on the
+ * wire clears it between the last turn and the vote, so its mere presence is
+ * not evidence that a drawing turn is coming. The server names an artist for a
+ * drawing turn and nobody for the intermission before voting, and that is the
+ * signal used here.
+ */
+function order(s: ViewState, opts: PlayerListOptions): { track: Seat[]; rest: Seat[] } {
+  const flat = (): { track: Seat[]; rest: Seat[] } => ({
+    track: [],
+    rest: s.players.map((player) => ({ player, state: "offTrack", away: 0 })),
+  });
+  if (opts.showTurnQueue !== true || s.turnOrder.length === 0) return flat();
+
+  const focus = s.artistId !== "" ? s.artistId : s.nextArtistId;
+  if (focus === "") return flat();
+
+  // Trust the id the server named over the index that came with it: the index
+  // arrives on TurnStarted only, so after a bare PhaseChanged it is one turn
+  // stale, while the id is always current.
+  const found = s.turnOrder.indexOf(focus);
+  const cursor = found >= 0 ? found : s.turnIndex;
+  const live = s.artistId !== "";
+
+  const unplaced = new Map(s.players.map((p) => [p.id, p]));
+  const track: Seat[] = [];
+  s.turnOrder.forEach((id, at) => {
+    const player = unplaced.get(id);
+    if (player === undefined) return;
+    unplaced.delete(id);
+    const state: TurnState =
+      at < cursor ? "drew" : at === cursor ? (live ? "now" : "next") : "waiting";
+    track.push({ player, state, away: at - cursor });
+  });
+  if (track.length === 0) return flat();
+
+  // Eliminated players, and anyone seated after the round began: no node, and
+  // below the track rather than interrupting it.
+  const rest = s.players
+    .filter((p) => unplaced.has(p.id))
+    .map((player): Seat => ({ player, state: "offTrack", away: 0 }));
+  return { track, rest };
 }
 
 function marks(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): HTMLElement[] {
@@ -28,51 +89,88 @@ function marks(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): HTMLElemen
   return out;
 }
 
-function subtitle(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): string {
+function subtitle(seat: Seat, opts: PlayerListOptions): string {
+  const p = seat.player;
   if (!p.connected) return "offline — seat held";
   if (p.eliminated) return "spectating";
   if (!opts.showTurnQueue) return "";
-  if (p.id === s.artistId) return "drawing now";
-  const at = s.turnOrder.indexOf(p.id);
-  if (at < 0 || at <= s.turnIndex) return "";
-  const away = at - s.turnIndex;
-  return away === 1 ? "up next" : `in ${away} turns`;
+  switch (seat.state) {
+    case "now":
+      return "drawing now";
+    case "next":
+      return "drawing next";
+    case "drew":
+      // Kept to one word: the column is narrow, and a row carrying HOST or YOU
+      // as well ellipsises anything longer. The filled node carries the rest.
+      return "drew";
+    case "waiting":
+      // One turn away reads the same whether that turn is running or still in
+      // its handoff: one turn happens, then yours.
+      return seat.away === 1 ? "up next" : `in ${seat.away} turns`;
+    case "offTrack":
+      return "";
+  }
+}
+
+function row(seat: Seat, s: ViewState, opts: PlayerListOptions): HTMLElement {
+  const p = seat.player;
+  const sub = subtitle(seat, opts);
+  const classes = ["pitem"];
+  if (seat.state === "now") classes.push("pitem-artist");
+  if (seat.state === "next") classes.push("pitem-next");
+  if (seat.state === "drew") classes.push("pitem-drew");
+  if (p.eliminated) classes.push("pitem-out");
+  if (!p.connected) classes.push("pitem-off");
+  return el(
+    "li",
+    { class: classes.join(" ") },
+    seat.state === "offTrack" ? null : el("span", { class: "pnode", "aria-hidden": "true" }),
+    avatar(p.id, p.name),
+    el(
+      "div",
+      { class: "grow" },
+      el("div", { class: "pitem-name", text: p.name }),
+      sub ? el("div", { class: "pitem-sub", text: sub }) : null,
+    ),
+    el("span", { class: "pitem-marks" }, ...marks(p, s, opts)),
+  );
 }
 
 /** Left column of every in-match screen, and the lobby roster. */
 export function playerList(title: string, opts: PlayerListOptions = {}): PlayerListView {
-  const list = el("ul", { class: "plist" });
   const heading = el("div", { class: "card-title", text: title });
+  const track = el("ul", { class: "plist plist-track" });
+  const rest = el("ul", { class: "plist plist-rest" });
 
-  // The baton only exists where there is a turn order to hand off along.
+  // The pen exists only where there is a track to travel along. It parks on the
+  // current node, which is why that node hides beneath it.
   const baton = opts.showTurnQueue
     ? el("div", { class: "baton", "aria-hidden": "true", hidden: true }, markerGlyph())
     : null;
   const body = baton
-    ? el("div", { class: "plist-rail" }, list, baton)
-    : list;
+    ? el("div", { class: "plist-rail" }, track, rest, baton)
+    : el("div", {}, track, rest);
   const root = el("section", { class: "card col-left" }, heading, body);
 
   let batonAt = "";
 
-  /** Slides the marker to the drawing player's row. Measures only on change. */
-  const moveBaton = (s: ViewState, rows: HTMLElement[]) => {
+  /** Slides the pen to the penned row. Measures only when the row changes. */
+  const moveBaton = (id: string, rows: HTMLElement[], at: number) => {
     if (!baton) return;
-    const at = s.players.findIndex((p) => p.id === s.artistId);
-    const row = at < 0 ? undefined : rows[at];
-    if (!row) {
+    const target = at < 0 ? undefined : rows[at];
+    if (!target || id === "") {
       baton.hidden = true;
       batonAt = "";
       return;
     }
-    if (s.artistId === batonAt && !baton.hidden) return;
+    if (id === batonAt && !baton.hidden) return;
 
     const first = baton.hidden;
     baton.hidden = false;
-    baton.style.setProperty("--nib", avatarColor(s.artistId));
-    const y = row.offsetTop + row.offsetHeight / 2 - baton.offsetHeight / 2;
+    baton.style.setProperty("--nib", avatarColor(id));
+    const y = target.offsetTop + target.offsetHeight / 2 - baton.offsetHeight / 2;
     baton.style.transform = `translateY(${Math.round(y)}px) rotate(-13deg)`;
-    batonAt = s.artistId;
+    batonAt = id;
     // First placement should not fly in from the top of the list.
     if (first) requestAnimationFrame(() => baton.classList.add("baton-warm"));
   };
@@ -81,27 +179,16 @@ export function playerList(title: string, opts: PlayerListOptions = {}): PlayerL
     root,
     update(s) {
       heading.textContent = `${title} · ${s.players.length}`;
-      const items = s.players.map((p) => {
-        const sub = subtitle(p, s, opts);
-        const classes = ["pitem"];
-        if (opts.showTurnQueue && p.id === s.artistId) classes.push("pitem-artist");
-        if (p.eliminated) classes.push("pitem-out");
-        if (!p.connected) classes.push("pitem-off");
-        return el(
-          "li",
-          { class: classes.join(" ") },
-          avatar(p.id, p.name),
-          el(
-            "div",
-            { class: "grow" },
-            el("div", { class: "pitem-name", text: p.name }),
-            sub ? el("div", { class: "pitem-sub", text: sub }) : null,
-          ),
-          el("span", { class: "pitem-marks" }, ...marks(p, s, opts)),
-        );
-      });
-      fill(list, ...items);
-      moveBaton(s, items);
+      const { track: onTrack, rest: offTrack } = order(s, opts);
+
+      const trackRows = onTrack.map((seat) => row(seat, s, opts));
+      fill(track, ...trackRows);
+      fill(rest, ...offTrack.map((seat) => row(seat, s, opts)));
+      track.hidden = trackRows.length === 0;
+      rest.hidden = offTrack.length === 0;
+
+      const pennedAt = onTrack.findIndex((seat) => seat.state === "now" || seat.state === "next");
+      moveBaton(pennedAt < 0 ? "" : onTrack[pennedAt]?.player.id ?? "", trackRows, pennedAt);
     },
   };
 }

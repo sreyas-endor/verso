@@ -209,9 +209,57 @@ Pairs have substantial overlap and reward deliberately ambiguous drawings. These
 
 - Support mouse, trackpad, and touch drawing.
 - Make the active timer and current artist obvious.
+- Announce a turn audibly as well as visually, so a player who is looking away
+  still knows the pen has reached them.
+- Order the roster by the running order while a round is in progress, and mark
+  each player as having drawn, drawing, or waiting. A player should be able to
+  answer "when am I up?" without counting.
+- Carry that state during the handoff too, when there is no live artist. The
+  handoff is when the question is asked most.
 - Keep the shared canvas readable at the 10-player maximum.
 - Avoid preserving permanent visual author attribution after a drawing turn.
 - Preserve reconnectable room and match state on the server.
+
+### Turn Audio
+
+Drawing turns are short and the game is played with everyone talking at once, so
+turn changes are carried by sound as well as by the screen.
+
+- Every cue is synthesised in the browser. The game ships no audio files.
+- Cues react to server events only. The client never sounds a transition it
+  decided on its own, for the same reason it never decides a phase has ended.
+- One cue per event at most. Two sounds landing together are heard as a third,
+  unfamiliar sound, so where an event could justify two the more urgent one
+  wins.
+- The cues, in order of how much they interrupt:
+
+  | Event | Cue |
+  | --- | --- |
+  | You are the artist now | Loudest in the game, and unlike any other cue |
+  | Your own turn starts in five seconds | A tick a second, ending one second before the pen |
+  | Three seconds of your own turn left | A tick a second, drier and higher |
+  | The handoff named you as next artist | Two rising notes |
+  | The match ended | A win or a loss flourish, per your own side |
+  | Voting opened | One chord |
+  | The tally arrived | Two falling notes |
+  | Words were dealt | Two rising notes, quiet |
+  | Another player took the pen | One mid note, quiet |
+  | A handoff that is not about you | One low note, quietest |
+
+- Turn cues are on by default and muted from one control in the app bar. The
+  choice persists per browser.
+- The handoff counts down out loud for the player about to draw. A single
+  announcement at the top of a ten-second handoff is missed, and missing the
+  start of your own turn costs you the turn.
+- Both countdowns are for one player only — the one who can act on them. Ten
+  players hearing ten run-ups a round is noise, and a player watching somebody
+  else draw has nothing to do when that turn expires.
+- A handoff too short to hold the full run-up gets a shorter one rather than a
+  late one, and drops the spoken announcement so the two do not collide.
+- Cues keep playing in a backgrounded tab — being told it is your turn while
+  reading something else is the point — but a tick that arrives late, because
+  the browser throttled its timer, is dropped rather than played against a
+  deadline that has already passed.
 
 ## Technical Architecture
 

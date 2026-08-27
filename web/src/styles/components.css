@@ -226,12 +226,41 @@
   .pt { width: 5.6rem; }
 }
 
-/* ---- turn baton ----
-   A marker parked in the roster's left rail that slides to whoever is drawing.
-   The row highlight already carries the state; this only animates the change. */
-.plist-rail { position: relative; padding-left: 1.5rem; }
+/* ---- turn track ----
+   The roster reordered into this round's running order, with a node per player
+   on a rail. Nodes behind the pen are filled in, so the column reads as
+   progress through the round rather than as six independent row states.
+
+   Turn order is reshuffled every round (DESIGN.md:36), so a player's position
+   here is not an identity — it is where they sit in *this* round. */
+.plist-rail { position: relative; padding-left: 1.55rem; }
+.plist-track { position: relative; }
+/* The line joins node centres, so it insets by half a row at each end. With a
+   single player on the track it collapses to nothing, which is correct. */
+.plist-track::before {
+  content: ""; position: absolute; left: -.94rem; top: 1.52rem; bottom: 1.52rem;
+  width: 2px; border-radius: 2px; background: var(--border-str);
+}
+.plist-track[hidden], .plist-rest[hidden] { display: none; }
+.plist-rest { margin-top: .3rem; }
+
+.pitem { position: relative; }
+.pnode {
+  position: absolute; left: -1.15rem; top: 50%; margin-top: -.39rem;
+  width: .78rem; height: .78rem; border-radius: 999px;
+  background: var(--surface); border: 2.5px solid var(--border-str);
+}
+/* Filled = they have made their mark. An affirmative marker rather than a
+   dimmed row, because opacity already means offline and greyscale eliminated. */
+.pitem-drew .pnode { background: var(--ink-3); border-color: var(--ink-3); }
+.pitem-next { border-color: var(--amber); background: var(--amber-sf); }
+.pitem-next .pitem-sub { color: var(--amber-dk); }
+/* The pen parks on this row, so its own dot would only peer out from under it. */
+.pitem-artist .pnode, .pitem-next .pnode { visibility: hidden; }
+
+/* The pen itself: the one node that moves, and the only animation in here. */
 .baton {
-  position: absolute; left: .1rem; top: 0;
+  position: absolute; left: .16rem; top: 0;
   width: 1.15rem; pointer-events: none;
   filter: drop-shadow(1.5px 2px 0 rgba(38,50,56,.16));
   transform: translateY(0) rotate(-13deg);

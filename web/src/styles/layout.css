@@ -19,6 +19,26 @@
 .appbar-meta { color: var(--ink-2); font-size: .85rem; font-weight: 700; }
 .appbar .grow { flex: 1 1 auto; }
 
+/* Mute control for the turn cues. Deliberately quiet furniture: it is set once
+   at the start of a session and never touched again. */
+.appbar-sound {
+  position: relative; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.85rem; height: 1.85rem; padding: 0;
+  font: inherit; line-height: 1;
+  color: var(--ink); background: var(--surface);
+  border: 2px solid var(--ink); border-radius: 999px;
+  cursor: pointer;
+}
+.appbar-sound-glyph { font-size: 1.05rem; transform: translateY(-.03em); }
+.appbar-sound:hover { background: var(--amber-sf); }
+.appbar-sound-off { color: var(--ink-3); background: var(--surface-2); border-color: var(--border-str); }
+/* A struck-through note, so the state survives being read in greyscale. */
+.appbar-sound-off::after {
+  content: ""; position: absolute; left: 12%; right: 12%; top: 50%;
+  border-top: 2px solid var(--ink-3); transform: rotate(-35deg);
+}
+
 .conn { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; font-weight: 800; }
 .conn-dot { width: .6rem; height: .6rem; border-radius: 999px; background: var(--ink-3); flex: none; }
 .conn-connected    .conn-dot { background: var(--good); }

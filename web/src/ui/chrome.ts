@@ -1,5 +1,5 @@
-import type { ConnectionStatus, ViewState } from "./context.js";
-import { Disposers, el, fill, setText } from "./dom.js";
+import type { ConnectionStatus, SoundToggle, ViewState } from "./context.js";
+import { Disposers, el, fill, setText, toggle } from "./dom.js";
 
 export interface Chrome {
   /** Screens are mounted into this element by the router. */
@@ -21,10 +21,13 @@ const CONN_LABEL: Record<ConnectionStatus, string> = {
 /**
  * The persistent frame: room code, headcount, connection state, a calm
  * reconnect banner (never a modal — the match carries on without you), a toast
- * stack for server errors, and the polite live region every screen announces
- * phase and turn changes through.
+ * stack for server errors, the mute control for the turn cues, and the polite
+ * live region every screen announces phase and turn changes through.
+ *
+ * `sound` is optional: with no sound layer wired the control is simply absent,
+ * rather than present and lying.
  */
-export function createChrome(root: HTMLElement): Chrome {
+export function createChrome(root: HTMLElement, sound?: SoundToggle): Chrome {
   const d = new Disposers();
 
   const code = el("span", { class: "appbar-code" });
@@ -33,6 +36,30 @@ export function createChrome(root: HTMLElement): Chrome {
   const connText = el("span", {});
   const conn = el("span", { class: "conn conn-connecting" }, connDot, connText);
 
+  // Mute, not volume: the cues are already levelled against each other, and a
+  // slider is one more thing to mis-set before a turn starts.
+  const soundBtn = el(
+    "button",
+    { class: "appbar-sound", type: "button" },
+    el("span", { class: "appbar-sound-glyph", "aria-hidden": "true", text: "\u266a" }),
+    el("span", { class: "sr-only", text: "Turn sounds" }),
+  );
+  const syncSound = () => {
+    const on = sound?.enabled() ?? false;
+    soundBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    soundBtn.title = on ? "Turn sounds on — click to mute" : "Turn sounds muted — click to unmute";
+    toggle(soundBtn, "appbar-sound-off", !on);
+  };
+  if (sound === undefined) {
+    soundBtn.hidden = true;
+  } else {
+    syncSound();
+    d.on(soundBtn, "click", () => {
+      sound.setEnabled(!sound.enabled());
+      syncSound();
+    });
+  }
+
   const bar = el(
     "header",
     { class: "appbar" },
@@ -40,6 +67,7 @@ export function createChrome(root: HTMLElement): Chrome {
     code,
     meta,
     el("span", { class: "grow" }),
+    soundBtn,
     conn,
   );
 

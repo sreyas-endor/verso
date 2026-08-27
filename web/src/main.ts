@@ -2,6 +2,7 @@ import "@fontsource-variable/nunito";
 import "./styles/index.css";
 
 import { Phase } from "../gen/verso/v1/game_pb.js";
+import { createAudio, createAudioDriver } from "./audio/index.js";
 import { CanvasEngine } from "./canvas/index.js";
 import { castVote, rematch, requestSnapshot, setReady, startMatch, strokeBegin, strokeEnd, strokePoints, updateSettings } from "./net/commands.js";
 import { VersoSocket } from "./net/socket.js";
@@ -14,6 +15,7 @@ if (!root) throw new Error("Verso could not find its app root");
 
 const store = new GameStore();
 const socket = new VersoSocket();
+const audio = createAudio();
 const engine = new CanvasEngine({
   outbound: {
     strokeBegin: (colorIndex, width, points) => socket.send(strokeBegin({ colorIndex, width, points })),
@@ -77,7 +79,16 @@ const actions: Actions = {
   },
 };
 
-const chrome = createChrome(root);
+const chrome = createChrome(root, {
+  enabled: () => audio.enabled(),
+  setEnabled(on) {
+    audio.setEnabled(on);
+    // The click that enabled it is also the gesture that unlocks the audio
+    // context, so this is the first moment a cue can be heard — say so, or
+    // "on" is indistinguishable from broken.
+    if (on) audio.play("soundOn");
+  },
+});
 let mounted: keyof typeof screens | null = null;
 const ctx: ScreenCtx = {
   state: () => store.getState(),
@@ -100,6 +111,11 @@ function render(state: ViewState): void {
 }
 
 store.subscribe(render);
+// Cues are driven from the store, not from the screens: the transitions that
+// matter most — one artist handing over to the next, drawing giving way to
+// voting — straddle a screen unmount, and a per-screen hook would either miss
+// them or re-fire on every remount.
+store.subscribe(createAudioDriver(audio));
 socket.onState((state) => {
   const connection = state.status === "open"
     ? "connected"
