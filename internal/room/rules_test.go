@@ -42,12 +42,12 @@ func TestPluralityBoundary(t *testing.T) {
 		votes     int // votes for the target; the rest of the room Skips
 		eliminate bool
 	}{
-		{players: 3, votes: 1, eliminate: false}, // 1 vs 2 Skip
-		{players: 3, votes: 2, eliminate: true},  // 2 vs 1 Skip
-		{players: 6, votes: 3, eliminate: false}, // dead heat, 3 vs 3 Skip
-		{players: 6, votes: 4, eliminate: true},  // 4 vs 2 Skip
-		{players: 7, votes: 3, eliminate: false}, // 3 vs 4 Skip
-		{players: 7, votes: 4, eliminate: true},  // 4 vs 3 Skip
+		{players: 3, votes: 1, eliminate: false},  // 1 vs 2 Skip
+		{players: 3, votes: 2, eliminate: true},   // 2 vs 1 Skip
+		{players: 6, votes: 3, eliminate: false},  // dead heat, 3 vs 3 Skip
+		{players: 6, votes: 4, eliminate: true},   // 4 vs 2 Skip
+		{players: 7, votes: 3, eliminate: false},  // 3 vs 4 Skip
+		{players: 7, votes: 4, eliminate: true},   // 4 vs 3 Skip
 		{players: 10, votes: 5, eliminate: false}, // dead heat, 5 vs 5 Skip
 		{players: 10, votes: 6, eliminate: true},  // 6 vs 4 Skip
 	}
@@ -913,14 +913,18 @@ func TestNoPlayerIsToldTheirRole(t *testing.T) {
 		t.Fatalf("YourWord fields = %v, want exactly %v", got, want)
 	}
 
-	// Sweep the whole schema for anything that names the imposter. Only four
-	// messages may: the private spectator note, the final reveal and its rows,
-	// and the elimination event — whose was_imposter is set only on the
-	// resolution that has already ended the match.
+	// Sweep the whole schema for anything that names the imposter. Only five
+	// messages may: the private spectator note, the final reveal with its rows
+	// and its per-round pairs, and the elimination event — whose was_imposter
+	// is set only on the resolution that has already ended the match.
+	//
+	// RoundWords is on this list for the same reason PlayerReveal is: it has no
+	// existence outside MatchEnded, which is emitted only in PHASE_ENDED.
 	allowed := map[string]bool{
 		"SpectatorInfo":    true,
 		"MatchEnded":       true,
 		"PlayerReveal":     true,
+		"RoundWords":       true,
 		"PlayerEliminated": true,
 	}
 	file := (&genpb.VoteTally{}).ProtoReflect().Descriptor().ParentFile()

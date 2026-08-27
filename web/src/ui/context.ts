@@ -115,6 +115,27 @@ export interface CanvasHandle {
   setWidth(width: number): void;
   /** Re-renders the vectors at 2x and hands the viewer a PNG. */
   savePng(): Promise<void>;
+
+  /**
+   * Round numbers that have a finished canvas kept, oldest first.
+   *
+   * Every round wipes the canvas, so the reveal would otherwise only ever show
+   * the last one. Each round's vectors are kept as it ends and repainted on
+   * demand — no bitmap is held per round.
+   *
+   * A player who reconnected mid-match is missing the rounds they were away
+   * for: the archive is built from frames this client saw, and a Snapshot only
+   * carries the round in progress.
+   */
+  archivedRounds(): readonly number[];
+  /**
+   * Repaint one archived round into `target`, sizing it to the canvas element's
+   * own width and height. A round with nothing kept for it paints blank paper
+   * rather than throwing, so the reveal never has a hole in it.
+   */
+  paintRound(round: number, target: HTMLCanvasElement): void;
+  /** Re-render one archived round at 2x and hand the viewer a PNG. */
+  savePngForRound(round: number): Promise<void>;
 }
 
 /**

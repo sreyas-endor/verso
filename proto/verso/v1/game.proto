@@ -60,7 +60,11 @@ enum Phase {
   PHASE_UNSPECIFIED = 0;
   // Pre-match: players join, set ready, host edits settings.
   PHASE_LOBBY = 1;
-  // Words dealt; each player is shown their own word and nothing else.
+  // Words dealt; each player is shown their own word and nothing else. Opens
+  // EVERY round, not just the match: each round wipes the canvas and deals a
+  // fresh pair. PhaseChanged.round tells the two apart — 0 is the match
+  // opening, n >= 1 is the reveal for round n+1, so a client can archive the
+  // finished canvas before clearing it.
   PHASE_ASSIGNING = 2;
   // One turn per active player, turn order reshuffled every round.
   PHASE_DRAWING = 3;
@@ -403,14 +407,33 @@ message PlayerEliminated {
   bool was_imposter = 4;
 }
 
+// One round's pair, revealed only when the match is over. Every round deals a
+// fresh pair from a different cluster (DESIGN.md:36), so a match has as many
+// of these as it played rounds.
+message RoundWords {
+  // 1-based, and always equal to this message's position in
+  // MatchEnded.rounds + 1. Carried explicitly so a reader never has to infer
+  // it from an index.
+  int32 round = 1;
+  string common_word = 2;
+  string imposter_word = 3;
+}
+
 // One row of the final reveal (DESIGN.md:75).
 message PlayerReveal {
   string player_id = 1;
   string name = 2;
-  // Safe here and nowhere else: the match is over.
+  // The word this player held in the LAST round they were dealt into, which
+  // for anyone still standing is the final round. Safe here and nowhere else:
+  // the match is over.
   string word = 3;
   bool was_imposter = 4;
   bool eliminated = 5;
+  // This player's word for every round, positionally aligned with
+  // MatchEnded.rounds — words[i] belongs to rounds[i]. Empty string for a
+  // round this player was not dealt into, which is every round after the one
+  // that eliminated them.
+  repeated string words = 6;
 }
 
 // Final reveal. This is the ONLY broadcast that carries assigned words, and it
@@ -418,12 +441,20 @@ message PlayerReveal {
 message MatchEnded {
   WinnerSide winner = 1;
   MatchEndReason reason = 2;
+  // The FINAL round's pair — the one that was live when the match ended. The
+  // whole match is in `rounds`; these two stay for the headline, which names
+  // one pair.
   string common_word = 3;
   string imposter_word = 4;
+  // The imposter is picked once and pinned to that seat for the whole match.
+  // Every round re-deals the words; none of them re-rolls this.
   string imposter_player_id = 5;
-  // Every player who was dealt a word, eliminated or not.
+  // Every player who was dealt a word in any round, eliminated or not.
   repeated PlayerReveal reveals = 6;
   int32 rounds_played = 7;
+  // Every round's pair, oldest first. len(rounds) == rounds_played whenever
+  // the match got past assignment.
+  repeated RoundWords rounds = 8;
 }
 
 // A player's connection state or host flag changed. Also the host-migration
@@ -472,6 +503,10 @@ message Joined {
 // fails at compile time.
 message YourWord {
   string word = 1;
+  // The round this word is for, 1-based. Every round deals a fresh pair, so a
+  // player receives one of these per round, during the PHASE_ASSIGNING reveal
+  // that opens it. A client MUST replace the word it is holding rather than
+  // treat a second YourWord as a duplicate.
   int32 round = 2;
 }
 

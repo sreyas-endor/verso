@@ -33,7 +33,7 @@ import (
 // that coin flip is part of what these tests exercise (DESIGN.md:33).
 type pairDeck struct{ a, b string }
 
-func (d pairDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) { return d.a, d.b }
+func (d pairDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) { return d.a, d.b }
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -62,12 +62,22 @@ type harness struct {
 	cancel context.CancelFunc
 }
 
-// newHarness seats n players in a running room, all ready, still in the lobby.
+// newHarness seats n players in a running room, all ready, still in the lobby,
+// dealing from a deck whose pair never changes.
+//
+// Must be called from inside a synctest bubble.
+func newHarness(t *testing.T, n int, s *genpb.MatchSettings, seed uint64) *harness {
+	t.Helper()
+	return newHarnessWithDeck(t, n, s, seed, pairDeck{"CAT", "DOG"})
+}
+
+// newHarnessWithDeck is newHarness with the deck supplied. Every round draws
+// again, so a test about what changes between rounds needs a deck that does.
 // Seats are taken one virtual second apart so JoinedAt is a strict order and
 // host migration has something real to sort by.
 //
 // Must be called from inside a synctest bubble.
-func newHarness(t *testing.T, n int, s *genpb.MatchSettings, seed uint64) *harness {
+func newHarnessWithDeck(t *testing.T, n int, s *genpb.MatchSettings, seed uint64, deck Deck) *harness {
 	t.Helper()
 	if n < 1 || n > MaxPlayers {
 		t.Fatalf("harness: %d players is outside 1..%d", n, MaxPlayers)
@@ -75,7 +85,7 @@ func newHarness(t *testing.T, n int, s *genpb.MatchSettings, seed uint64) *harne
 	ctx, cancel := context.WithCancel(context.Background())
 
 	r := New("TEST", "host", Options{
-		Deck:     pairDeck{"CAT", "DOG"},
+		Deck:     deck,
 		Rand:     mrand.New(mrand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 		Settings: s,
 		Logger:   discardLogger(),
@@ -251,6 +261,14 @@ func (h *harness) nextRound() {
 // ---------------------------------------------------------------------------
 // reading state — always through the actor goroutine
 // ---------------------------------------------------------------------------
+
+// strokeCount and seq read the canvas log. A round boundary empties the first
+// and must leave the second alone: seq is monotonic for the life of the room,
+// so a client cannot mistake a wipe for a dropped frame.
+func (h *harness) strokeCount() int {
+	return smokeGet(h.r, func(r *Room) int { return len(r.strokes) })
+}
+func (h *harness) seq() int32 { return smokeGet(h.r, func(r *Room) int32 { return r.seq }) }
 
 func (h *harness) phase() genpb.Phase { return smokePhase(h.r) }
 func (h *harness) artist() string     { return smokeArtist(h.r) }

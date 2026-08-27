@@ -47,7 +47,7 @@ export type CueName =
   /** The match ended on the other side. */
   | "loss"
   /** Words have been dealt. */
-  | "matchStart"
+  | "wordsDealt"
   /** Acknowledges the sound toggle, so "on" is audibly different from broken. */
   | "soundOn";
 
@@ -128,7 +128,8 @@ export const CUES: Record<CueName, Cue> = {
     ],
   },
 
-  matchStart: {
+  // Fires once per ROUND, not per match: every round deals a fresh pair.
+  wordsDealt: {
     level: 0.5,
     notes: [
       { freq: G4, at: 0 },

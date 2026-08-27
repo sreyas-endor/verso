@@ -3,15 +3,19 @@ package room
 // phase.go — the phase machine (IMPLEMENTATION_PLAN.md §4.5, DESIGN.md:27).
 //
 //	lobby -> assigning -> drawing(turn 1..n) -> discussion -> resolving
-//	                          ^                                   |
-//	                          +----------- next round ------------+
-//	                                                              v
-//	                                                            ended
+//	             ^                                               |
+//	             +------------------ next round -----------------+
+//	                                                             v
+//	                                                           ended
 //
 // Discussion and voting are one phase with one combined timer (DESIGN.md:46).
 // Turn order is reshuffled independently at the start of every round
 // (DESIGN.md:36). Every transition is driven either by r.phaseTimer firing or
 // by a command, and both land on the room goroutine.
+//
+// Note where the "next round" arrow lands: on ASSIGNING, not on DRAWING. Every
+// round opens with its own word reveal, because every round wipes the canvas
+// and deals a fresh pair (DESIGN.md:36). The imposter is not re-rolled.
 
 import (
 	"time"
@@ -29,7 +33,9 @@ func (r *Room) onDeadline() {
 
 	switch r.phase {
 	case genpb.Phase_PHASE_ASSIGNING:
-		r.beginRound(1)
+		// The reveal that opens round n runs while r.round is still n-1, so this
+		// is 1 at match start and n+1 between rounds.
+		r.beginRound(r.round + 1)
 	case genpb.Phase_PHASE_INTERMISSION:
 		if r.nextArtistID == "" {
 			r.beginDiscussion()
@@ -78,22 +84,49 @@ func (r *Room) onStartMatch(p *Player, cid string) {
 	r.beginAssigning()
 }
 
-// beginAssigning deals the words and holds the private-reveal screen
-// (DESIGN.md:29). The round counter stays 0 until the first round opens.
+// beginAssigning opens the match: it clears every trace of a previous one and
+// then runs the same word reveal that opens each later round (DESIGN.md:29).
+// The round counter stays 0 until the first round opens.
 func (r *Room) beginAssigning() {
-	r.phase = genpb.Phase_PHASE_ASSIGNING
 	r.round = 0
+	r.imposterID = ""
+	r.history = nil
+	r.winner = genpb.WinnerSide_WINNER_SIDE_UNSPECIFIED
+	r.endReason = genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED
+
+	r.openWordReveal()
+	r.log.Info("match started", "players", len(r.players), "rounds", r.settings.GetMaxRounds())
+}
+
+// beginRoundReveal opens rounds 2..n. It is beginAssigning without the
+// match-level reset: the imposter, the round counter and the accumulated
+// history all survive, and only the round's own state is cleared.
+func (r *Room) beginRoundReveal() {
+	r.openWordReveal()
+	r.log.Info("round reveal", "next_round", r.round+1)
+}
+
+// openWordReveal wipes the canvas, deals the round's pair and holds the
+// private-reveal screen while every player reads their new word.
+//
+// Wiping here rather than in beginRound is deliberate: the client clears its
+// own canvas when it sees PHASE_ASSIGNING (web/src/main.ts), so doing it at the
+// same transition keeps the two sides in step, and it gives the client the
+// whole reveal to archive the finished drawing before the next round marks it.
+func (r *Room) openWordReveal() {
+	r.phase = genpb.Phase_PHASE_ASSIGNING
 	r.turnOrder = nil
 	r.turnIndex = 0
 	r.artistID = ""
 	r.nextArtistID = ""
+	// Each round is judged on its own canvas. seq and nextStrokeID are NOT
+	// reset — they stay monotonic for the life of the room, so a client can
+	// never mistake a new round for a replayed gap (see resetToLobby).
 	r.strokes = nil
 	r.open = nil
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
 	clear(r.votes)
-	r.winner = genpb.WinnerSide_WINNER_SIDE_UNSPECIFIED
-	r.endReason = genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED
 
 	r.assignWords()
 
@@ -105,7 +138,6 @@ func (r *Room) beginAssigning() {
 	for _, p := range r.players {
 		r.sendYourWord(p)
 	}
-	r.log.Info("match started", "players", len(r.players), "rounds", r.settings.GetMaxRounds())
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +299,10 @@ func (r *Room) afterResolve() {
 	if r.round >= r.settings.GetMaxRounds() {
 		return
 	}
-	r.beginRound(r.round + 1)
+	// Not beginRound: the next round needs its own pair and its own blank
+	// canvas, and every player needs to be shown the new word before anybody
+	// draws on it.
+	r.beginRoundReveal()
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +342,7 @@ func (r *Room) resetToLobby() {
 	r.commonWord = ""
 	r.imposterWord = ""
 	r.imposterID = ""
+	r.history = nil
 	r.winner = genpb.WinnerSide_WINNER_SIDE_UNSPECIFIED
 	r.endReason = genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED
 

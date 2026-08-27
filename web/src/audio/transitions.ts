@@ -57,7 +57,7 @@ export function cueFor(prev: AudioFacts, next: AudioFacts): CueName | null {
   if (next.phase !== prev.phase) {
     switch (next.phase) {
       case Phase.ASSIGNING:
-        return "matchStart";
+        return "wordsDealt";
       case Phase.DISCUSSION:
         return "discussion";
       case Phase.RESOLVING:

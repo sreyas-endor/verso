@@ -90,8 +90,11 @@ type MatchResult struct {
 	Winner       genpb.WinnerSide
 	Reason       genpb.MatchEndReason
 	RoundsPlayed int32
+	// CommonWord and ImposterWord are the FINAL round's pair. Rounds carries
+	// every one of them, oldest first.
 	CommonWord   string
 	ImposterWord string
+	Rounds       []*genpb.RoundWords
 	ImposterID   string
 	ImposterName string
 	Words        map[string]string
@@ -117,8 +120,13 @@ func (r *MatchResult) Summary() string {
 		strings.TrimPrefix(r.Winner.String(), "WINNER_SIDE_"), r.Duration.Round(time.Millisecond))
 	fmt.Fprintf(&b, "  reason        %s after %d round(s)\n",
 		strings.TrimPrefix(r.Reason.String(), "MATCH_END_REASON_"), r.RoundsPlayed)
-	fmt.Fprintf(&b, "  imposter       %s (%s) held %q, everyone else %q\n",
-		r.ImposterName, r.ImposterID, r.ImposterWord, r.CommonWord)
+	fmt.Fprintf(&b, "  imposter      %s (%s), the same seat every round\n", r.ImposterName, r.ImposterID)
+	// One pair per round: the deal is per round, and printing only the last
+	// would hide three quarters of a four-round match.
+	for _, rw := range r.Rounds {
+		fmt.Fprintf(&b, "    round %d     imposter %q, everyone else %q\n",
+			rw.GetRound(), rw.GetImposterWord(), rw.GetCommonWord())
+	}
 	fmt.Fprintf(&b, "  traffic       %d frames, %d strokes committed, %d frame types\n",
 		r.Frames, r.Strokes, len(r.FrameTypes))
 	types := make([]string, 0, len(r.FrameTypes))
@@ -380,16 +388,26 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	res.RoundsPlayed = canonical.GetRoundsPlayed()
 	res.CommonWord = canonical.GetCommonWord()
 	res.ImposterWord = canonical.GetImposterWord()
+	res.Rounds = canonical.GetRounds()
 
 	if canonical.GetImposterPlayerId() != imposterID {
 		res.Violations = append(res.Violations, fmt.Sprintf(
 			"the final reveal names %q as the imposter, but the minority word was dealt to %q",
 			canonical.GetImposterPlayerId(), imposterID))
 	}
-	if canonical.GetCommonWord() != common || canonical.GetImposterWord() != imposter {
+	// `common` and `imposter` were captured from the sockets at the FIRST deal,
+	// before round 1. Every round deals a fresh pair, so the headline on
+	// MatchEnded is the final round's and cannot be compared against them —
+	// rounds[0] is the one that has to agree. A single-round match makes the
+	// two the same thing.
+	firstCommon, firstImposter := canonical.GetCommonWord(), canonical.GetImposterWord()
+	if rs := canonical.GetRounds(); len(rs) > 0 {
+		firstCommon, firstImposter = rs[0].GetCommonWord(), rs[0].GetImposterWord()
+	}
+	if firstCommon != common || firstImposter != imposter {
 		res.Violations = append(res.Violations, fmt.Sprintf(
-			"the final reveal says common=%q imposter=%q, but the sockets were dealt common=%q imposter=%q",
-			canonical.GetCommonWord(), canonical.GetImposterWord(), common, imposter))
+			"round 1 of the final reveal says common=%q imposter=%q, but the sockets were dealt common=%q imposter=%q",
+			firstCommon, firstImposter, common, imposter))
 	}
 	if n := len(canonical.GetReveals()); n != plan.Players {
 		res.Violations = append(res.Violations,
@@ -405,7 +423,7 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	// against the secrets registered by that moment; this re-runs it now that
 	// every word is known.
 	for _, rep := range res.Reports {
-		if leaks := watch.SweepAll(rep.PlayerID, rep.Word, rep.Transcript); len(leaks) > 0 {
+		if leaks := watch.SweepAll(rep.PlayerID, rep.Words, rep.Transcript); len(leaks) > 0 {
 			res.Leaks = append(res.Leaks, leaks...)
 		}
 	}

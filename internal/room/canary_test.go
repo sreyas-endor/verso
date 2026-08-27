@@ -49,7 +49,7 @@ const (
 // than assume.
 type canaryDeck struct{}
 
-func (canaryDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) {
+func (canaryDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) {
 	return canaryAlpha, canaryBeta
 }
 

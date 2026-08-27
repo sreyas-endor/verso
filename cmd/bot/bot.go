@@ -32,6 +32,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -142,7 +143,16 @@ type Bot struct {
 	seatToken string
 	roomCode  string
 	isHost    bool
+	// word is the CURRENT round's word; wordRound is the round it was dealt
+	// for. Every round deals a fresh pair (game.proto YourWord), so a changed
+	// word is a violation only when the round did not move with it.
 	word      string
+	wordRound int32
+	// ownWords is every word this bot has ever legitimately held. The leak
+	// scanner needs the whole set, not just the current one: a transcript
+	// swept at the end of a match still contains round 1's frames, and round
+	// 1's word is not a leak in them.
+	ownWords []string
 
 	joinedC chan struct{}
 	wordC   chan struct{}
@@ -333,9 +343,12 @@ func (b *Bot) Do(fn func(*Bot)) bool {
 
 // Report is a bot's account of the match it just played.
 type Report struct {
-	Name        string
-	PlayerID    string
-	Word        string
+	Name     string
+	PlayerID string
+	Word     string
+	// Words is every word this bot was dealt, oldest first — one per round.
+	// Word is the last of them.
+	Words       []string
 	IsHost      bool
 	Eliminated  bool
 	Ended       *genpb.MatchEnded
@@ -393,6 +406,7 @@ func (b *Bot) reportLocked() Report {
 		Name:             b.cfg.Name,
 		PlayerID:         b.playerID,
 		Word:             b.word,
+		Words:            slices.Clone(b.ownWords),
 		IsHost:           b.isHost,
 		Eliminated:       b.eliminated,
 		Ended:            b.ended,
@@ -748,17 +762,16 @@ func (b *Bot) onEvent(ev *genpb.ServerEvent) {
 	if b.cfg.Watch != nil {
 		// The recipient's own word may arrive in the very frame being inspected,
 		// before it has been recorded. Taking the hint from the frame keeps a
-		// player's first YourWord from reading as a leak of the identical word a
-		// player holding the common word was dealt.
-		own := b.word
-		if own == "" {
-			switch e := ev.GetEvt().(type) {
-			case *genpb.ServerEvent_YourWord:
-				own = e.YourWord.GetWord()
-			case *genpb.ServerEvent_Snapshot:
-				if e.Snapshot.GetPlayerId() == b.playerID {
-					own = e.Snapshot.GetYourWord()
-				}
+		// player's YourWord from reading as a leak of the identical word a
+		// player holding the common word was dealt. This applies to every
+		// round's deal, not just the first.
+		own := b.ownWords
+		switch e := ev.GetEvt().(type) {
+		case *genpb.ServerEvent_YourWord:
+			own = append(slices.Clone(own), e.YourWord.GetWord())
+		case *genpb.ServerEvent_Snapshot:
+			if e.Snapshot.GetPlayerId() == b.playerID {
+				own = append(slices.Clone(own), e.Snapshot.GetYourWord())
 			}
 		}
 		if found := b.cfg.Watch.Inspect(b.playerID, own, ev); len(found) > 0 {
@@ -850,17 +863,39 @@ func (b *Bot) onYourWord(y *genpb.YourWord) {
 		b.violate("YourWord carried an empty word")
 		return
 	}
-	if b.word != "" && b.word != w {
-		b.violate("word changed mid-match from %q to %q", b.word, w)
+	round := y.GetRound()
+	if round <= 0 {
+		b.violate("YourWord carried round %d, want 1 or more", round)
 	}
-	b.word = w
-	if b.cfg.Watch != nil {
-		b.cfg.Watch.RegisterWord(b.playerID, w)
+	// A new word is legitimate only as part of a new round's deal. Within one
+	// round the word is fixed, and a second YourWord that changes it is the
+	// bug this assertion exists to catch.
+	if b.word != "" && b.word != w && round == b.wordRound {
+		b.violate("word changed inside round %d from %q to %q", round, b.word, w)
 	}
+	if b.wordRound != 0 && round < b.wordRound {
+		b.violate("YourWord went backwards: round %d after round %d", round, b.wordRound)
+	}
+	b.setWord(w, round)
 	b.wordOnce.Do(func() {
 		b.pubWord = w
 		close(b.wordC)
 	})
+}
+
+// setWord records a word the bot legitimately holds, for both the round
+// bookkeeping and the leak scanner's exemption set.
+func (b *Bot) setWord(w string, round int32) {
+	b.word = w
+	if round > b.wordRound {
+		b.wordRound = round
+	}
+	if !slices.Contains(b.ownWords, w) {
+		b.ownWords = append(b.ownWords, w)
+	}
+	if b.cfg.Watch != nil {
+		b.cfg.Watch.RegisterWord(b.playerID, w)
+	}
 }
 
 func (b *Bot) onSnapshot(s *genpb.Snapshot) {
@@ -868,13 +903,18 @@ func (b *Bot) onSnapshot(s *genpb.Snapshot) {
 		b.violate("Snapshot addressed to %q, but this bot is %q", s.GetPlayerId(), b.playerID)
 	}
 	if w := s.GetYourWord(); w != "" {
-		if b.word != "" && w != b.word {
-			b.violate("Snapshot.your_word = %q, want this bot's own %q", w, b.word)
+		// A Snapshot carries the word for the round it describes. It may
+		// legitimately differ from the one in hand only when the snapshot is
+		// for a later round, which is what a client that missed a whole
+		// round's deal comes back to.
+		if b.word != "" && w != b.word && s.GetRound() <= b.wordRound {
+			b.violate("Snapshot.your_word = %q for round %d, want this bot's own %q",
+				w, s.GetRound(), b.word)
 		}
-		b.word = w
-		if b.cfg.Watch != nil {
-			b.cfg.Watch.RegisterWord(b.playerID, w)
-		}
+		// A Snapshot names the round in progress; the reveal that deals round n
+		// runs while round is still n-1, so take the later of the two rather
+		// than trusting either alone.
+		b.setWord(w, max(s.GetRound(), b.wordRound))
 		b.wordOnce.Do(func() {
 			b.pubWord = w
 			close(b.wordC)
@@ -902,14 +942,20 @@ func (b *Bot) onSnapshot(s *genpb.Snapshot) {
 
 // verifyResync is the milestone-7 assertion, made from the client's side: a bot
 // that dropped mid-turn and came back with its seat token must find the same
-// seat, the same word and a canvas that only grew.
+// seat, the word for whatever round it came back to, and — as long as it is
+// still the same round — a canvas that only grew.
+//
+// Both the word and the canvas are scoped to the round now. A drop that spans a
+// round boundary comes back to a different word and a blank sheet, and neither
+// is a fault: the round it left no longer exists.
 func (b *Bot) verifyResync(s *genpb.Snapshot) {
 	e := b.expect
+	sameRound := s.GetRound() == e.round
 	if s.GetPlayerId() != e.playerID {
 		b.violate("resync: player id %q, want %q", s.GetPlayerId(), e.playerID)
 	}
-	if e.word != "" && s.GetYourWord() != e.word {
-		b.violate("resync: word %q, want the seat's original", s.GetYourWord())
+	if e.word != "" && sameRound && s.GetYourWord() != e.word {
+		b.violate("resync: word %q, want the word this seat held in round %d", s.GetYourWord(), e.round)
 	}
 	if s.GetRoomCode() != e.roomCode {
 		b.violate("resync: room code %q, want %q", s.GetRoomCode(), e.roomCode)
@@ -917,9 +963,9 @@ func (b *Bot) verifyResync(s *genpb.Snapshot) {
 	if s.GetRound() < e.round {
 		b.violate("resync: round went backwards, %d < %d", s.GetRound(), e.round)
 	}
-	if got := len(s.GetStrokes()); got < e.strokes {
-		b.violate("resync: canvas shrank, %d strokes replayed but %d were committed before the drop",
-			got, e.strokes)
+	if got := len(s.GetStrokes()); sameRound && got < e.strokes {
+		b.violate("resync: canvas shrank inside round %d, %d strokes replayed but %d were committed before the drop",
+			s.GetRound(), got, e.strokes)
 	}
 	if e.settings != nil && !proto.Equal(e.settings, s.GetSettings()) {
 		b.violate("resync: settings changed across the reconnect")
@@ -1259,6 +1305,8 @@ func (b *Bot) onMatchEnded(m *genpb.MatchEnded) {
 		b.violate("saw PlayerEliminated{was_imposter:true} but the match ended %s", m.GetWinner())
 	}
 
+	b.checkRoundWords(m)
+
 	imposters := 0
 	mine := ""
 	for _, rv := range m.GetReveals() {
@@ -1268,14 +1316,54 @@ func (b *Bot) onMatchEnded(m *genpb.MatchEnded) {
 				b.violate("reveal marks %q as the imposter but imposter_player_id is %q",
 					rv.GetPlayerId(), m.GetImposterPlayerId())
 			}
-			if rv.GetWord() != m.GetImposterWord() {
-				b.violate("the imposter's reveal word does not match imposter_word")
-			}
-		} else if rv.GetWord() != m.GetCommonWord() {
-			b.violate("player %q was revealed holding %q, which is neither word", rv.GetPlayerId(), rv.GetWord())
 		}
+
+		// PlayerReveal.word is the word from the LAST round this seat was dealt
+		// into, which is the final round only for players who were still
+		// standing. Someone eliminated in round 1 is legitimately revealed
+		// holding round 1's word, so the headline pair is the wrong thing to
+		// check it against — the per-round column is.
+		last := ""
+		for _, w := range rv.GetWords() {
+			if w != "" {
+				last = w
+			}
+		}
+		if rv.GetWord() != last {
+			b.violate("player %q is revealed holding %q, but their last per-round word is %q",
+				rv.GetPlayerId(), rv.GetWord(), last)
+		}
+		if !rv.GetEliminated() && rv.GetWord() != m.GetCommonWord() && !rv.GetWasImposter() {
+			b.violate("surviving player %q holds %q, which is not the final round's common word",
+				rv.GetPlayerId(), rv.GetWord())
+		}
+
+		// Per-round column. Every entry must be one of that round's two words,
+		// on the correct side of the pair, or blank for a round this seat had
+		// already been eliminated out of.
+		if got, want := len(rv.GetWords()), len(m.GetRounds()); got != want {
+			b.violate("player %q has %d per-round words but the match played %d rounds",
+				rv.GetPlayerId(), got, want)
+		} else {
+			for i, w := range rv.GetWords() {
+				if w == "" {
+					continue
+				}
+				rw := m.GetRounds()[i]
+				want := rw.GetCommonWord()
+				if rv.GetWasImposter() {
+					want = rw.GetImposterWord()
+				}
+				if w != want {
+					b.violate("player %q holds %q in round %d, want %q",
+						rv.GetPlayerId(), w, rw.GetRound(), want)
+				}
+			}
+		}
+
 		if rv.GetPlayerId() == b.playerID {
 			mine = rv.GetWord()
+			b.checkOwnRoundWords(rv)
 		}
 	}
 	if imposters != 1 {
@@ -1292,6 +1380,68 @@ func (b *Bot) onMatchEnded(m *genpb.MatchEnded) {
 		"winner", m.GetWinner().String(), "reason", m.GetReason().String(),
 		"rounds", m.GetRoundsPlayed())
 	b.endOnce.Do(func() { close(b.endC) })
+}
+
+// checkRoundWords verifies MatchEnded.rounds against itself: one entry per
+// round played, numbered in order, each a real pair, and no word reused across
+// rounds. That last one is the round-independence guarantee — a player whose
+// word repeats while the pairing moves has learned they hold the common word
+// (internal/words: Deck.Pair avoid set).
+func (b *Bot) checkRoundWords(m *genpb.MatchEnded) {
+	rounds := m.GetRounds()
+	if got, want := len(rounds), int(m.GetRoundsPlayed()); got != want {
+		b.violate("MatchEnded carries %d round pairs but reports %d rounds played", got, want)
+	}
+
+	seen := make(map[string]int32, 2*len(rounds))
+	for i, rw := range rounds {
+		if got, want := rw.GetRound(), int32(i+1); got != want {
+			b.violate("MatchEnded.rounds[%d] is numbered %d, want %d", i, got, want)
+		}
+		c, o := rw.GetCommonWord(), rw.GetImposterWord()
+		if c == "" || o == "" {
+			b.violate("round %d did not reveal both words", rw.GetRound())
+			continue
+		}
+		if c == o {
+			b.violate("round %d revealed the same word twice: %q", rw.GetRound(), c)
+		}
+		for _, w := range []string{c, o} {
+			if prev, dup := seen[w]; dup {
+				b.violate("%q was dealt in both round %d and round %d", w, prev, rw.GetRound())
+			}
+			seen[w] = rw.GetRound()
+		}
+	}
+
+	// The headline pair must be the last round's: that is the one that was live
+	// when the match ended.
+	if n := len(rounds); n > 0 {
+		last := rounds[n-1]
+		if m.GetCommonWord() != last.GetCommonWord() || m.GetImposterWord() != last.GetImposterWord() {
+			b.violate("MatchEnded headline pair does not match the final round's")
+		}
+	}
+}
+
+// checkOwnRoundWords cross-checks this bot's own reveal row against what it was
+// actually dealt. Every word it received in a YourWord must appear in its row,
+// and the row's last non-empty entry must be the word it is still holding.
+func (b *Bot) checkOwnRoundWords(rv *genpb.PlayerReveal) {
+	for _, w := range b.ownWords {
+		if !slices.Contains(rv.GetWords(), w) {
+			b.violate("this bot was dealt %q but its reveal row does not contain it", w)
+		}
+	}
+	last := ""
+	for _, w := range rv.GetWords() {
+		if w != "" {
+			last = w
+		}
+	}
+	if b.word != "" && last != "" && last != b.word {
+		b.violate("this bot's last per-round word is %q, but it is holding %q", last, b.word)
+	}
 }
 
 func (b *Bot) onError(cid string, e *genpb.Error) {

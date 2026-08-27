@@ -33,18 +33,21 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   const wordText = el("div", { class: "reveal-word" });
   const shown = el("div", {}, wordText, el("p", { class: "hint", text: "Only you can see this." }));
+  const wordTitle = el("div", { class: "card-title", text: "Your secret word" });
+  const clockTitle = el("div", { class: "card-title", text: "Round starts in" });
+  // Rounds after the first deal a brand new pair on a blank canvas, and a
+  // player who assumes their old word carries over will draw the wrong thing.
+  const freshNote = el("p", { class: "reveal-fresh" });
 
-  const clock = timer("Time until the first round");
+  // The reveal that opens round n runs while the server's counter still reads
+  // n-1, so the round about to start is always round + 1.
+  const nextRound = (s: ViewState): number => s.round + 1;
+  const clock = timer("Time until the round starts");
 
   const view = el(
     "div",
     { class: "reveal" },
-    el(
-      "section",
-      { class: "card reveal-card" },
-      el("div", { class: "card-title", text: "Your secret word" }),
-      shown,
-    ),
+    el("section", { class: "card reveal-card" }, wordTitle, shown, freshNote),
     el(
       "section",
       { class: "card" },
@@ -59,8 +62,8 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     el(
       "section",
       { class: "card row" },
-      el("div", { class: "grow" }, el("div", { class: "card-title", text: "First round starts in" }),
-        el("p", { class: "hint", text: "Your word stays available in the panel on the right all match." })),
+      el("div", { class: "grow" }, clockTitle,
+        el("p", { class: "hint", text: "Your word stays available in the panel on the right all round." })),
       clock.root,
     ),
   );
@@ -68,9 +71,30 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   root.appendChild(view);
   dd.add(() => view.remove());
 
+  let announcedFor = -1;
+
   const render = (s: ViewState) => {
+    const n = nextRound(s);
+    const first = n <= 1;
     setText(wordText, s.word || "…");
+    setText(wordTitle, first ? "Your secret word" : `Your secret word — round ${n}`);
+    setText(clockTitle, first ? "First round starts in" : `Round ${n} starts in`);
+    setText(
+      freshNote,
+      first ? "" : "A new pair, on a blank canvas. Last round's word is finished with.",
+    );
     clock.update(s.deadline, s.durationMs);
+
+    // Re-announced every round: the word actually changed, and a screen reader
+    // that only heard about round 1 would be reading a stale one.
+    if (s.word !== "" && announcedFor !== n) {
+      announcedFor = n;
+      ctx.announce(
+        first
+          ? "Your private word is on screen. Only you can see it."
+          : `Round ${n}. You have a new private word on screen. Only you can see it.`,
+      );
+    }
   };
 
   render(ctx.state());
@@ -79,7 +103,6 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     const s = ctx.state();
     clock.update(s.deadline, s.durationMs);
   });
-  ctx.announce("Your private word is on screen. Only you can see it.");
 }
 
 export function unmount(): void {

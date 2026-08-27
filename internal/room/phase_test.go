@@ -56,11 +56,14 @@ func TestPhaseMachineWalksEveryTransition(t *testing.T) {
 			t.Fatalf("phase = %v, want ENDED", got)
 		}
 
-		// Every drawing turn is announced by a PHASE_INTERMISSION handoff, and
-		// so is the voting window, so one round of six players is
-		// (INTERMISSION DRAWING) x6 then INTERMISSION DISCUSSION RESOLVING.
-		want := []genpb.Phase{genpb.Phase_PHASE_ASSIGNING}
+		// Every round opens with its own PHASE_ASSIGNING word reveal, because
+		// every round wipes the canvas and deals a fresh pair. Every drawing
+		// turn is announced by a PHASE_INTERMISSION handoff, and so is the
+		// voting window, so one round of six players is ASSIGNING, then
+		// (INTERMISSION DRAWING) x6, then INTERMISSION DISCUSSION RESOLVING.
+		var want []genpb.Phase
 		for range 2 {
+			want = append(want, genpb.Phase_PHASE_ASSIGNING)
 			for range 6 {
 				want = append(want,
 					genpb.Phase_PHASE_INTERMISSION,

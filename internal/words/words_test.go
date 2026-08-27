@@ -240,7 +240,7 @@ func TestDrawsNeverRepeatUntilTheDeckIsSpent(t *testing.T) {
 		n := Count(diff)
 		seen := make(map[string]bool, n)
 		for i := range n {
-			a, b := d.Pair(diff, rnd)
+			a, b := d.Pair(diff, rnd, nil)
 			if seen[key(a, b)] {
 				t.Fatalf("%v: pair %q/%q repeated on draw %d of %d", diff, a, b, i+1, n)
 			}
@@ -268,7 +268,7 @@ func TestExhaustionRecyclesWithoutRepeatingBackToBack(t *testing.T) {
 
 	var prev string
 	for i := range n*3 + 5 {
-		a, b := d.Pair(diff, rnd)
+		a, b := d.Pair(diff, rnd, nil)
 		k := key(a, b)
 		if !catalogued[k] {
 			t.Fatalf("draw %d produced %q/%q, which is not in the catalogue", i+1, a, b)
@@ -284,8 +284,8 @@ func TestResetForgetsHistory(t *testing.T) {
 	diff := genpb.Difficulty_DIFFICULTY_EASY
 	d := New()
 	rnd := seeded(3, 4)
-	d.Pair(diff, rnd)
-	d.Pair(diff, rnd)
+	d.Pair(diff, rnd, nil)
+	d.Pair(diff, rnd, nil)
 	if got, want := d.Remaining(diff), Count(diff)-2; got != want {
 		t.Fatalf("Remaining=%d, want %d", got, want)
 	}
@@ -302,7 +302,7 @@ func TestSeededDrawsAreReproducible(t *testing.T) {
 		rnd := seeded(seed, seed*31+7)
 		out := make([]string, 0, draws)
 		for range draws {
-			a, b := d.Pair(genpb.Difficulty_DIFFICULTY_MEDIUM, rnd)
+			a, b := d.Pair(genpb.Difficulty_DIFFICULTY_MEDIUM, rnd, nil)
 			out = append(out, key(a, b))
 		}
 		return out
@@ -342,7 +342,7 @@ func TestUnknownDifficultyFallsBackToMedium(t *testing.T) {
 		d := New()
 		rnd := seeded(5, 6)
 		for i := range 25 {
-			a, b := d.Pair(diff, rnd)
+			a, b := d.Pair(diff, rnd, nil)
 			if !medium[key(a, b)] {
 				t.Fatalf("%v draw %d produced %q/%q, which is not in the medium deck", diff, i+1, a, b)
 			}
@@ -365,7 +365,7 @@ func TestPairReturnsACataloguedPairInEitherRole(t *testing.T) {
 		d := New()
 		rnd := seeded(11, 13)
 		for range Count(diff) {
-			a, b := d.Pair(diff, rnd)
+			a, b := d.Pair(diff, rnd, nil)
 			if a == "" || b == "" || a == b {
 				t.Fatalf("%v: degenerate pair %q/%q", diff, a, b)
 			}
@@ -406,7 +406,7 @@ func TestConcurrentDrawsAreSafe(t *testing.T) {
 			rnd := seeded(uint64(g)+1, 99)
 			diff := allDifficulties()[g%3]
 			for range draws {
-				if a, b := d.Pair(diff, rnd); a == "" || b == "" {
+				if a, b := d.Pair(diff, rnd, nil); a == "" || b == "" {
 					t.Errorf("empty word from concurrent draw")
 					return
 				}
@@ -419,7 +419,7 @@ func TestConcurrentDrawsAreSafe(t *testing.T) {
 
 func TestNilRandStillDraws(t *testing.T) {
 	d := New()
-	a, b := d.Pair(genpb.Difficulty_DIFFICULTY_HARD, nil)
+	a, b := d.Pair(genpb.Difficulty_DIFFICULTY_HARD, nil, nil)
 	if a == "" || b == "" || a == b {
 		t.Fatalf("nil rand produced %q/%q", a, b)
 	}
@@ -441,8 +441,76 @@ func TestSinglePairTierRecyclesForever(t *testing.T) {
 	d := newDeck(only, only, only)
 	rnd := seeded(2, 3)
 	for range 5 {
-		if a, b := d.Pair(genpb.Difficulty_DIFFICULTY_EASY, rnd); a != "Kite" || b != "Balloon" {
+		if a, b := d.Pair(genpb.Difficulty_DIFFICULTY_EASY, rnd, nil); a != "Kite" || b != "Balloon" {
 			t.Fatalf("got %q/%q", a, b)
 		}
+	}
+}
+
+// TestAvoidKeepsAMatchsWordsDistinct is the round-independence guarantee.
+//
+// A match deals a fresh pair every round and passes every word it has already
+// used as the avoid set. No word may come back: a player whose word repeats
+// while the pairing moves has worked out they hold the common one, which is the
+// single thing the deal exists to hide.
+//
+// The plain no-repeat rule is not enough on its own. It tracks only the cluster
+// just served, so round 3 is free to land back on round 1's cluster — which is
+// exactly what this exercises, at the 4-round ceiling (DESIGN.md:278).
+func TestAvoidKeepsAMatchsWordsDistinct(t *testing.T) {
+	t.Parallel()
+
+	const maxRounds = 4
+	for _, diff := range []genpb.Difficulty{
+		genpb.Difficulty_DIFFICULTY_EASY,
+		genpb.Difficulty_DIFFICULTY_MEDIUM,
+		genpb.Difficulty_DIFFICULTY_HARD,
+	} {
+		t.Run(diff.String(), func(t *testing.T) {
+			t.Parallel()
+			// Many seeds: one match cannot show that the constraint holds, only
+			// that it happened to this time.
+			for seed := range uint64(300) {
+				d := New()
+				rnd := seeded(seed, seed*7919+13)
+
+				var avoid []string
+				seen := make(map[string]int, 2*maxRounds)
+				for round := 1; round <= maxRounds; round++ {
+					a, b := d.Pair(diff, rnd, avoid)
+					for _, w := range []string{a, b} {
+						if prev, dup := seen[w]; dup {
+							t.Fatalf("seed %d: %q dealt in round %d and again in round %d",
+								seed, w, prev, round)
+						}
+						seen[w] = round
+					}
+					avoid = append(avoid, a, b)
+				}
+			}
+		})
+	}
+}
+
+// TestAvoidRelaxesRatherThanFailing — the avoid set is best-effort. A tier with
+// one cluster cannot honour it past the first draw, and must still deal.
+func TestAvoidRelaxesRatherThanFailing(t *testing.T) {
+	t.Parallel()
+
+	one := []Cluster{{"Alpha", "Bravo", "Charlie", "Delta", "Echo"}}
+	d := newDeck(one, one, one)
+	diff := genpb.Difficulty_DIFFICULTY_MEDIUM
+	rnd := seeded(11, 12)
+
+	var avoid []string
+	for range 6 {
+		a, b := d.Pair(diff, rnd, avoid)
+		if a == "" || b == "" {
+			t.Fatalf("a single-cluster tier stopped dealing under an avoid set of %v", avoid)
+		}
+		if a == b {
+			t.Fatalf("dealt %q twice in one pair", a)
+		}
+		avoid = append(avoid, a, b)
 	}
 }

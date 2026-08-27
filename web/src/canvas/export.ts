@@ -58,7 +58,16 @@ self.onmessage = function (e) {
 };
 `;
 
-function paint(ctx: AnyCtx, strokes: readonly ExportStroke[], scale: number): void {
+/**
+ * Re-render a finished canvas from its vectors onto any 2D context, scaled
+ * from the logical 1024x768 grid.
+ *
+ * Exported because the final reveal shows several rounds at once and the live
+ * engine owns one surface. A finished round is only ever its stroke log, so
+ * repainting it into a plain `<canvas>` is the whole job — no second engine,
+ * no bitmap kept alive per round.
+ */
+export function paint(ctx: AnyCtx, strokes: readonly ExportStroke[], scale: number): void {
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   // Always fill white first. A transparent PNG dropped into any dark viewer is
   // an invisible drawing, and every alpha-less encoder composites onto black.

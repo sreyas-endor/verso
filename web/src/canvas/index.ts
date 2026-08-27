@@ -2,7 +2,7 @@
 
 export { CanvasEngine } from "./engine.js";
 export type { CanvasEngineOptions, CanvasOutbound } from "./engine.js";
-export { renderPng, savePng } from "./export.js";
+export { paint, renderPng, savePng } from "./export.js";
 export type { ExportStroke, SaveOutcome } from "./export.js";
 export {
   PALETTE_SIZE,

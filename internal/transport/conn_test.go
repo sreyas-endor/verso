@@ -45,7 +45,7 @@ func newTestServer(t *testing.T) (*httptest.Server, context.CancelFunc) {
 
 type nilDeck struct{}
 
-func (nilDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) { return "", "" }
+func (nilDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) { return "", "" }
 
 func dial(t *testing.T, hs *httptest.Server) *websocket.Conn {
 	t.Helper()

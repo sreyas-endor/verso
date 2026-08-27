@@ -91,7 +91,7 @@ type tier struct {
 // rather than by importing internal/room, which would tie this leaf package to
 // the game loop for no gain.
 var _ interface {
-	Pair(difficulty genpb.Difficulty, rnd *mrand.Rand) (a, b string)
+	Pair(difficulty genpb.Difficulty, rnd *mrand.Rand, avoid []string) (a, b string)
 } = (*Deck)(nil)
 
 // New returns a Deck over the curated catalogue with nothing drawn yet.
@@ -138,19 +138,33 @@ func expand(clusters []Cluster) (pairs []Pair, origin []int) {
 // The two words come back in catalogue order, which carries no meaning: the
 // caller decides which side becomes the common word.
 //
+// avoid names words the caller must not see again — for a match, every word it
+// has already dealt. Any cluster holding one of them is skipped whole, not just
+// the word itself: a cluster shares four words out of five between its pairs,
+// so re-drawing from it is what makes a repeat likely in the first place.
+//
+// This matters from the third round on. Tracking only the previous cluster,
+// which is all the plain no-repeat rule needs, still lets round 3 land back on
+// round 1's cluster and hand somebody the same word twice. A player who sees
+// their word repeat while the pairing moves has learned they are holding the
+// common word, which is exactly what the deck exists to hide.
+//
+// The constraint is best-effort and relaxes rather than fails: a tier with no
+// unused cluster left outside avoid still returns a pair.
+//
 // All randomness is drawn from rnd, so a room with a seeded generator replays
 // its draws exactly. A pair never repeats until every pair of that difficulty
 // has been handed out; the tier then recycles, and consecutive draws never
 // come from the same cluster while any other cluster still has a pair left.
 //
 // An unrecognised difficulty falls back to DIFFICULTY_MEDIUM.
-func (d *Deck) Pair(difficulty genpb.Difficulty, rnd *mrand.Rand) (a, b string) {
+func (d *Deck) Pair(difficulty genpb.Difficulty, rnd *mrand.Rand, avoid []string) (a, b string) {
 	if rnd == nil {
 		rnd = mrand.New(mrand.NewPCG(mrand.Uint64(), mrand.Uint64()))
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	p := d.tiers[Normalize(difficulty)].draw(rnd)
+	p := d.tiers[Normalize(difficulty)].draw(rnd, avoid)
 	return p.A, p.B
 }
 
@@ -172,24 +186,42 @@ func (d *Deck) Reset() {
 	}
 }
 
-func (t *tier) draw(rnd *mrand.Rand) Pair {
+func (t *tier) draw(rnd *mrand.Rand, avoidWords []string) Pair {
 	if t.left == 0 {
 		t.recycle()
 	}
-	// Prefer any cluster other than the one just served. A single-cluster tier,
-	// or a recycle that leaves only that cluster standing, has nothing else to
-	// offer: yield rather than loop.
-	avoid := t.lastOrigin
-	n := t.eligible(avoid)
+	blocked := t.blockedOrigins(avoidWords)
+
+	// Two constraints, relaxed in order of how much they cost to give up.
+	// Losing the avoid-set risks repeating a word within one match; losing
+	// lastOrigin only makes two consecutive pairs feel similar. A single-cluster
+	// tier, or a recycle that leaves only that cluster standing, has nothing
+	// else to offer: yield rather than loop.
+	avoid, n := t.lastOrigin, 0
+	for _, try := range []struct {
+		origin  int
+		blocked map[int]bool
+	}{
+		{t.lastOrigin, blocked}, // both
+		{-1, blocked},           // drop lastOrigin, keep the avoid set
+		{t.lastOrigin, nil},     // drop the avoid set, keep lastOrigin
+		{-1, nil},               // anything undrawn
+	} {
+		if n = t.eligible(try.origin, try.blocked); n > 0 {
+			avoid, blocked = try.origin, try.blocked
+			break
+		}
+	}
 	if n == 0 {
-		avoid = -1
-		n = t.left
+		// t.left > 0 after the recycle above, so the final relaxation always
+		// matches something. Reaching here means drawn/left disagree.
+		panic("words: tier has pairs left but none are eligible")
 	}
 
 	k := rnd.IntN(n)
 	idx := -1
-	for i, used := range t.drawn {
-		if used || (avoid >= 0 && t.origin[i] == avoid) {
+	for i := range t.drawn {
+		if !t.usable(i, avoid, blocked) {
 			continue
 		}
 		if k == 0 {
@@ -205,14 +237,50 @@ func (t *tier) draw(rnd *mrand.Rand) Pair {
 	return t.pairs[idx]
 }
 
-// eligible counts the undrawn pairs that did not come from cluster avoid.
-func (t *tier) eligible(avoid int) int {
-	n := 0
-	for i, used := range t.drawn {
-		if used || (avoid >= 0 && t.origin[i] == avoid) {
-			continue
+// blockedOrigins maps every cluster holding one of these words. Blocking the
+// whole cluster rather than the individual word is the point: its pairs overlap
+// in four words out of five, so the cluster is the unit that repeats.
+func (t *tier) blockedOrigins(words []string) map[int]bool {
+	if len(words) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(words))
+	for _, w := range words {
+		if w != "" {
+			set[w] = true
 		}
-		n++
+	}
+	if len(set) == 0 {
+		return nil
+	}
+	blocked := make(map[int]bool)
+	for i, p := range t.pairs {
+		if set[p.A] || set[p.B] {
+			blocked[t.origin[i]] = true
+		}
+	}
+	return blocked
+}
+
+// usable reports whether pairs[i] can be served under the current constraints.
+func (t *tier) usable(i, avoid int, blocked map[int]bool) bool {
+	if t.drawn[i] {
+		return false
+	}
+	o := t.origin[i]
+	if avoid >= 0 && o == avoid {
+		return false
+	}
+	return !blocked[o]
+}
+
+// eligible counts the pairs usable under the given constraints.
+func (t *tier) eligible(avoid int, blocked map[int]bool) int {
+	n := 0
+	for i := range t.drawn {
+		if t.usable(i, avoid, blocked) {
+			n++
+		}
 	}
 	return n
 }

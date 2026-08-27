@@ -187,8 +187,15 @@ type Deck interface {
 	// Implementations must draw all randomness from it and must be safe to call
 	// from the room goroutine only.
 	//
+	// avoid holds every word this match has already dealt. An implementation
+	// SHOULD return a pair sharing no word with it, and SHOULD skip the whole
+	// cluster each of those words came from rather than only the word — a
+	// player whose word repeats across rounds while the pairing moves has
+	// learned they hold the common one. It must still return a pair when it
+	// cannot honour that; running out of fresh clusters is not an error.
+	//
 	// An unrecognised difficulty falls back to DIFFICULTY_MEDIUM.
-	Pair(difficulty genpb.Difficulty, rnd *mrand.Rand) (a, b string)
+	Pair(difficulty genpb.Difficulty, rnd *mrand.Rand, avoid []string) (a, b string)
 }
 
 // Registry is the small callback surface the room needs from its owner.
@@ -423,11 +430,24 @@ type Room struct {
 	// Cleared at the start of every voting window.
 	votes map[string]string
 
-	// commonWord, imposterWord and imposterID are the dealt assignment. They are
-	// broadcast exactly once, in MatchEnded (DESIGN.md:75).
+	// commonWord and imposterWord are the CURRENT round's pair; every round
+	// deals a fresh one. imposterID is picked once, at match start, and pinned
+	// to that seat for the whole match — no round re-rolls it, which is what
+	// makes the accumulated suspicion across rounds mean anything.
+	//
+	// All three are broadcast exactly once, in MatchEnded (DESIGN.md:75).
 	commonWord   string
 	imposterWord string
 	imposterID   string
+
+	// history records every round's pair in order, so the final reveal can show
+	// the whole match rather than only the pair that happened to be live when it
+	// ended. Appended by assignWords, read by buildRoundWords and buildReveals.
+	//
+	// This holds words, but it is not a second reader of Player.word: assignWords
+	// writes it from the pair it just drew, so the structural defense in view.go
+	// still stands.
+	history []roundWords
 
 	// endReason and winner are set when the match resolves.
 	winner    genpb.WinnerSide

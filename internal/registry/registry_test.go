@@ -17,7 +17,7 @@ import (
 
 type testDeck struct{}
 
-func (testDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) { return "CAT", "DOG" }
+func (testDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) { return "CAT", "DOG" }
 
 func testConfig(cfg Config) Config {
 	cfg.NewDeck = func() room.Deck { return testDeck{} }

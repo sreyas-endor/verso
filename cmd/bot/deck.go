@@ -43,7 +43,7 @@ func NewCanaryDeck(prefix string) *CanaryDeck {
 
 // Pair implements room.Deck. The difficulty tier is echoed into the word so a
 // misrouted deck tier would be visible in the reveal.
-func (d *CanaryDeck) Pair(difficulty genpb.Difficulty, rnd *mrand.Rand) (string, string) {
+func (d *CanaryDeck) Pair(difficulty genpb.Difficulty, rnd *mrand.Rand, _ []string) (string, string) {
 	d.mu.Lock()
 	n := d.n
 	d.n++

@@ -126,7 +126,11 @@ const (
 	Phase_PHASE_UNSPECIFIED Phase = 0
 	// Pre-match: players join, set ready, host edits settings.
 	Phase_PHASE_LOBBY Phase = 1
-	// Words dealt; each player is shown their own word and nothing else.
+	// Words dealt; each player is shown their own word and nothing else. Opens
+	// EVERY round, not just the match: each round wipes the canvas and deals a
+	// fresh pair. PhaseChanged.round tells the two apart — 0 is the match
+	// opening, n >= 1 is the reveal for round n+1, so a client can archive the
+	// finished canvas before clearing it.
 	Phase_PHASE_ASSIGNING Phase = 2
 	// One turn per active player, turn order reshuffled every round.
 	Phase_PHASE_DRAWING Phase = 3
@@ -2232,22 +2236,95 @@ func (x *PlayerEliminated) GetWasImposter() bool {
 	return false
 }
 
+// One round's pair, revealed only when the match is over. Every round deals a
+// fresh pair from a different cluster (DESIGN.md:36), so a match has as many
+// of these as it played rounds.
+type RoundWords struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1-based, and always equal to this message's position in
+	// MatchEnded.rounds + 1. Carried explicitly so a reader never has to infer
+	// it from an index.
+	Round         int32  `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
+	CommonWord    string `protobuf:"bytes,2,opt,name=common_word,json=commonWord,proto3" json:"common_word,omitempty"`
+	ImposterWord  string `protobuf:"bytes,3,opt,name=imposter_word,json=imposterWord,proto3" json:"imposter_word,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundWords) Reset() {
+	*x = RoundWords{}
+	mi := &file_verso_v1_game_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundWords) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundWords) ProtoMessage() {}
+
+func (x *RoundWords) ProtoReflect() protoreflect.Message {
+	mi := &file_verso_v1_game_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundWords.ProtoReflect.Descriptor instead.
+func (*RoundWords) Descriptor() ([]byte, []int) {
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RoundWords) GetRound() int32 {
+	if x != nil {
+		return x.Round
+	}
+	return 0
+}
+
+func (x *RoundWords) GetCommonWord() string {
+	if x != nil {
+		return x.CommonWord
+	}
+	return ""
+}
+
+func (x *RoundWords) GetImposterWord() string {
+	if x != nil {
+		return x.ImposterWord
+	}
+	return ""
+}
+
 // One row of the final reveal (DESIGN.md:75).
 type PlayerReveal struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	PlayerId string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
 	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Safe here and nowhere else: the match is over.
-	Word          string `protobuf:"bytes,3,opt,name=word,proto3" json:"word,omitempty"`
-	WasImposter   bool   `protobuf:"varint,4,opt,name=was_imposter,json=wasImposter,proto3" json:"was_imposter,omitempty"`
-	Eliminated    bool   `protobuf:"varint,5,opt,name=eliminated,proto3" json:"eliminated,omitempty"`
+	// The word this player held in the LAST round they were dealt into, which
+	// for anyone still standing is the final round. Safe here and nowhere else:
+	// the match is over.
+	Word        string `protobuf:"bytes,3,opt,name=word,proto3" json:"word,omitempty"`
+	WasImposter bool   `protobuf:"varint,4,opt,name=was_imposter,json=wasImposter,proto3" json:"was_imposter,omitempty"`
+	Eliminated  bool   `protobuf:"varint,5,opt,name=eliminated,proto3" json:"eliminated,omitempty"`
+	// This player's word for every round, positionally aligned with
+	// MatchEnded.rounds — words[i] belongs to rounds[i]. Empty string for a
+	// round this player was not dealt into, which is every round after the one
+	// that eliminated them.
+	Words         []string `protobuf:"bytes,6,rep,name=words,proto3" json:"words,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlayerReveal) Reset() {
 	*x = PlayerReveal{}
-	mi := &file_verso_v1_game_proto_msgTypes[25]
+	mi := &file_verso_v1_game_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2259,7 +2336,7 @@ func (x *PlayerReveal) String() string {
 func (*PlayerReveal) ProtoMessage() {}
 
 func (x *PlayerReveal) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[25]
+	mi := &file_verso_v1_game_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2272,7 +2349,7 @@ func (x *PlayerReveal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerReveal.ProtoReflect.Descriptor instead.
 func (*PlayerReveal) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{25}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PlayerReveal) GetPlayerId() string {
@@ -2310,25 +2387,40 @@ func (x *PlayerReveal) GetEliminated() bool {
 	return false
 }
 
+func (x *PlayerReveal) GetWords() []string {
+	if x != nil {
+		return x.Words
+	}
+	return nil
+}
+
 // Final reveal. This is the ONLY broadcast that carries assigned words, and it
 // is emitted only in PHASE_ENDED.
 type MatchEnded struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Winner           WinnerSide             `protobuf:"varint,1,opt,name=winner,proto3,enum=verso.v1.WinnerSide" json:"winner,omitempty"`
-	Reason           MatchEndReason         `protobuf:"varint,2,opt,name=reason,proto3,enum=verso.v1.MatchEndReason" json:"reason,omitempty"`
-	CommonWord       string                 `protobuf:"bytes,3,opt,name=common_word,json=commonWord,proto3" json:"common_word,omitempty"`
-	ImposterWord     string                 `protobuf:"bytes,4,opt,name=imposter_word,json=imposterWord,proto3" json:"imposter_word,omitempty"`
-	ImposterPlayerId string                 `protobuf:"bytes,5,opt,name=imposter_player_id,json=imposterPlayerId,proto3" json:"imposter_player_id,omitempty"`
-	// Every player who was dealt a word, eliminated or not.
-	Reveals       []*PlayerReveal `protobuf:"bytes,6,rep,name=reveals,proto3" json:"reveals,omitempty"`
-	RoundsPlayed  int32           `protobuf:"varint,7,opt,name=rounds_played,json=roundsPlayed,proto3" json:"rounds_played,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Winner WinnerSide             `protobuf:"varint,1,opt,name=winner,proto3,enum=verso.v1.WinnerSide" json:"winner,omitempty"`
+	Reason MatchEndReason         `protobuf:"varint,2,opt,name=reason,proto3,enum=verso.v1.MatchEndReason" json:"reason,omitempty"`
+	// The FINAL round's pair — the one that was live when the match ended. The
+	// whole match is in `rounds`; these two stay for the headline, which names
+	// one pair.
+	CommonWord   string `protobuf:"bytes,3,opt,name=common_word,json=commonWord,proto3" json:"common_word,omitempty"`
+	ImposterWord string `protobuf:"bytes,4,opt,name=imposter_word,json=imposterWord,proto3" json:"imposter_word,omitempty"`
+	// The imposter is picked once and pinned to that seat for the whole match.
+	// Every round re-deals the words; none of them re-rolls this.
+	ImposterPlayerId string `protobuf:"bytes,5,opt,name=imposter_player_id,json=imposterPlayerId,proto3" json:"imposter_player_id,omitempty"`
+	// Every player who was dealt a word in any round, eliminated or not.
+	Reveals      []*PlayerReveal `protobuf:"bytes,6,rep,name=reveals,proto3" json:"reveals,omitempty"`
+	RoundsPlayed int32           `protobuf:"varint,7,opt,name=rounds_played,json=roundsPlayed,proto3" json:"rounds_played,omitempty"`
+	// Every round's pair, oldest first. len(rounds) == rounds_played whenever
+	// the match got past assignment.
+	Rounds        []*RoundWords `protobuf:"bytes,8,rep,name=rounds,proto3" json:"rounds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MatchEnded) Reset() {
 	*x = MatchEnded{}
-	mi := &file_verso_v1_game_proto_msgTypes[26]
+	mi := &file_verso_v1_game_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2340,7 +2432,7 @@ func (x *MatchEnded) String() string {
 func (*MatchEnded) ProtoMessage() {}
 
 func (x *MatchEnded) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[26]
+	mi := &file_verso_v1_game_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2353,7 +2445,7 @@ func (x *MatchEnded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchEnded.ProtoReflect.Descriptor instead.
 func (*MatchEnded) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{26}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *MatchEnded) GetWinner() WinnerSide {
@@ -2405,6 +2497,13 @@ func (x *MatchEnded) GetRoundsPlayed() int32 {
 	return 0
 }
 
+func (x *MatchEnded) GetRounds() []*RoundWords {
+	if x != nil {
+		return x.Rounds
+	}
+	return nil
+}
+
 // A player's connection state or host flag changed. Also the host-migration
 // announcement: the promoted player arrives here with is_host set.
 type PlayerPresence struct {
@@ -2418,7 +2517,7 @@ type PlayerPresence struct {
 
 func (x *PlayerPresence) Reset() {
 	*x = PlayerPresence{}
-	mi := &file_verso_v1_game_proto_msgTypes[27]
+	mi := &file_verso_v1_game_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2430,7 +2529,7 @@ func (x *PlayerPresence) String() string {
 func (*PlayerPresence) ProtoMessage() {}
 
 func (x *PlayerPresence) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[27]
+	mi := &file_verso_v1_game_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2443,7 +2542,7 @@ func (x *PlayerPresence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerPresence.ProtoReflect.Descriptor instead.
 func (*PlayerPresence) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{27}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PlayerPresence) GetPlayer() *PlayerInfo {
@@ -2472,7 +2571,7 @@ type Error struct {
 
 func (x *Error) Reset() {
 	*x = Error{}
-	mi := &file_verso_v1_game_proto_msgTypes[28]
+	mi := &file_verso_v1_game_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2484,7 +2583,7 @@ func (x *Error) String() string {
 func (*Error) ProtoMessage() {}
 
 func (x *Error) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[28]
+	mi := &file_verso_v1_game_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2497,7 +2596,7 @@ func (x *Error) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Error.ProtoReflect.Descriptor instead.
 func (*Error) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{28}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Error) GetCode() ErrorCode {
@@ -2534,7 +2633,7 @@ type Joined struct {
 
 func (x *Joined) Reset() {
 	*x = Joined{}
-	mi := &file_verso_v1_game_proto_msgTypes[29]
+	mi := &file_verso_v1_game_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2546,7 +2645,7 @@ func (x *Joined) String() string {
 func (*Joined) ProtoMessage() {}
 
 func (x *Joined) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[29]
+	mi := &file_verso_v1_game_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2559,7 +2658,7 @@ func (x *Joined) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Joined.ProtoReflect.Descriptor instead.
 func (*Joined) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{29}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Joined) GetRoomCode() string {
@@ -2619,16 +2718,20 @@ func (x *Joined) GetProtocolVersion() int32 {
 // Its Go wrapper has no broadcastSafe() method, so Broadcast(EvYourWord{...})
 // fails at compile time.
 type YourWord struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Word          string                 `protobuf:"bytes,1,opt,name=word,proto3" json:"word,omitempty"`
-	Round         int32                  `protobuf:"varint,2,opt,name=round,proto3" json:"round,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Word  string                 `protobuf:"bytes,1,opt,name=word,proto3" json:"word,omitempty"`
+	// The round this word is for, 1-based. Every round deals a fresh pair, so a
+	// player receives one of these per round, during the PHASE_ASSIGNING reveal
+	// that opens it. A client MUST replace the word it is holding rather than
+	// treat a second YourWord as a duplicate.
+	Round         int32 `protobuf:"varint,2,opt,name=round,proto3" json:"round,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *YourWord) Reset() {
 	*x = YourWord{}
-	mi := &file_verso_v1_game_proto_msgTypes[30]
+	mi := &file_verso_v1_game_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2640,7 +2743,7 @@ func (x *YourWord) String() string {
 func (*YourWord) ProtoMessage() {}
 
 func (x *YourWord) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[30]
+	mi := &file_verso_v1_game_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2653,7 +2756,7 @@ func (x *YourWord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use YourWord.ProtoReflect.Descriptor instead.
 func (*YourWord) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{30}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *YourWord) GetWord() string {
@@ -2712,7 +2815,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_verso_v1_game_proto_msgTypes[31]
+	mi := &file_verso_v1_game_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2724,7 +2827,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[31]
+	mi := &file_verso_v1_game_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2737,7 +2840,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{31}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *Snapshot) GetRoomCode() string {
@@ -2886,7 +2989,7 @@ type SpectatorInfo struct {
 
 func (x *SpectatorInfo) Reset() {
 	*x = SpectatorInfo{}
-	mi := &file_verso_v1_game_proto_msgTypes[32]
+	mi := &file_verso_v1_game_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2898,7 +3001,7 @@ func (x *SpectatorInfo) String() string {
 func (*SpectatorInfo) ProtoMessage() {}
 
 func (x *SpectatorInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[32]
+	mi := &file_verso_v1_game_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2911,7 +3014,7 @@ func (x *SpectatorInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpectatorInfo.ProtoReflect.Descriptor instead.
 func (*SpectatorInfo) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{32}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *SpectatorInfo) GetImposterPlayerId() string {
@@ -2943,7 +3046,7 @@ type VoteAccepted struct {
 
 func (x *VoteAccepted) Reset() {
 	*x = VoteAccepted{}
-	mi := &file_verso_v1_game_proto_msgTypes[33]
+	mi := &file_verso_v1_game_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2955,7 +3058,7 @@ func (x *VoteAccepted) String() string {
 func (*VoteAccepted) ProtoMessage() {}
 
 func (x *VoteAccepted) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[33]
+	mi := &file_verso_v1_game_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2968,7 +3071,7 @@ func (x *VoteAccepted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VoteAccepted.ProtoReflect.Descriptor instead.
 func (*VoteAccepted) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{33}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *VoteAccepted) GetRound() int32 {
@@ -3026,7 +3129,7 @@ type ServerEvent struct {
 
 func (x *ServerEvent) Reset() {
 	*x = ServerEvent{}
-	mi := &file_verso_v1_game_proto_msgTypes[34]
+	mi := &file_verso_v1_game_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3038,7 +3141,7 @@ func (x *ServerEvent) String() string {
 func (*ServerEvent) ProtoMessage() {}
 
 func (x *ServerEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_verso_v1_game_proto_msgTypes[34]
+	mi := &file_verso_v1_game_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3051,7 +3154,7 @@ func (x *ServerEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerEvent.ProtoReflect.Descriptor instead.
 func (*ServerEvent) Descriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{34}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ServerEvent) GetCid() string {
@@ -3502,7 +3605,13 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"eliminated\x18\x02 \x01(\bR\n" +
 	"eliminated\x12\x1b\n" +
 	"\tplayer_id\x18\x03 \x01(\tR\bplayerId\x12!\n" +
-	"\fwas_imposter\x18\x04 \x01(\bR\vwasImposter\"\x96\x01\n" +
+	"\fwas_imposter\x18\x04 \x01(\bR\vwasImposter\"h\n" +
+	"\n" +
+	"RoundWords\x12\x14\n" +
+	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x1f\n" +
+	"\vcommon_word\x18\x02 \x01(\tR\n" +
+	"commonWord\x12#\n" +
+	"\rimposter_word\x18\x03 \x01(\tR\fimposterWord\"\xac\x01\n" +
 	"\fPlayerReveal\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -3510,7 +3619,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\fwas_imposter\x18\x04 \x01(\bR\vwasImposter\x12\x1e\n" +
 	"\n" +
 	"eliminated\x18\x05 \x01(\bR\n" +
-	"eliminated\"\xb7\x02\n" +
+	"eliminated\x12\x14\n" +
+	"\x05words\x18\x06 \x03(\tR\x05words\"\xe5\x02\n" +
 	"\n" +
 	"MatchEnded\x12,\n" +
 	"\x06winner\x18\x01 \x01(\x0e2\x14.verso.v1.WinnerSideR\x06winner\x120\n" +
@@ -3520,7 +3630,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\rimposter_word\x18\x04 \x01(\tR\fimposterWord\x12,\n" +
 	"\x12imposter_player_id\x18\x05 \x01(\tR\x10imposterPlayerId\x120\n" +
 	"\areveals\x18\x06 \x03(\v2\x16.verso.v1.PlayerRevealR\areveals\x12#\n" +
-	"\rrounds_played\x18\a \x01(\x05R\froundsPlayed\"v\n" +
+	"\rrounds_played\x18\a \x01(\x05R\froundsPlayed\x12,\n" +
+	"\x06rounds\x18\b \x03(\v2\x14.verso.v1.RoundWordsR\x06rounds\"v\n" +
 	"\x0ePlayerPresence\x12,\n" +
 	"\x06player\x18\x01 \x01(\v2\x14.verso.v1.PlayerInfoR\x06player\x126\n" +
 	"\x17grace_seconds_remaining\x18\x02 \x01(\x05R\x15graceSecondsRemaining\"J\n" +
@@ -3656,7 +3767,7 @@ func file_verso_v1_game_proto_rawDescGZIP() []byte {
 }
 
 var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_verso_v1_game_proto_goTypes = []any{
 	(Difficulty)(0),          // 0: verso.v1.Difficulty
 	(Phase)(0),               // 1: verso.v1.Phase
@@ -3688,16 +3799,17 @@ var file_verso_v1_game_proto_goTypes = []any{
 	(*VoteCount)(nil),        // 27: verso.v1.VoteCount
 	(*VoteTally)(nil),        // 28: verso.v1.VoteTally
 	(*PlayerEliminated)(nil), // 29: verso.v1.PlayerEliminated
-	(*PlayerReveal)(nil),     // 30: verso.v1.PlayerReveal
-	(*MatchEnded)(nil),       // 31: verso.v1.MatchEnded
-	(*PlayerPresence)(nil),   // 32: verso.v1.PlayerPresence
-	(*Error)(nil),            // 33: verso.v1.Error
-	(*Joined)(nil),           // 34: verso.v1.Joined
-	(*YourWord)(nil),         // 35: verso.v1.YourWord
-	(*Snapshot)(nil),         // 36: verso.v1.Snapshot
-	(*SpectatorInfo)(nil),    // 37: verso.v1.SpectatorInfo
-	(*VoteAccepted)(nil),     // 38: verso.v1.VoteAccepted
-	(*ServerEvent)(nil),      // 39: verso.v1.ServerEvent
+	(*RoundWords)(nil),       // 30: verso.v1.RoundWords
+	(*PlayerReveal)(nil),     // 31: verso.v1.PlayerReveal
+	(*MatchEnded)(nil),       // 32: verso.v1.MatchEnded
+	(*PlayerPresence)(nil),   // 33: verso.v1.PlayerPresence
+	(*Error)(nil),            // 34: verso.v1.Error
+	(*Joined)(nil),           // 35: verso.v1.Joined
+	(*YourWord)(nil),         // 36: verso.v1.YourWord
+	(*Snapshot)(nil),         // 37: verso.v1.Snapshot
+	(*SpectatorInfo)(nil),    // 38: verso.v1.SpectatorInfo
+	(*VoteAccepted)(nil),     // 39: verso.v1.VoteAccepted
+	(*ServerEvent)(nil),      // 40: verso.v1.ServerEvent
 }
 var file_verso_v1_game_proto_depIdxs = []int32{
 	0,  // 0: verso.v1.MatchSettings.difficulty:type_name -> verso.v1.Difficulty
@@ -3720,37 +3832,38 @@ var file_verso_v1_game_proto_depIdxs = []int32{
 	27, // 17: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
 	2,  // 18: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
 	3,  // 19: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
-	30, // 20: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
-	6,  // 21: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
-	4,  // 22: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
-	1,  // 23: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
-	5,  // 24: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
-	6,  // 25: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
-	7,  // 26: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
-	19, // 27: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
-	20, // 28: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
-	21, // 29: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
-	22, // 30: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
-	23, // 31: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
-	13, // 32: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
-	24, // 33: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
-	25, // 34: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
-	26, // 35: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
-	28, // 36: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
-	29, // 37: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
-	31, // 38: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
-	32, // 39: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
-	33, // 40: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
-	34, // 41: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
-	35, // 42: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
-	36, // 43: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
-	37, // 44: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
-	38, // 45: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
-	46, // [46:46] is the sub-list for method output_type
-	46, // [46:46] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	31, // 20: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
+	30, // 21: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
+	6,  // 22: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
+	4,  // 23: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
+	1,  // 24: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
+	5,  // 25: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
+	6,  // 26: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
+	7,  // 27: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
+	19, // 28: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
+	20, // 29: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
+	21, // 30: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
+	22, // 31: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
+	23, // 32: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
+	13, // 33: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
+	24, // 34: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
+	25, // 35: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
+	26, // 36: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
+	28, // 37: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
+	29, // 38: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
+	32, // 39: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
+	33, // 40: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
+	34, // 41: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
+	35, // 42: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
+	36, // 43: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
+	37, // 44: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
+	38, // 45: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
+	39, // 46: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
+	47, // [47:47] is the sub-list for method output_type
+	47, // [47:47] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_verso_v1_game_proto_init() }
@@ -3774,7 +3887,7 @@ func file_verso_v1_game_proto_init() {
 		(*ClientCommand_RequestSnapshot)(nil),
 		(*ClientCommand_Rematch)(nil),
 	}
-	file_verso_v1_game_proto_msgTypes[34].OneofWrappers = []any{
+	file_verso_v1_game_proto_msgTypes[35].OneofWrappers = []any{
 		(*ServerEvent_LobbyState)(nil),
 		(*ServerEvent_SettingsChanged)(nil),
 		(*ServerEvent_RoundStarted)(nil),
@@ -3801,7 +3914,7 @@ func file_verso_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_verso_v1_game_proto_rawDesc), len(file_verso_v1_game_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   35,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -32,7 +32,7 @@ import (
 // correctly declines to send.
 type boundaryDeck struct{}
 
-func (boundaryDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) {
+func (boundaryDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) {
 	return "BOUNDARY_ALPHA", "BOUNDARY_BETA"
 }
 

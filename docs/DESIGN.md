@@ -19,16 +19,20 @@ The group wins by eliminating the imposter. The imposter wins by surviving the f
   - Maximum rounds: 1–4; recommended default is 2.
   - Drawing time per turn: 5–60 seconds; recommended default is 15 seconds.
   - Discussion-and-decision time: 30–180 seconds; recommended default is 120 seconds.
-- The server randomly selects a word pair from the chosen difficulty deck.
+- The server randomly selects a word pair from the chosen difficulty deck, **once per round**.
 - The server randomly chooses which side of that pair is the common word.
 - Exactly one player receives the other word; all remaining players receive the common word.
+- **The imposter is chosen once, at the start of the match, and keeps that role for every round.** The words change; who holds the odd one does not.
+- Each round's pair must come from a cluster no earlier round in the match used, so no word is ever dealt twice. A player whose word repeated while the pairing moved would have learned they hold the common one.
 - No player is told their role, the full pair, or anyone else's word.
 
 ## Game Flow
 
 ### 1. Private Word Reveal
 
-Each player privately sees their word before the first round. The word remains available to that player during the match.
+Each player privately sees their word before **every** round, not only the first, because every round deals a new pair. The word remains available to that player for the rest of that round.
+
+Rounds after the first say so explicitly: the reveal names the round and states that the pair is new and the canvas is blank. A player who assumes their previous word carried over will draw the wrong thing.
 
 ### 2. Drawing Phase
 
@@ -38,7 +42,8 @@ Each player privately sees their word before the first round. The word remains a
 - All players can watch the drawing live.
 - The interface identifies the current artist while they draw.
 - The completed canvas does not retain artist labels, colors, or other attribution.
-- Every turn adds to the same persistent shared canvas.
+- Every turn of one round adds to the same shared canvas. **The canvas is wiped between rounds**: each round is a fresh pair on blank paper, and is argued on its own evidence.
+- Each round's finished canvas is kept for the final reveal.
 
 ### 3. Discussion and Decision Phase
 
@@ -76,11 +81,13 @@ After all active players have drawn:
 The result screen shows:
 
 - The winning side.
-- The common word and the imposter word.
-- Each player's assigned word.
-- The imposter's identity.
-- The final shared canvas.
+- **Every round's pair** — the common word and the imposter word for each round played, in order.
+- **Each player's word for each round.** A round a player had already been eliminated out of shows a blank, which is distinct from having held the common word.
+- The imposter's identity, which is the same player for the whole match.
+- **Every round's canvas**, as a filmstrip: the final round shown full size, the rest as thumbnails beneath it, any of which can be promoted. The PNG export saves the promoted round.
 - A replay option that returns players to the lobby.
+
+A player who was disconnected across a round boundary is missing that round's thumbnail. The archive is built from the frames that client saw, and a reconnect snapshot carries only the round in progress.
 
 ## Canvas Rules
 
@@ -242,7 +249,7 @@ turn changes are carried by sound as well as by the screen.
   | The match ended | A win or a loss flourish, per your own side |
   | Voting opened | One chord |
   | The tally arrived | Two falling notes |
-  | Words were dealt | Two rising notes, quiet |
+  | Words were dealt, at the start of every round | Two rising notes, quiet |
   | Another player took the pen | One mid note, quiet |
   | A handoff that is not about you | One low note, quietest |
 
@@ -281,7 +288,9 @@ turn changes are carried by sound as well as by the screen.
 
 With 10 players at the default configuration, two rounds take approximately nine minutes before result screens:
 
-`(10 players × 15 seconds drawing + 120 seconds discussion/decision) × 2 rounds`
+`(6 seconds word reveal + 10 players × 15 seconds drawing + 120 seconds discussion/decision) × 2 rounds`
+
+The word reveal is per round rather than per match, so raising the round ceiling costs 6 seconds a round on top of the drawing and discussion time. At the 4-round maximum that is 24 seconds of the total, which is why it was not given a host-facing setting.
 
 ## Validation Plan
 

@@ -33,6 +33,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -68,15 +69,19 @@ func (l Leak) String() string {
 // is shared by every bot at one table, so it is the one place in this package
 // that needs a mutex.
 type Watchdog struct {
-	mu     sync.Mutex
-	words  map[string]string // playerID -> assigned word
-	tokens map[string]string // playerID -> seat token
+	mu sync.Mutex
+	// words holds EVERY word a player has been dealt, not just their current
+	// one. A match deals a fresh pair each round, and an earlier round's word
+	// is every bit as secret as the live one: dropping it on overwrite would
+	// stop the scanner watching for it the moment the next round began.
+	words  map[string][]string // playerID -> every word dealt, in order
+	tokens map[string]string   // playerID -> seat token
 	leaks  []Leak
 }
 
 func NewWatchdog() *Watchdog {
 	return &Watchdog{
-		words:  make(map[string]string),
+		words:  make(map[string][]string),
 		tokens: make(map[string]string),
 	}
 }
@@ -91,24 +96,28 @@ func (w *Watchdog) RegisterToken(playerID, token string) {
 	w.tokens[playerID] = token
 }
 
-// RegisterWord records a bot's assigned word. Called as soon as YourWord
-// arrives.
+// RegisterWord records a word a bot was dealt. Called as soon as YourWord
+// arrives, once per round. Words accumulate: every one this player has held
+// stays under watch for the rest of the match.
 func (w *Watchdog) RegisterWord(playerID, word string) {
 	if playerID == "" || word == "" {
 		return
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.words[playerID] = word
+	if slices.Contains(w.words[playerID], word) {
+		return
+	}
+	w.words[playerID] = append(w.words[playerID], word)
 }
 
-// Words returns a copy of everything registered so far.
-func (w *Watchdog) Words() map[string]string {
+// Words returns a copy of everything registered so far, oldest word first.
+func (w *Watchdog) Words() map[string][]string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	out := make(map[string]string, len(w.words))
+	out := make(map[string][]string, len(w.words))
 	for k, v := range w.words {
-		out[k] = v
+		out[k] = slices.Clone(v)
 	}
 	return out
 }
@@ -123,12 +132,17 @@ func (w *Watchdog) Leaks() []Leak {
 // Inspect checks one frame against every secret registered at this table and
 // records — and returns — anything it should not contain.
 //
-// observer is the player whose socket received it; ownWord is that player's own
-// word, which is legitimate in its own YourWord and Snapshot and in nothing
-// else. MatchEnded is exempt from the word scan entirely: it is the final
+// observer is the player whose socket received it; ownWords is every word that
+// player has been dealt, each legitimate in its own YourWord and Snapshot and
+// in nothing else. It is a set rather than one word because a match deals a
+// fresh pair every round, and SweepAll re-reads round 1's frames with the whole
+// history in hand — judged against the final round's word alone, a player's own
+// round-1 YourWord would read as somebody else's secret.
+//
+// MatchEnded is exempt from the word scan entirely: it is the final
 // reveal, the one broadcast the protocol allows to carry every word, and it is
 // only ever emitted in PHASE_ENDED (game.proto MatchEnded).
-func (w *Watchdog) Inspect(observer, ownWord string, ev *genpb.ServerEvent) []Leak {
+func (w *Watchdog) Inspect(observer string, ownWords []string, ev *genpb.ServerEvent) []Leak {
 	if ev == nil {
 		return nil
 	}
@@ -156,20 +170,25 @@ func (w *Watchdog) Inspect(observer, ownWord string, ev *genpb.ServerEvent) []Le
 	}
 
 	if _, exempt := ev.GetEvt().(*genpb.ServerEvent_MatchEnded); !exempt {
-		for owner, word := range w.words {
-			if owner == observer || word == ownWord {
-				// Either the recipient's own secret, or a word they already
-				// hold — two players sharing the common word are
-				// indistinguishable and nothing has been disclosed.
+		for owner, owned := range w.words {
+			if owner == observer {
 				continue
 			}
-			if how := needles.find(word); how != "" {
-				record(owner, "word", how)
-				continue
-			}
-			if len(word) >= fullScanMinLen {
-				if how := fullNeedles.find(word); how != "" {
-					record(owner, "word", how+"/coords")
+			for _, word := range owned {
+				// A word the observer holds, or has held in an earlier round,
+				// is not a disclosure: everyone but the imposter shares the
+				// common word, and those players are indistinguishable.
+				if slices.Contains(ownWords, word) {
+					continue
+				}
+				if how := needles.find(word); how != "" {
+					record(owner, "word", how)
+					continue
+				}
+				if len(word) >= fullScanMinLen {
+					if how := fullNeedles.find(word); how != "" {
+						record(owner, "word", how+"/coords")
+					}
 				}
 			}
 		}
@@ -192,10 +211,10 @@ func (w *Watchdog) Inspect(observer, ownWord string, ev *genpb.ServerEvent) []Le
 // SweepAll re-runs the word scan over a recorded transcript with the complete
 // set of secrets. The live Inspect can only test against what was registered by
 // the time a frame arrived; this closes the early-match window.
-func (w *Watchdog) SweepAll(observer, ownWord string, frames []*genpb.ServerEvent) []Leak {
+func (w *Watchdog) SweepAll(observer string, ownWords []string, frames []*genpb.ServerEvent) []Leak {
 	var out []Leak
 	for _, ev := range frames {
-		out = append(out, w.Inspect(observer, ownWord, ev)...)
+		out = append(out, w.Inspect(observer, ownWords, ev)...)
 	}
 	return out
 }

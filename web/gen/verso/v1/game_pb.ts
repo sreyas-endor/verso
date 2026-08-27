@@ -51,7 +51,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file verso/v1/game.proto.
  */
 export const file_verso_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("ChN2ZXJzby92MS9nYW1lLnByb3RvEgh2ZXJzby52MSKaAQoNTWF0Y2hTZXR0aW5ncxIoCgpkaWZmaWN1bHR5GAEgASgOMhQudmVyc28udjEuRGlmZmljdWx0eRISCgptYXhfcm91bmRzGAIgASgFEhQKDGRyYXdfc2Vjb25kcxgDIAEoBRIXCg9kaXNjdXNzX3NlY29uZHMYBCABKAUSHAoUaW50ZXJtaXNzaW9uX3NlY29uZHMYBSABKAUiewoKUGxheWVySW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHNlYXQYAyABKAUSEQoJY29ubmVjdGVkGAQgASgIEg0KBXJlYWR5GAUgASgIEg8KB2lzX2hvc3QYBiABKAgSEgoKZWxpbWluYXRlZBgHIAEoCCJPCgZTdHJva2USEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoESJhCghKb2luUm9vbRIRCglyb29tX2NvZGUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhIKCnNlYXRfdG9rZW4YAyABKAkSGAoQcHJvdG9jb2xfdmVyc2lvbhgEIAEoBSIZCghTZXRSZWFkeRINCgVyZWFkeRgBIAEoCCI7Cg5VcGRhdGVTZXR0aW5ncxIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiDAoKU3RhcnRNYXRjaCJBCgtTdHJva2VCZWdpbhITCgtjb2xvcl9pbmRleBgBIAEoBRINCgV3aWR0aBgCIAEoBRIOCgZwb2ludHMYAyADKBEiPgoMU3Ryb2tlUG9pbnRzEhEKCXN0cm9rZV9pZBgBIAEoBRIOCgZwb2ludHMYAiADKBESCwoDc2VxGAMgASgFIhsKCVN0cm9rZUVuZBIOCgZwb2ludHMYASADKBEiPAoIQ2FzdFZvdGUSFgoMY2FuZGlkYXRlX2lkGAEgASgJSAASDgoEc2tpcBgCIAEoCEgAQggKBmNob2ljZSIjCg9SZXF1ZXN0U25hcHNob3QSEAoIaGF2ZV9zZXEYASABKAUiCQoHUmVtYXRjaCLjAwoNQ2xpZW50Q29tbWFuZBILCgNjaWQYASABKAkSIgoEam9pbhgCIAEoCzISLnZlcnNvLnYxLkpvaW5Sb29tSAASJwoJc2V0X3JlYWR5GAMgASgLMhIudmVyc28udjEuU2V0UmVhZHlIABIzCg91cGRhdGVfc2V0dGluZ3MYBCABKAsyGC52ZXJzby52MS5VcGRhdGVTZXR0aW5nc0gAEisKC3N0YXJ0X21hdGNoGAUgASgLMhQudmVyc28udjEuU3RhcnRNYXRjaEgAEi0KDHN0cm9rZV9iZWdpbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2luSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEikKCnN0cm9rZV9lbmQYCCABKAsyEy52ZXJzby52MS5TdHJva2VFbmRIABInCgljYXN0X3ZvdGUYCSABKAsyEi52ZXJzby52MS5DYXN0Vm90ZUgAEjUKEHJlcXVlc3Rfc25hcHNob3QYCiABKAsyGS52ZXJzby52MS5SZXF1ZXN0U25hcHNob3RIABIkCgdyZW1hdGNoGAsgASgLMhEudmVyc28udjEuUmVtYXRjaEgAQgUKA2NtZCLOAQoKTG9iYnlTdGF0ZRIRCglyb29tX2NvZGUYASABKAkSJQoHcGxheWVycxgCIAMoCzIULnZlcnNvLnYxLlBsYXllckluZm8SKQoIc2V0dGluZ3MYAyABKAsyFy52ZXJzby52MS5NYXRjaFNldHRpbmdzEh4KBXBoYXNlGAQgASgOMg8udmVyc28udjEuUGhhc2USEwoLbWluX3BsYXllcnMYBSABKAUSEwoLbWF4X3BsYXllcnMYBiABKAUSEQoJY2FuX3N0YXJ0GAcgASgIIjwKD1NldHRpbmdzQ2hhbmdlZBIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiXQoMUm91bmRTdGFydGVkEg0KBXJvdW5kGAEgASgFEhQKDHRvdGFsX3JvdW5kcxgCIAEoBRISCgp0dXJuX29yZGVyGAMgAygJEhQKDGFjdGl2ZV9jb3VudBgEIAEoBSJuCgtUdXJuU3RhcnRlZBINCgVyb3VuZBgBIAEoBRISCgp0dXJuX2luZGV4GAIgASgFEhEKCWFydGlzdF9pZBgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoBRIUCgxyZW1haW5pbmdfbXMYBSABKAUiYQoLU3Ryb2tlQmVnYW4SEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoERILCgNzZXEYBSABKAUiPQoLU3Ryb2tlRW5kZWQSEQoJc3Ryb2tlX2lkGAEgASgFEg4KBnBvaW50cxgCIAMoERILCgNzZXEYAyABKAUigAEKDFBoYXNlQ2hhbmdlZBIeCgVwaGFzZRgBIAEoDjIPLnZlcnNvLnYxLlBoYXNlEg0KBXJvdW5kGAIgASgFEhMKC2R1cmF0aW9uX21zGAMgASgFEhQKDHJlbWFpbmluZ19tcxgEIAEoBRIWCg5uZXh0X2FydGlzdF9pZBgFIAEoCSJICg1Wb3RlQ2FzdENvdW50Eg0KBXJvdW5kGAEgASgFEhIKCnZvdGVzX2Nhc3QYAiABKAUSFAoMYWN0aXZlX2NvdW50GAMgASgFIjAKCVZvdGVDb3VudBIUCgxjYW5kaWRhdGVfaWQYASABKAkSDQoFdm90ZXMYAiABKAUiiQEKCVZvdGVUYWxseRINCgVyb3VuZBgBIAEoBRIjCgZjb3VudHMYAiADKAsyEy52ZXJzby52MS5Wb3RlQ291bnQSEgoKc2tpcF9jb3VudBgDIAEoBRIUCgxhY3RpdmVfY291bnQYBCABKAUSHgoSbWFqb3JpdHlfdGhyZXNob2xkGAUgASgFQgIYASJeChBQbGF5ZXJFbGltaW5hdGVkEg0KBXJvdW5kGAEgASgFEhIKCmVsaW1pbmF0ZWQYAiABKAgSEQoJcGxheWVyX2lkGAMgASgJEhQKDHdhc19pbXBvc3RlchgEIAEoCCJnCgxQbGF5ZXJSZXZlYWwSEQoJcGxheWVyX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEd29yZBgDIAEoCRIUCgx3YXNfaW1wb3N0ZXIYBCABKAgSEgoKZWxpbWluYXRlZBgFIAEoCCLkAQoKTWF0Y2hFbmRlZBIkCgZ3aW5uZXIYASABKA4yFC52ZXJzby52MS5XaW5uZXJTaWRlEigKBnJlYXNvbhgCIAEoDjIYLnZlcnNvLnYxLk1hdGNoRW5kUmVhc29uEhMKC2NvbW1vbl93b3JkGAMgASgJEhUKDWltcG9zdGVyX3dvcmQYBCABKAkSGgoSaW1wb3N0ZXJfcGxheWVyX2lkGAUgASgJEicKB3JldmVhbHMYBiADKAsyFi52ZXJzby52MS5QbGF5ZXJSZXZlYWwSFQoNcm91bmRzX3BsYXllZBgHIAEoBSJXCg5QbGF5ZXJQcmVzZW5jZRIkCgZwbGF5ZXIYASABKAsyFC52ZXJzby52MS5QbGF5ZXJJbmZvEh8KF2dyYWNlX3NlY29uZHNfcmVtYWluaW5nGAIgASgFIjsKBUVycm9yEiEKBGNvZGUYASABKA4yEy52ZXJzby52MS5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCSKZAQoGSm9pbmVkEhEKCXJvb21fY29kZRgBIAEoCRIRCglwbGF5ZXJfaWQYAiABKAkSEgoKc2VhdF90b2tlbhgDIAEoCRIVCg1ncmFjZV9zZWNvbmRzGAQgASgFEg8KB2lzX2hvc3QYBSABKAgSEwoLcmVjb25uZWN0ZWQYBiABKAgSGAoQcHJvdG9jb2xfdmVyc2lvbhgHIAEoBSInCghZb3VyV29yZBIMCgR3b3JkGAEgASgJEg0KBXJvdW5kGAIgASgFItEDCghTbmFwc2hvdBIRCglyb29tX2NvZGUYASABKAkSEQoJcGxheWVyX2lkGAIgASgJEh4KBXBoYXNlGAMgASgOMg8udmVyc28udjEuUGhhc2USDQoFcm91bmQYBCABKAUSFAoMdG90YWxfcm91bmRzGAUgASgFEikKCHNldHRpbmdzGAYgASgLMhcudmVyc28udjEuTWF0Y2hTZXR0aW5ncxIlCgdwbGF5ZXJzGAcgAygLMhQudmVyc28udjEuUGxheWVySW5mbxISCgp0dXJuX29yZGVyGAggAygJEhIKCnR1cm5faW5kZXgYCSABKAUSEQoJYXJ0aXN0X2lkGAogASgJEhQKDHJlbWFpbmluZ19tcxgLIAEoBRIhCgdzdHJva2VzGAwgAygLMhAudmVyc28udjEuU3Ryb2tlEgsKA3NlcRgNIAEoBRIRCgl5b3VyX3dvcmQYDiABKAkSGgoSeW91X2FyZV9lbGltaW5hdGVkGA8gASgIEhYKDnlvdV9oYXZlX3ZvdGVkGBAgASgIEhIKCnZvdGVzX2Nhc3QYESABKAUSFAoMYWN0aXZlX2NvdW50GBIgASgFEhYKDm5leHRfYXJ0aXN0X2lkGBMgASgJIkIKDVNwZWN0YXRvckluZm8SGgoSaW1wb3N0ZXJfcGxheWVyX2lkGAEgASgJEhUKDWltcG9zdGVyX25hbWUYAiABKAkiQQoMVm90ZUFjY2VwdGVkEg0KBXJvdW5kGAEgASgFEhQKDGNhbmRpZGF0ZV9pZBgCIAEoCRIMCgRza2lwGAMgASgIIpoHCgtTZXJ2ZXJFdmVudBILCgNjaWQYASABKAkSKwoLbG9iYnlfc3RhdGUYAiABKAsyFC52ZXJzby52MS5Mb2JieVN0YXRlSAASNQoQc2V0dGluZ3NfY2hhbmdlZBgDIAEoCzIZLnZlcnNvLnYxLlNldHRpbmdzQ2hhbmdlZEgAEi8KDXJvdW5kX3N0YXJ0ZWQYBCABKAsyFi52ZXJzby52MS5Sb3VuZFN0YXJ0ZWRIABItCgx0dXJuX3N0YXJ0ZWQYBSABKAsyFS52ZXJzby52MS5UdXJuU3RhcnRlZEgAEi0KDHN0cm9rZV9iZWdhbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2FuSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEi0KDHN0cm9rZV9lbmRlZBgIIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUVuZGVkSAASLwoNcGhhc2VfY2hhbmdlZBgJIAEoCzIWLnZlcnNvLnYxLlBoYXNlQ2hhbmdlZEgAEjIKD3ZvdGVfY2FzdF9jb3VudBgKIAEoCzIXLnZlcnNvLnYxLlZvdGVDYXN0Q291bnRIABIpCgp2b3RlX3RhbGx5GAsgASgLMhMudmVyc28udjEuVm90ZVRhbGx5SAASNwoRcGxheWVyX2VsaW1pbmF0ZWQYDCABKAsyGi52ZXJzby52MS5QbGF5ZXJFbGltaW5hdGVkSAASKwoLbWF0Y2hfZW5kZWQYDSABKAsyFC52ZXJzby52MS5NYXRjaEVuZGVkSAASMwoPcGxheWVyX3ByZXNlbmNlGA4gASgLMhgudmVyc28udjEuUGxheWVyUHJlc2VuY2VIABIgCgVlcnJvchgPIAEoCzIPLnZlcnNvLnYxLkVycm9ySAASIgoGam9pbmVkGBAgASgLMhAudmVyc28udjEuSm9pbmVkSAASJwoJeW91cl93b3JkGBEgASgLMhIudmVyc28udjEuWW91cldvcmRIABImCghzbmFwc2hvdBgSIAEoCzISLnZlcnNvLnYxLlNuYXBzaG90SAASMQoOc3BlY3RhdG9yX2luZm8YEyABKAsyFy52ZXJzby52MS5TcGVjdGF0b3JJbmZvSAASLwoNdm90ZV9hY2NlcHRlZBgUIAEoCzIWLnZlcnNvLnYxLlZvdGVBY2NlcHRlZEgAQgUKA2V2dCppCgpEaWZmaWN1bHR5EhoKFkRJRkZJQ1VMVFlfVU5TUEVDSUZJRUQQABITCg9ESUZGSUNVTFRZX0VBU1kQARIVChFESUZGSUNVTFRZX01FRElVTRACEhMKD0RJRkZJQ1VMVFlfSEFSRBADKqsBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEg8KC1BIQVNFX0xPQkJZEAESEwoPUEhBU0VfQVNTSUdOSU5HEAISEQoNUEhBU0VfRFJBV0lORxADEhQKEFBIQVNFX0RJU0NVU1NJT04QBBITCg9QSEFTRV9SRVNPTFZJTkcQBRIPCgtQSEFTRV9FTkRFRBAGEhYKElBIQVNFX0lOVEVSTUlTU0lPThAHKloKCldpbm5lclNpZGUSGwoXV0lOTkVSX1NJREVfVU5TUEVDSUZJRUQQABIVChFXSU5ORVJfU0lERV9HUk9VUBABEhgKFFdJTk5FUl9TSURFX0lNUE9TVEVSEAIq/AEKDk1hdGNoRW5kUmVhc29uEiAKHE1BVENIX0VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIoCiRNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0VMSU1JTkFURUQQARIpCiVNQVRDSF9FTkRfUkVBU09OX0ZJTkFMX1JPVU5EX1NVUlZJVkVEEAISJwojTUFUQ0hfRU5EX1JFQVNPTl9UV09fUExBWUVSU19SRU1BSU4QAxIqCiZNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0RJU0NPTk5FQ1RFRBAEEh4KGk1BVENIX0VORF9SRUFTT05fQUJBTkRPTkVEEAUq4AMKCUVycm9yQ29kZRIaChZFUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASHQoZRVJST1JfQ09ERV9ST09NX05PVF9GT1VORBABEhgKFEVSUk9SX0NPREVfUk9PTV9GVUxMEAISIAocRVJST1JfQ09ERV9NQVRDSF9JTl9QUk9HUkVTUxADEhcKE0VSUk9SX0NPREVfQkFEX1NFQVQQBBIXChNFUlJPUl9DT0RFX05PVF9IT1NUEAUSGQoVRVJST1JfQ09ERV9OT1RfQVJUSVNUEAYSHAoYRVJST1JfQ09ERV9BTFJFQURZX1ZPVEVEEAcSHwobRVJST1JfQ09ERV9JTlZBTElEX1NFVFRJTkdTEAgSIQodRVJST1JfQ09ERV9OT1RfRU5PVUdIX1BMQVlFUlMQCRIYChRFUlJPUl9DT0RFX05PVF9SRUFEWRAKEh4KGkVSUk9SX0NPREVfSU5WQUxJRF9DT01NQU5EEAsSGQoVRVJST1JfQ09ERV9OT1RfQUNUSVZFEAwSGwoXRVJST1JfQ09ERV9SQVRFX0xJTUlURUQQDRIaChZFUlJPUl9DT0RFX1dST05HX1BIQVNFEA4SHwobRVJST1JfQ09ERV9QUk9UT0NPTF9WRVJTSU9OEA9ClwEKDGNvbS52ZXJzby52MUIJR2FtZVByb3RvUAFaO2dpdGh1Yi5jb20vc3JleWFzLWVuZG9yL3ZlcnNvL2ludGVybmFsL2dlbi92ZXJzby92MTt2ZXJzb3YxogIDVlhYqgIIVmVyc28uVjHKAghWZXJzb1xWMeICFFZlcnNvXFYxXEdQQk1ldGFkYXRh6gIJVmVyc286OlYxYgZwcm90bzM");
+  fileDesc("ChN2ZXJzby92MS9nYW1lLnByb3RvEgh2ZXJzby52MSKaAQoNTWF0Y2hTZXR0aW5ncxIoCgpkaWZmaWN1bHR5GAEgASgOMhQudmVyc28udjEuRGlmZmljdWx0eRISCgptYXhfcm91bmRzGAIgASgFEhQKDGRyYXdfc2Vjb25kcxgDIAEoBRIXCg9kaXNjdXNzX3NlY29uZHMYBCABKAUSHAoUaW50ZXJtaXNzaW9uX3NlY29uZHMYBSABKAUiewoKUGxheWVySW5mbxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHNlYXQYAyABKAUSEQoJY29ubmVjdGVkGAQgASgIEg0KBXJlYWR5GAUgASgIEg8KB2lzX2hvc3QYBiABKAgSEgoKZWxpbWluYXRlZBgHIAEoCCJPCgZTdHJva2USEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoESJhCghKb2luUm9vbRIRCglyb29tX2NvZGUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhIKCnNlYXRfdG9rZW4YAyABKAkSGAoQcHJvdG9jb2xfdmVyc2lvbhgEIAEoBSIZCghTZXRSZWFkeRINCgVyZWFkeRgBIAEoCCI7Cg5VcGRhdGVTZXR0aW5ncxIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiDAoKU3RhcnRNYXRjaCJBCgtTdHJva2VCZWdpbhITCgtjb2xvcl9pbmRleBgBIAEoBRINCgV3aWR0aBgCIAEoBRIOCgZwb2ludHMYAyADKBEiPgoMU3Ryb2tlUG9pbnRzEhEKCXN0cm9rZV9pZBgBIAEoBRIOCgZwb2ludHMYAiADKBESCwoDc2VxGAMgASgFIhsKCVN0cm9rZUVuZBIOCgZwb2ludHMYASADKBEiPAoIQ2FzdFZvdGUSFgoMY2FuZGlkYXRlX2lkGAEgASgJSAASDgoEc2tpcBgCIAEoCEgAQggKBmNob2ljZSIjCg9SZXF1ZXN0U25hcHNob3QSEAoIaGF2ZV9zZXEYASABKAUiCQoHUmVtYXRjaCLjAwoNQ2xpZW50Q29tbWFuZBILCgNjaWQYASABKAkSIgoEam9pbhgCIAEoCzISLnZlcnNvLnYxLkpvaW5Sb29tSAASJwoJc2V0X3JlYWR5GAMgASgLMhIudmVyc28udjEuU2V0UmVhZHlIABIzCg91cGRhdGVfc2V0dGluZ3MYBCABKAsyGC52ZXJzby52MS5VcGRhdGVTZXR0aW5nc0gAEisKC3N0YXJ0X21hdGNoGAUgASgLMhQudmVyc28udjEuU3RhcnRNYXRjaEgAEi0KDHN0cm9rZV9iZWdpbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2luSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEikKCnN0cm9rZV9lbmQYCCABKAsyEy52ZXJzby52MS5TdHJva2VFbmRIABInCgljYXN0X3ZvdGUYCSABKAsyEi52ZXJzby52MS5DYXN0Vm90ZUgAEjUKEHJlcXVlc3Rfc25hcHNob3QYCiABKAsyGS52ZXJzby52MS5SZXF1ZXN0U25hcHNob3RIABIkCgdyZW1hdGNoGAsgASgLMhEudmVyc28udjEuUmVtYXRjaEgAQgUKA2NtZCLOAQoKTG9iYnlTdGF0ZRIRCglyb29tX2NvZGUYASABKAkSJQoHcGxheWVycxgCIAMoCzIULnZlcnNvLnYxLlBsYXllckluZm8SKQoIc2V0dGluZ3MYAyABKAsyFy52ZXJzby52MS5NYXRjaFNldHRpbmdzEh4KBXBoYXNlGAQgASgOMg8udmVyc28udjEuUGhhc2USEwoLbWluX3BsYXllcnMYBSABKAUSEwoLbWF4X3BsYXllcnMYBiABKAUSEQoJY2FuX3N0YXJ0GAcgASgIIjwKD1NldHRpbmdzQ2hhbmdlZBIpCghzZXR0aW5ncxgBIAEoCzIXLnZlcnNvLnYxLk1hdGNoU2V0dGluZ3MiXQoMUm91bmRTdGFydGVkEg0KBXJvdW5kGAEgASgFEhQKDHRvdGFsX3JvdW5kcxgCIAEoBRISCgp0dXJuX29yZGVyGAMgAygJEhQKDGFjdGl2ZV9jb3VudBgEIAEoBSJuCgtUdXJuU3RhcnRlZBINCgVyb3VuZBgBIAEoBRISCgp0dXJuX2luZGV4GAIgASgFEhEKCWFydGlzdF9pZBgDIAEoCRITCgtkdXJhdGlvbl9tcxgEIAEoBRIUCgxyZW1haW5pbmdfbXMYBSABKAUiYQoLU3Ryb2tlQmVnYW4SEQoJc3Ryb2tlX2lkGAEgASgFEhMKC2NvbG9yX2luZGV4GAIgASgFEg0KBXdpZHRoGAMgASgFEg4KBnBvaW50cxgEIAMoERILCgNzZXEYBSABKAUiPQoLU3Ryb2tlRW5kZWQSEQoJc3Ryb2tlX2lkGAEgASgFEg4KBnBvaW50cxgCIAMoERILCgNzZXEYAyABKAUigAEKDFBoYXNlQ2hhbmdlZBIeCgVwaGFzZRgBIAEoDjIPLnZlcnNvLnYxLlBoYXNlEg0KBXJvdW5kGAIgASgFEhMKC2R1cmF0aW9uX21zGAMgASgFEhQKDHJlbWFpbmluZ19tcxgEIAEoBRIWCg5uZXh0X2FydGlzdF9pZBgFIAEoCSJICg1Wb3RlQ2FzdENvdW50Eg0KBXJvdW5kGAEgASgFEhIKCnZvdGVzX2Nhc3QYAiABKAUSFAoMYWN0aXZlX2NvdW50GAMgASgFIjAKCVZvdGVDb3VudBIUCgxjYW5kaWRhdGVfaWQYASABKAkSDQoFdm90ZXMYAiABKAUiiQEKCVZvdGVUYWxseRINCgVyb3VuZBgBIAEoBRIjCgZjb3VudHMYAiADKAsyEy52ZXJzby52MS5Wb3RlQ291bnQSEgoKc2tpcF9jb3VudBgDIAEoBRIUCgxhY3RpdmVfY291bnQYBCABKAUSHgoSbWFqb3JpdHlfdGhyZXNob2xkGAUgASgFQgIYASJeChBQbGF5ZXJFbGltaW5hdGVkEg0KBXJvdW5kGAEgASgFEhIKCmVsaW1pbmF0ZWQYAiABKAgSEQoJcGxheWVyX2lkGAMgASgJEhQKDHdhc19pbXBvc3RlchgEIAEoCCJHCgpSb3VuZFdvcmRzEg0KBXJvdW5kGAEgASgFEhMKC2NvbW1vbl93b3JkGAIgASgJEhUKDWltcG9zdGVyX3dvcmQYAyABKAkidgoMUGxheWVyUmV2ZWFsEhEKCXBsYXllcl9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHdvcmQYAyABKAkSFAoMd2FzX2ltcG9zdGVyGAQgASgIEhIKCmVsaW1pbmF0ZWQYBSABKAgSDQoFd29yZHMYBiADKAkiigIKCk1hdGNoRW5kZWQSJAoGd2lubmVyGAEgASgOMhQudmVyc28udjEuV2lubmVyU2lkZRIoCgZyZWFzb24YAiABKA4yGC52ZXJzby52MS5NYXRjaEVuZFJlYXNvbhITCgtjb21tb25fd29yZBgDIAEoCRIVCg1pbXBvc3Rlcl93b3JkGAQgASgJEhoKEmltcG9zdGVyX3BsYXllcl9pZBgFIAEoCRInCgdyZXZlYWxzGAYgAygLMhYudmVyc28udjEuUGxheWVyUmV2ZWFsEhUKDXJvdW5kc19wbGF5ZWQYByABKAUSJAoGcm91bmRzGAggAygLMhQudmVyc28udjEuUm91bmRXb3JkcyJXCg5QbGF5ZXJQcmVzZW5jZRIkCgZwbGF5ZXIYASABKAsyFC52ZXJzby52MS5QbGF5ZXJJbmZvEh8KF2dyYWNlX3NlY29uZHNfcmVtYWluaW5nGAIgASgFIjsKBUVycm9yEiEKBGNvZGUYASABKA4yEy52ZXJzby52MS5FcnJvckNvZGUSDwoHbWVzc2FnZRgCIAEoCSKZAQoGSm9pbmVkEhEKCXJvb21fY29kZRgBIAEoCRIRCglwbGF5ZXJfaWQYAiABKAkSEgoKc2VhdF90b2tlbhgDIAEoCRIVCg1ncmFjZV9zZWNvbmRzGAQgASgFEg8KB2lzX2hvc3QYBSABKAgSEwoLcmVjb25uZWN0ZWQYBiABKAgSGAoQcHJvdG9jb2xfdmVyc2lvbhgHIAEoBSInCghZb3VyV29yZBIMCgR3b3JkGAEgASgJEg0KBXJvdW5kGAIgASgFItEDCghTbmFwc2hvdBIRCglyb29tX2NvZGUYASABKAkSEQoJcGxheWVyX2lkGAIgASgJEh4KBXBoYXNlGAMgASgOMg8udmVyc28udjEuUGhhc2USDQoFcm91bmQYBCABKAUSFAoMdG90YWxfcm91bmRzGAUgASgFEikKCHNldHRpbmdzGAYgASgLMhcudmVyc28udjEuTWF0Y2hTZXR0aW5ncxIlCgdwbGF5ZXJzGAcgAygLMhQudmVyc28udjEuUGxheWVySW5mbxISCgp0dXJuX29yZGVyGAggAygJEhIKCnR1cm5faW5kZXgYCSABKAUSEQoJYXJ0aXN0X2lkGAogASgJEhQKDHJlbWFpbmluZ19tcxgLIAEoBRIhCgdzdHJva2VzGAwgAygLMhAudmVyc28udjEuU3Ryb2tlEgsKA3NlcRgNIAEoBRIRCgl5b3VyX3dvcmQYDiABKAkSGgoSeW91X2FyZV9lbGltaW5hdGVkGA8gASgIEhYKDnlvdV9oYXZlX3ZvdGVkGBAgASgIEhIKCnZvdGVzX2Nhc3QYESABKAUSFAoMYWN0aXZlX2NvdW50GBIgASgFEhYKDm5leHRfYXJ0aXN0X2lkGBMgASgJIkIKDVNwZWN0YXRvckluZm8SGgoSaW1wb3N0ZXJfcGxheWVyX2lkGAEgASgJEhUKDWltcG9zdGVyX25hbWUYAiABKAkiQQoMVm90ZUFjY2VwdGVkEg0KBXJvdW5kGAEgASgFEhQKDGNhbmRpZGF0ZV9pZBgCIAEoCRIMCgRza2lwGAMgASgIIpoHCgtTZXJ2ZXJFdmVudBILCgNjaWQYASABKAkSKwoLbG9iYnlfc3RhdGUYAiABKAsyFC52ZXJzby52MS5Mb2JieVN0YXRlSAASNQoQc2V0dGluZ3NfY2hhbmdlZBgDIAEoCzIZLnZlcnNvLnYxLlNldHRpbmdzQ2hhbmdlZEgAEi8KDXJvdW5kX3N0YXJ0ZWQYBCABKAsyFi52ZXJzby52MS5Sb3VuZFN0YXJ0ZWRIABItCgx0dXJuX3N0YXJ0ZWQYBSABKAsyFS52ZXJzby52MS5UdXJuU3RhcnRlZEgAEi0KDHN0cm9rZV9iZWdhbhgGIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUJlZ2FuSAASLwoNc3Ryb2tlX3BvaW50cxgHIAEoCzIWLnZlcnNvLnYxLlN0cm9rZVBvaW50c0gAEi0KDHN0cm9rZV9lbmRlZBgIIAEoCzIVLnZlcnNvLnYxLlN0cm9rZUVuZGVkSAASLwoNcGhhc2VfY2hhbmdlZBgJIAEoCzIWLnZlcnNvLnYxLlBoYXNlQ2hhbmdlZEgAEjIKD3ZvdGVfY2FzdF9jb3VudBgKIAEoCzIXLnZlcnNvLnYxLlZvdGVDYXN0Q291bnRIABIpCgp2b3RlX3RhbGx5GAsgASgLMhMudmVyc28udjEuVm90ZVRhbGx5SAASNwoRcGxheWVyX2VsaW1pbmF0ZWQYDCABKAsyGi52ZXJzby52MS5QbGF5ZXJFbGltaW5hdGVkSAASKwoLbWF0Y2hfZW5kZWQYDSABKAsyFC52ZXJzby52MS5NYXRjaEVuZGVkSAASMwoPcGxheWVyX3ByZXNlbmNlGA4gASgLMhgudmVyc28udjEuUGxheWVyUHJlc2VuY2VIABIgCgVlcnJvchgPIAEoCzIPLnZlcnNvLnYxLkVycm9ySAASIgoGam9pbmVkGBAgASgLMhAudmVyc28udjEuSm9pbmVkSAASJwoJeW91cl93b3JkGBEgASgLMhIudmVyc28udjEuWW91cldvcmRIABImCghzbmFwc2hvdBgSIAEoCzISLnZlcnNvLnYxLlNuYXBzaG90SAASMQoOc3BlY3RhdG9yX2luZm8YEyABKAsyFy52ZXJzby52MS5TcGVjdGF0b3JJbmZvSAASLwoNdm90ZV9hY2NlcHRlZBgUIAEoCzIWLnZlcnNvLnYxLlZvdGVBY2NlcHRlZEgAQgUKA2V2dCppCgpEaWZmaWN1bHR5EhoKFkRJRkZJQ1VMVFlfVU5TUEVDSUZJRUQQABITCg9ESUZGSUNVTFRZX0VBU1kQARIVChFESUZGSUNVTFRZX01FRElVTRACEhMKD0RJRkZJQ1VMVFlfSEFSRBADKqsBCgVQaGFzZRIVChFQSEFTRV9VTlNQRUNJRklFRBAAEg8KC1BIQVNFX0xPQkJZEAESEwoPUEhBU0VfQVNTSUdOSU5HEAISEQoNUEhBU0VfRFJBV0lORxADEhQKEFBIQVNFX0RJU0NVU1NJT04QBBITCg9QSEFTRV9SRVNPTFZJTkcQBRIPCgtQSEFTRV9FTkRFRBAGEhYKElBIQVNFX0lOVEVSTUlTU0lPThAHKloKCldpbm5lclNpZGUSGwoXV0lOTkVSX1NJREVfVU5TUEVDSUZJRUQQABIVChFXSU5ORVJfU0lERV9HUk9VUBABEhgKFFdJTk5FUl9TSURFX0lNUE9TVEVSEAIq/AEKDk1hdGNoRW5kUmVhc29uEiAKHE1BVENIX0VORF9SRUFTT05fVU5TUEVDSUZJRUQQABIoCiRNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0VMSU1JTkFURUQQARIpCiVNQVRDSF9FTkRfUkVBU09OX0ZJTkFMX1JPVU5EX1NVUlZJVkVEEAISJwojTUFUQ0hfRU5EX1JFQVNPTl9UV09fUExBWUVSU19SRU1BSU4QAxIqCiZNQVRDSF9FTkRfUkVBU09OX0lNUE9TVEVSX0RJU0NPTk5FQ1RFRBAEEh4KGk1BVENIX0VORF9SRUFTT05fQUJBTkRPTkVEEAUq4AMKCUVycm9yQ29kZRIaChZFUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASHQoZRVJST1JfQ09ERV9ST09NX05PVF9GT1VORBABEhgKFEVSUk9SX0NPREVfUk9PTV9GVUxMEAISIAocRVJST1JfQ09ERV9NQVRDSF9JTl9QUk9HUkVTUxADEhcKE0VSUk9SX0NPREVfQkFEX1NFQVQQBBIXChNFUlJPUl9DT0RFX05PVF9IT1NUEAUSGQoVRVJST1JfQ09ERV9OT1RfQVJUSVNUEAYSHAoYRVJST1JfQ09ERV9BTFJFQURZX1ZPVEVEEAcSHwobRVJST1JfQ09ERV9JTlZBTElEX1NFVFRJTkdTEAgSIQodRVJST1JfQ09ERV9OT1RfRU5PVUdIX1BMQVlFUlMQCRIYChRFUlJPUl9DT0RFX05PVF9SRUFEWRAKEh4KGkVSUk9SX0NPREVfSU5WQUxJRF9DT01NQU5EEAsSGQoVRVJST1JfQ09ERV9OT1RfQUNUSVZFEAwSGwoXRVJST1JfQ09ERV9SQVRFX0xJTUlURUQQDRIaChZFUlJPUl9DT0RFX1dST05HX1BIQVNFEA4SHwobRVJST1JfQ09ERV9QUk9UT0NPTF9WRVJTSU9OEA9ClwEKDGNvbS52ZXJzby52MUIJR2FtZVByb3RvUAFaO2dpdGh1Yi5jb20vc3JleWFzLWVuZG9yL3ZlcnNvL2ludGVybmFsL2dlbi92ZXJzby92MTt2ZXJzb3YxogIDVlhYqgIIVmVyc28uVjHKAghWZXJzb1xWMeICFFZlcnNvXFYxXEdQQk1ldGFkYXRh6gIJVmVyc286OlYxYgZwcm90bzM");
 
 /**
  * Host-configured match parameters (DESIGN.md:224). The server clamps every
@@ -993,6 +993,41 @@ export const PlayerEliminatedSchema: GenMessage<PlayerEliminated> = /*@__PURE__*
   messageDesc(file_verso_v1_game, 24);
 
 /**
+ * One round's pair, revealed only when the match is over. Every round deals a
+ * fresh pair from a different cluster (DESIGN.md:36), so a match has as many
+ * of these as it played rounds.
+ *
+ * @generated from message verso.v1.RoundWords
+ */
+export type RoundWords = Message<"verso.v1.RoundWords"> & {
+  /**
+   * 1-based, and always equal to this message's position in
+   * MatchEnded.rounds + 1. Carried explicitly so a reader never has to infer
+   * it from an index.
+   *
+   * @generated from field: int32 round = 1;
+   */
+  round: number;
+
+  /**
+   * @generated from field: string common_word = 2;
+   */
+  commonWord: string;
+
+  /**
+   * @generated from field: string imposter_word = 3;
+   */
+  imposterWord: string;
+};
+
+/**
+ * Describes the message verso.v1.RoundWords.
+ * Use `create(RoundWordsSchema)` to create a new message.
+ */
+export const RoundWordsSchema: GenMessage<RoundWords> = /*@__PURE__*/
+  messageDesc(file_verso_v1_game, 25);
+
+/**
  * One row of the final reveal (DESIGN.md:75).
  *
  * @generated from message verso.v1.PlayerReveal
@@ -1009,7 +1044,9 @@ export type PlayerReveal = Message<"verso.v1.PlayerReveal"> & {
   name: string;
 
   /**
-   * Safe here and nowhere else: the match is over.
+   * The word this player held in the LAST round they were dealt into, which
+   * for anyone still standing is the final round. Safe here and nowhere else:
+   * the match is over.
    *
    * @generated from field: string word = 3;
    */
@@ -1024,6 +1061,16 @@ export type PlayerReveal = Message<"verso.v1.PlayerReveal"> & {
    * @generated from field: bool eliminated = 5;
    */
   eliminated: boolean;
+
+  /**
+   * This player's word for every round, positionally aligned with
+   * MatchEnded.rounds — words[i] belongs to rounds[i]. Empty string for a
+   * round this player was not dealt into, which is every round after the one
+   * that eliminated them.
+   *
+   * @generated from field: repeated string words = 6;
+   */
+  words: string[];
 };
 
 /**
@@ -1031,7 +1078,7 @@ export type PlayerReveal = Message<"verso.v1.PlayerReveal"> & {
  * Use `create(PlayerRevealSchema)` to create a new message.
  */
 export const PlayerRevealSchema: GenMessage<PlayerReveal> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 25);
+  messageDesc(file_verso_v1_game, 26);
 
 /**
  * Final reveal. This is the ONLY broadcast that carries assigned words, and it
@@ -1051,6 +1098,10 @@ export type MatchEnded = Message<"verso.v1.MatchEnded"> & {
   reason: MatchEndReason;
 
   /**
+   * The FINAL round's pair — the one that was live when the match ended. The
+   * whole match is in `rounds`; these two stay for the headline, which names
+   * one pair.
+   *
    * @generated from field: string common_word = 3;
    */
   commonWord: string;
@@ -1061,12 +1112,15 @@ export type MatchEnded = Message<"verso.v1.MatchEnded"> & {
   imposterWord: string;
 
   /**
+   * The imposter is picked once and pinned to that seat for the whole match.
+   * Every round re-deals the words; none of them re-rolls this.
+   *
    * @generated from field: string imposter_player_id = 5;
    */
   imposterPlayerId: string;
 
   /**
-   * Every player who was dealt a word, eliminated or not.
+   * Every player who was dealt a word in any round, eliminated or not.
    *
    * @generated from field: repeated verso.v1.PlayerReveal reveals = 6;
    */
@@ -1076,6 +1130,14 @@ export type MatchEnded = Message<"verso.v1.MatchEnded"> & {
    * @generated from field: int32 rounds_played = 7;
    */
   roundsPlayed: number;
+
+  /**
+   * Every round's pair, oldest first. len(rounds) == rounds_played whenever
+   * the match got past assignment.
+   *
+   * @generated from field: repeated verso.v1.RoundWords rounds = 8;
+   */
+  rounds: RoundWords[];
 };
 
 /**
@@ -1083,7 +1145,7 @@ export type MatchEnded = Message<"verso.v1.MatchEnded"> & {
  * Use `create(MatchEndedSchema)` to create a new message.
  */
 export const MatchEndedSchema: GenMessage<MatchEnded> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 26);
+  messageDesc(file_verso_v1_game, 27);
 
 /**
  * A player's connection state or host flag changed. Also the host-migration
@@ -1110,7 +1172,7 @@ export type PlayerPresence = Message<"verso.v1.PlayerPresence"> & {
  * Use `create(PlayerPresenceSchema)` to create a new message.
  */
 export const PlayerPresenceSchema: GenMessage<PlayerPresence> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 27);
+  messageDesc(file_verso_v1_game, 28);
 
 /**
  * A command was rejected, or the room is shutting down.
@@ -1136,7 +1198,7 @@ export type Error = Message<"verso.v1.Error"> & {
  * Use `create(ErrorSchema)` to create a new message.
  */
 export const ErrorSchema: GenMessage<Error> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 28);
+  messageDesc(file_verso_v1_game, 29);
 
 /**
  * Seat granted. The seat_token is the bearer credential for reconnecting into
@@ -1192,7 +1254,7 @@ export type Joined = Message<"verso.v1.Joined"> & {
  * Use `create(JoinedSchema)` to create a new message.
  */
 export const JoinedSchema: GenMessage<Joined> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 29);
+  messageDesc(file_verso_v1_game, 30);
 
 /**
  * THE SECRET. A sibling variant of the broadcast messages above, deliberately
@@ -1212,6 +1274,11 @@ export type YourWord = Message<"verso.v1.YourWord"> & {
   word: string;
 
   /**
+   * The round this word is for, 1-based. Every round deals a fresh pair, so a
+   * player receives one of these per round, during the PHASE_ASSIGNING reveal
+   * that opens it. A client MUST replace the word it is holding rather than
+   * treat a second YourWord as a duplicate.
+   *
    * @generated from field: int32 round = 2;
    */
   round: number;
@@ -1222,7 +1289,7 @@ export type YourWord = Message<"verso.v1.YourWord"> & {
  * Use `create(YourWordSchema)` to create a new message.
  */
 export const YourWordSchema: GenMessage<YourWord> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 30);
+  messageDesc(file_verso_v1_game, 31);
 
 /**
  * Full state for a reconnecting or resyncing client. Unicast because it
@@ -1353,7 +1420,7 @@ export type Snapshot = Message<"verso.v1.Snapshot"> & {
  * Use `create(SnapshotSchema)` to create a new message.
  */
 export const SnapshotSchema: GenMessage<Snapshot> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 31);
+  messageDesc(file_verso_v1_game, 32);
 
 /**
  * Sent once, to a player who was just eliminated and was not the imposter: they
@@ -1379,7 +1446,7 @@ export type SpectatorInfo = Message<"verso.v1.SpectatorInfo"> & {
  * Use `create(SpectatorInfoSchema)` to create a new message.
  */
 export const SpectatorInfoSchema: GenMessage<SpectatorInfo> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 32);
+  messageDesc(file_verso_v1_game, 33);
 
 /**
  * Private acknowledgement that the voter's own irreversible vote was recorded.
@@ -1412,7 +1479,7 @@ export type VoteAccepted = Message<"verso.v1.VoteAccepted"> & {
  * Use `create(VoteAcceptedSchema)` to create a new message.
  */
 export const VoteAcceptedSchema: GenMessage<VoteAccepted> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 33);
+  messageDesc(file_verso_v1_game, 34);
 
 /**
  * The only frame a server is ever allowed to send.
@@ -1557,7 +1624,7 @@ export type ServerEvent = Message<"verso.v1.ServerEvent"> & {
  * Use `create(ServerEventSchema)` to create a new message.
  */
 export const ServerEventSchema: GenMessage<ServerEvent> = /*@__PURE__*/
-  messageDesc(file_verso_v1_game, 34);
+  messageDesc(file_verso_v1_game, 35);
 
 /**
  * Word-pair deck tier. Difficulty is visual overlap, not word obscurity
@@ -1615,7 +1682,11 @@ export enum Phase {
   LOBBY = 1,
 
   /**
-   * Words dealt; each player is shown their own word and nothing else.
+   * Words dealt; each player is shown their own word and nothing else. Opens
+   * EVERY round, not just the match: each round wipes the canvas and deals a
+   * fresh pair. PhaseChanged.round tells the two apart — 0 is the match
+   * opening, n >= 1 is the reveal for round n+1, so a client can archive the
+   * finished canvas before clearing it.
    *
    * @generated from enum value: PHASE_ASSIGNING = 2;
    */

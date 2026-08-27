@@ -134,8 +134,20 @@ export class GameStore {
 
       case "phaseChanged": {
         const v = body.value;
+        // ASSIGNING opens every round, not just the match, and the two need
+        // very different clears. `round` is what tells them apart: the reveal
+        // that deals round n runs while the server's counter is still n-1, so
+        // 0 is the match opening and anything else is a round boundary.
+        //
+        // Wiping the match at a round boundary would be a live bug, not just
+        // waste: clearMatch resets youAreEliminated, so an eliminated player
+        // would be handed the drawing screen back for the rest of the match.
         const base =
-          v.phase === Phase.ASSIGNING || v.phase === Phase.LOBBY ? clearMatch(s) : s;
+          v.phase === Phase.LOBBY || (v.phase === Phase.ASSIGNING && v.round === 0)
+            ? clearMatch(s)
+            : v.phase === Phase.ASSIGNING
+              ? clearRoundBoundary(s)
+              : s;
         const leavingTurnSequence = v.phase !== Phase.DRAWING && v.phase !== Phase.INTERMISSION;
         return {
           ...base,
@@ -315,6 +327,26 @@ function mergePlayer(players: readonly PlayerInfo[], info: PlayerInfo): PlayerIn
 /** Clears what belongs to one round. Survives: roster, settings, my word. */
 function clearRound(s: GameState): GameState {
   return { ...s, tally: null, elimination: null, votesCast: 0, youHaveVoted: false, yourVote: null };
+}
+
+/**
+ * Clears what one round leaves behind at the boundary between two of them.
+ *
+ * Between clearRound and clearMatch. The word goes — a fresh pair is dealt
+ * every round, and holding the old one on screen while the reveal loads reads
+ * as the new word for a frame. The turn sequence goes, because the next round
+ * reshuffles it. Elimination, the roster and the round counter all stay: they
+ * are properties of the match, and the match is still running.
+ */
+function clearRoundBoundary(s: GameState): GameState {
+  return {
+    ...clearRound(s),
+    turnOrder: [],
+    turnIndex: 0,
+    artistId: "",
+    nextArtistId: "",
+    word: "",
+  };
 }
 
 /** Clears everything that belongs to one match. */

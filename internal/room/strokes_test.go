@@ -28,7 +28,7 @@ import (
 
 type strkDeck struct{}
 
-func (strkDeck) Pair(genpb.Difficulty, *mrand.Rand) (string, string) { return "CAT", "DOG" }
+func (strkDeck) Pair(genpb.Difficulty, *mrand.Rand, []string) (string, string) { return "CAT", "DOG" }
 
 type strkSock struct{ ch chan *genpb.ServerEvent }
 

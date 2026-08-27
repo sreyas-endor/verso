@@ -13,7 +13,7 @@ import (
 
 type smokeDeck struct{}
 
-func (smokeDeck) Pair(d genpb.Difficulty, rnd *mrand.Rand) (string, string) {
+func (smokeDeck) Pair(d genpb.Difficulty, rnd *mrand.Rand, _ []string) (string, string) {
 	return "CAT", "DOG"
 }
 

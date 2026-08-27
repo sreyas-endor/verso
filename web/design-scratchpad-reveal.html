@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verso — final reveal, per-round canvases</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800;900&display=swap");
+
+      /* Tokens lifted verbatim from web/src/styles/tokens.css, so anything that
+         reads well here reads the same in the app. */
+      :root {
+        --bg:#f4eddf; --surface:#fffdf7; --surface-2:#f8f0e3;
+        --border:#e5d9c6; --border-str:#cbbca6;
+        --ink:#263238; --ink-2:#69716c; --ink-3:#958d80;
+        --accent:#ef5d5a; --accent-ink:#fff; --accent-sf:#ffe7df; --accent-dk:#bd4544;
+        --amber:#f5c744; --amber-dk:#a36c10; --amber-sf:#fff3cc;
+        --good:#3f966d; --good-dk:#256146; --good-sf:#e0f2e6;
+        --bad:#df5553; --bad-dk:#a73535; --bad-sf:#fbe3dd;
+        --radius:18px; --radius-sm:11px;
+        --shadow:3px 4px 0 rgba(38,50,56,.12);
+        --font:"Nunito",ui-rounded,system-ui,sans-serif;
+        --mono:ui-monospace,"SF Mono",Menlo,monospace;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); }
+      .wrap { max-width:1560px; margin:0 auto; padding:34px 26px 90px; }
+      h1 { margin:0 0 6px; font:700 clamp(2rem,4vw,3.1rem)/.98 Fredoka,sans-serif; letter-spacing:-.05em; }
+      h1 span { color:var(--accent); }
+      .lede { max-width:78ch; margin:0 0 8px; font-size:1.02rem; line-height:1.55; color:var(--ink-2); }
+      .lede b { color:var(--ink); }
+      .gap { max-width:78ch; margin:14px 0 8px; padding:13px 15px; border-left:4px solid var(--accent);
+             background:var(--accent-sf); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+             font-size:.92rem; line-height:1.5; }
+      .gap b { font-weight:900; }
+      .gap code, code { font:800 .86em var(--mono); }
+
+      .secttl { margin:38px 0 4px; font:900 1.5rem/1.1 var(--font); letter-spacing:-.03em; }
+      .secsub { margin:0 0 18px; max-width:78ch; font-size:.93rem; line-height:1.5; color:var(--ink-2); }
+
+      /* ---- round-count control ---- */
+      .ctl { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+             margin:16px 0 24px; padding:12px 14px; background:var(--surface);
+             border:2px solid var(--ink); border-radius:var(--radius); box-shadow:var(--shadow); }
+      .ctl-lbl { font:900 .64rem var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+      .seg { display:flex; gap:.3rem; }
+      .seg button { font:900 .88rem var(--font); padding:.36rem .82rem; cursor:pointer;
+                    border:2px solid var(--ink); border-radius:999px; background:var(--surface-2); color:var(--ink); }
+      .seg button[aria-pressed="true"] { background:var(--ink); color:#fff; }
+      .ctl .note { font-size:.82rem; color:var(--ink-2); }
+
+      /* ---- option cards ---- */
+      .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(430px,1fr)); gap:22px; align-items:start; }
+      .opt { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+             box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; }
+      .opt > header { padding:14px 16px 12px; border-bottom:2px dashed var(--border-str); }
+      .opt h3 { margin:0; font:800 1.06rem/1.2 var(--font); }
+      .opt .num { display:inline-grid; place-items:center; width:1.45rem; height:1.45rem; margin-right:.45rem;
+                  border-radius:999px; background:var(--ink); color:#fff; font:900 .78rem var(--mono); vertical-align:.05em; }
+      .opt .how { margin:7px 0 0; font-size:.83rem; line-height:1.45; color:var(--ink-2); }
+      .rec { display:inline-block; margin-left:.4rem; padding:.1rem .4rem; border-radius:999px;
+             background:var(--good); color:#fff; font:900 .6rem/1.5 var(--mono); letter-spacing:.06em; vertical-align:.1em; }
+      .today { display:inline-block; margin-left:.4rem; padding:.1rem .4rem; border-radius:999px;
+               background:var(--ink-3); color:#fff; font:900 .6rem/1.5 var(--mono); letter-spacing:.06em; vertical-align:.1em; }
+      .body { padding:15px 16px 16px; }
+      .verdict { margin:0; padding:11px 16px 15px; border-top:2px dashed var(--border-str); font-size:.81rem; line-height:1.5; color:var(--ink-2); }
+      .verdict b { color:var(--ink); }
+      .verdict .minus { color:var(--accent-dk); font-weight:800; }
+      .verdict .plus { color:var(--good-dk); font-weight:800; }
+
+      /* ---- real app pieces, copied from components.css / screens.css ---- */
+      .card { background:var(--surface); border:2px solid var(--border); border-radius:var(--radius); padding:.7rem .75rem; }
+      .card-title { font:900 .68rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:.5rem; }
+      .stage { background:#fffefb; border:4px solid var(--ink); border-radius:calc(var(--radius) + 2px);
+               box-shadow:5px 6px 0 rgba(38,50,56,.14); overflow:hidden; aspect-ratio:4/3; width:100%; }
+      .stage svg { display:block; width:100%; height:100%; }
+      .stage-locked { border-style:dashed; }
+
+      .winner { text-align:center; padding:1.1rem 1rem; border-width:3px; border-style:solid;
+                box-shadow:5px 6px 0 rgba(38,50,56,.13); border-radius:var(--radius); }
+      .winner-outlier { background:var(--amber-sf); border-color:var(--amber); }
+      .winner-side { font-size:1.5rem; font-weight:900; letter-spacing:-.02em; color:var(--amber-dk); }
+      .winner-why { margin:.2rem 0 0; font-weight:700; font-size:.85rem; color:var(--ink-2); }
+
+      .wordpair { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+      .wordbox { border-radius:var(--radius-sm); padding:.55rem; text-align:center;
+                 background:var(--surface-2); border:2px solid var(--border); }
+      .wordbox-outlier { background:var(--amber-sf); border-color:var(--amber); }
+      .wordbox-label { font-size:.66rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-2); }
+      .wordbox-value { font-size:1.1rem; font-weight:900; }
+
+      .reveals { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.35rem; }
+      .reveal-row { display:flex; align-items:center; gap:.55rem; padding:.4rem .5rem;
+                    border-radius:var(--radius-sm); background:var(--surface-2); }
+      .reveal-row-outlier { background:var(--amber-sf); }
+      .reveal-word-cell { margin-left:auto; font-weight:900; text-align:right; font-size:.9rem; }
+      .avatar { flex:none; width:1.9rem; height:1.9rem; border-radius:999px; display:inline-flex;
+                align-items:center; justify-content:center; font-weight:900; font-size:.74rem; color:#fff; }
+      .grow { min-width:0; flex:1 1 auto; }
+      .pitem-name { font-weight:800; font-size:.88rem; }
+      .pitem-sub { font-size:.72rem; color:var(--ink-3); font-weight:700; }
+
+      /* =====================================================================
+         shared: the per-round strip that options 2 and 4 use
+         ===================================================================== */
+      .rtabs { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.6rem; }
+      .rtab { font:900 .78rem var(--font); padding:.3rem .7rem; cursor:pointer;
+              border:2px solid var(--border-str); border-radius:999px;
+              background:var(--surface-2); color:var(--ink-2); }
+      .rtab[aria-selected="true"] { background:var(--ink); border-color:var(--ink); color:#fff; }
+      .rtab-final { position:relative; }
+      .rtab-final::after { content:"★"; margin-left:.3rem; color:var(--amber); }
+      .rtab[aria-selected="true"].rtab-final::after { color:var(--amber); }
+
+      /* 1 — final only */
+      .o1 .caption { margin:.5rem 0 0; font-size:.8rem; font-weight:700; color:var(--ink-3); text-align:center; }
+      .o1 .ghost { margin:.7rem 0 0; padding:.5rem .6rem; border:2px dashed var(--border-str);
+                   border-radius:var(--radius-sm); font-size:.78rem; color:var(--ink-3); text-align:center; font-weight:700; }
+
+      /* 3 — tiled */
+      .o3 .tiles { display:grid; gap:.5rem; }
+      .o3 .tile .stage { border-width:3px; box-shadow:3px 4px 0 rgba(38,50,56,.14); }
+      .o3 .tile .cap { margin:.3rem 0 0; font:900 .64rem var(--mono); letter-spacing:.08em;
+                       text-transform:uppercase; color:var(--ink-3); text-align:center; }
+      .o3 .tile-final .stage { border-color:var(--amber-dk); }
+      .o3 .tile-final .cap { color:var(--amber-dk); }
+
+      /* 4 — filmstrip */
+      .o4 .strip { display:flex; gap:.45rem; margin-top:.6rem; overflow-x:auto; padding-bottom:.2rem; }
+      .o4 .thumb { flex:none; width:88px; cursor:pointer; background:none; border:none; padding:0; }
+      .o4 .thumb .stage { border-width:2.5px; box-shadow:2px 3px 0 rgba(38,50,56,.14); }
+      .o4 .thumb .cap { margin:.25rem 0 0; font:900 .6rem var(--mono); letter-spacing:.06em;
+                        text-transform:uppercase; color:var(--ink-3); text-align:center; }
+      .o4 .thumb[aria-current="true"] .stage { border-color:var(--accent); box-shadow:2px 3px 0 var(--accent-sf); }
+      .o4 .thumb[aria-current="true"] .cap { color:var(--accent-dk); }
+      .o4 .nowword { display:flex; align-items:center; justify-content:center; gap:.4rem; flex-wrap:wrap;
+                     margin:.55rem 0 0; font-size:.82rem; font-weight:800; color:var(--ink-2); }
+      .o4 .nowword .w { padding:.1rem .45rem; border-radius:999px; background:var(--surface-2); border:2px solid var(--border); }
+      .o4 .nowword .w.imp { background:var(--amber-sf); border-color:var(--amber); color:var(--amber-dk); }
+
+      /* settled section */
+      .settled { display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:20px; align-items:start; }
+      .settled .card { border:2px solid var(--ink); box-shadow:var(--shadow); }
+      .roundpair { display:flex; align-items:center; gap:.5rem; padding:.4rem .1rem; }
+      .roundpair + .roundpair { border-top:2px dashed var(--border); }
+      .roundpair .rn { flex:none; display:inline-grid; place-items:center; width:1.5rem; height:1.5rem;
+                       border-radius:999px; background:var(--surface-2); border:2px solid var(--border-str);
+                       font:900 .68rem var(--mono); color:var(--ink-2); }
+      .roundpair.is-final .rn { background:var(--amber-sf); border-color:var(--amber); color:var(--amber-dk); }
+      .roundpair .pair { display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; font-weight:900; font-size:.95rem; }
+      .roundpair .vs { font:900 .62rem var(--mono); color:var(--ink-3); }
+      .roundpair .imp { color:var(--amber-dk); }
+      .rgrid { width:100%; border-collapse:collapse; font-size:.84rem; }
+      .rgrid th, .rgrid td { padding:.35rem .4rem; text-align:left; }
+      .rgrid thead th { font:900 .6rem var(--mono); letter-spacing:.08em; text-transform:uppercase;
+                        color:var(--ink-3); border-bottom:2px solid var(--border); }
+      .rgrid tbody tr + tr td { border-top:2px dashed var(--border); }
+      .rgrid td.w { font-weight:900; }
+      .rgrid tr.imp td { background:var(--amber-sf); }
+      .rgrid tr.imp td.w { color:var(--amber-dk); }
+      .rgrid td:first-child { display:flex; align-items:center; gap:.4rem; font-weight:800; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Verso — <span>final reveal</span>, per-round canvases</h1>
+      <p class="lede">
+        Once a round deals a <b>new word pair</b> and <b>wipes the canvas</b>, the reveal screen stops
+        describing one match and starts describing <b>N independent rounds sharing one imposter</b>.
+        The pair card and the per-player word list have a settled answer — a per-round breakdown.
+        The canvas does not, because <code>MatchEnded</code> carries no strokes: the reveal shows
+        whatever the client's engine still holds, and if each round wipes it, that is the last round only.
+      </p>
+      <div class="gap">
+        <b>Today</b> the canvas is never cleared between rounds (<code>beginRound</code> at
+        <code>internal/room/phase.go:113</code> leaves <code>r.strokes</code> alone;
+        <code>engine.reset()</code> fires only on <code>LOBBY</code>/<code>ASSIGNING</code> at
+        <code>web/src/main.ts:140</code>), so the reveal shows every mark of the whole match on one sheet.
+        Wiping per round takes that away. These four options are what you can get back.
+      </div>
+      <div class="gap" style="border-left-color:var(--amber);background:var(--amber-sf)">
+        <b>Bug found on the way in.</b> <code>web/src/ui/screens/final.ts</code> writes
+        <code>winner-imposter</code>, <code>wordbox-imposter</code> and <code>reveal-row-imposter</code>,
+        but <code>web/src/styles/screens.css:67</code> defines <code>-outlier</code> for all three.
+        The imposter-win banner, the imposter's word box and their reveal row currently get
+        <b>no amber highlight at all</b>. Every mock below shows the amber as it was meant to look.
+      </div>
+
+      <div class="ctl">
+        <span class="ctl-lbl">Rounds played</span>
+        <div class="seg" id="seg">
+          <button type="button" data-n="2">2</button>
+          <button type="button" data-n="3" aria-pressed="true">3</button>
+          <button type="button" data-n="4">4</button>
+        </div>
+        <span class="note">Default is 2, ceiling is 4 (<code>docs/DESIGN.md:278</code>). Tiling degrades fastest — check it at 4.</span>
+      </div>
+
+      <h2 class="secttl">Settled: the words</h2>
+      <p class="secsub">
+        You picked all rounds' pairs, so <code>MatchEnded</code> grows a repeated per-round message and both
+        word cards become per-round. Shown here for context — the canvas options below sit in the same column.
+      </p>
+      <div class="settled">
+        <section class="card">
+          <div class="card-title">The pairs</div>
+          <div id="pairs"></div>
+        </section>
+        <section class="card">
+          <div class="card-title">Everybody's word, by round</div>
+          <table class="rgrid"><thead id="rgrid-head"></thead><tbody id="rgrid-body"></tbody></table>
+        </section>
+      </div>
+
+      <h2 class="secttl">Open: the canvas</h2>
+      <p class="secsub">
+        Four ways to spend the reveal's canvas slot. All four are client-only — the engine already keeps a
+        stroke log, so retaining a finished round costs a copy, not a protocol change.
+      </p>
+      <div class="grid" id="opts">
+
+        <article class="opt o1">
+          <header>
+            <h3><span class="num">1</span>Final round only<span class="today">nearest today</span></h3>
+            <p class="how">Wipe and forget. The reveal shows the canvas that was live when the match ended, exactly as the screen works now.</p>
+          </header>
+          <div class="body">
+            <div class="stage stage-locked" id="o1-stage"></div>
+            <p class="caption" id="o1-cap"></p>
+            <div class="ghost" id="o1-ghost"></div>
+          </div>
+          <p class="verdict">
+            <span class="plus">+</span> Zero work; nothing to build or lay out.
+            <span class="minus">−</span> The rounds you argued hardest about are gone. With 4 rounds you
+            discard three canvases to show one, and <b>Save canvas as PNG</b> silently saves a quarter of the match.
+          </p>
+        </article>
+
+        <article class="opt o2">
+          <header>
+            <h3><span class="num">2</span>Round tabs</h3>
+            <p class="how">One full-size stage, a pill per round above it. The pair for the selected round rides along in the card above.</p>
+          </header>
+          <div class="body">
+            <div class="rtabs" id="o2-tabs" role="tablist"></div>
+            <div class="stage stage-locked" id="o2-stage"></div>
+          </div>
+          <p class="verdict">
+            <span class="plus">+</span> Every canvas at full size, no new screen real estate.
+            <span class="minus">−</span> Nothing is visible at a glance — you cannot compare round 1 against round 3
+            without clicking, which is the one comparison a post-mortem actually wants.
+          </p>
+        </article>
+
+        <article class="opt o3">
+          <header>
+            <h3><span class="num">3</span>Tiled</h3>
+            <p class="how">Every round's canvas side by side, each captioned with its pair. Nothing to click.</p>
+          </header>
+          <div class="body">
+            <div class="tiles" id="o3-tiles"></div>
+          </div>
+          <p class="verdict">
+            <span class="plus">+</span> The whole match on one screen; comparison is free.
+            <span class="minus">−</span> Scales badly. Try 4 above — in the middle column of a 3-column layout
+            each tile is roughly a phone thumbnail, and fine pen work at nib width 3 stops being legible.
+          </p>
+        </article>
+
+        <article class="opt o4">
+          <header>
+            <h3><span class="num">4</span>Filmstrip<span class="rec">suggested</span></h3>
+            <p class="how">One full-size stage plus a thumbnail row beneath. The final round leads; click a thumbnail to promote it.</p>
+          </header>
+          <div class="body">
+            <div class="stage stage-locked" id="o4-stage"></div>
+            <p class="nowword" id="o4-word"></p>
+            <div class="strip" id="o4-strip"></div>
+          </div>
+          <p class="verdict">
+            <span class="plus">+</span> Both jobs at once — one canvas readable, all of them <i>present</i>, so you
+            can see at a glance that the match had four drawings and jump to any.
+            <span class="plus">+</span> Degrades by scrolling, not by shrinking, so 4 rounds costs nothing.
+            <span class="minus">−</span> Most work of the four, and the PNG export needs a decision:
+            the promoted round, or a contact sheet.
+          </p>
+        </article>
+
+      </div>
+    </div>
+
+    <script>
+      // Four rounds of a match. Pairs are real cluster members from the deck.
+      var ROUNDS = [
+        { common: "Lobster", imposter: "Shrimp" },
+        { common: "Wallet",  imposter: "Purse"  },
+        { common: "Kayak",   imposter: "Canoe"  },
+        { common: "Cactus",  imposter: "Aloe"   }
+      ];
+
+      // Stand-in canvases. Pen inks are the real twelve from web/src/ui/palette.ts.
+      var SCENES = [
+        '<path d="M150 150 q10 -46 62 -46 q54 0 64 48 q-8 46 -64 46 q-54 0 -62 -48 z" stroke="#ef4c4c" stroke-width="7"/>' +
+        '<path d="M176 114 v74 M204 108 v86 M232 112 v76" stroke="#ef4c4c" stroke-width="4"/>' +
+        '<path d="M150 138 q-34 -26 -58 -10 q-16 12 2 28 q18 14 40 0" stroke="#ef4c4c" stroke-width="6"/>' +
+        '<path d="M150 168 q-36 24 -60 10 q-16 -10 0 -26" stroke="#ef4c4c" stroke-width="6"/>' +
+        '<path d="M276 134 q30 -30 52 -22 M276 166 q30 30 52 22" stroke="#8b5a2b" stroke-width="5"/>' +
+        '<path d="M92 98 q-24 -30 -44 -34 M96 212 q-26 30 -48 34" stroke="#6c7391" stroke-width="4"/>' +
+        '<path d="M96 250 q40 -22 84 -4 q40 16 78 -6" stroke="#0f9b8e" stroke-width="5"/>' +
+        '<circle cx="262" cy="136" r="4.5" fill="#14161f"/><circle cx="262" cy="164" r="4.5" fill="#14161f"/>',
+
+        '<rect x="110" y="112" width="180" height="116" rx="12" stroke="#8b5a2b" stroke-width="7"/>' +
+        '<path d="M110 154 h180" stroke="#8b5a2b" stroke-width="5"/>' +
+        '<rect x="182" y="140" width="36" height="28" rx="7" stroke="#9b5de5" stroke-width="5"/>' +
+        '<circle cx="146" cy="196" r="15" stroke="#ffb020" stroke-width="5"/>' +
+        '<circle cx="178" cy="205" r="11" stroke="#ffb020" stroke-width="5"/>' +
+        '<path d="M240 190 h42 M240 209 h28" stroke="#6c7391" stroke-width="5"/>' +
+        '<path d="M122 110 q78 -60 166 -2" stroke="#ff5fa2" stroke-width="6"/>' +
+        '<path d="M96 258 q60 -18 108 0 q52 16 100 -8" stroke="#2fbf71" stroke-width="4"/>',
+
+        '<path d="M70 168 q131 62 262 0 q-58 -34 -131 -34 q-73 0 -131 34 z" stroke="#4f7cff" stroke-width="7"/>' +
+        '<path d="M70 168 q131 26 262 0" stroke="#4f7cff" stroke-width="4"/>' +
+        '<circle cx="198" cy="102" r="17" stroke="#ff7a1a" stroke-width="6"/>' +
+        '<path d="M198 119 v28" stroke="#ff7a1a" stroke-width="6"/>' +
+        '<path d="M126 96 L272 156" stroke="#14161f" stroke-width="6"/>' +
+        '<ellipse cx="118" cy="93" rx="14" ry="9" transform="rotate(22 118 93)" stroke="#14161f" stroke-width="5"/>' +
+        '<ellipse cx="280" cy="159" rx="14" ry="9" transform="rotate(22 280 159)" stroke="#14161f" stroke-width="5"/>' +
+        '<path d="M46 216 q46 -18 92 0 q46 18 92 0 q46 -18 92 0" stroke="#0f9b8e" stroke-width="5"/>' +
+        '<path d="M46 244 q46 -18 92 0 q46 18 92 0 q46 -18 92 0" stroke="#0f9b8e" stroke-width="4"/>',
+
+        '<path d="M188 236 v-108 a20 20 0 0 1 40 0 v108" stroke="#2fbf71" stroke-width="7"/>' +
+        '<path d="M188 176 h-34 a16 16 0 0 0 -16 16 v24" stroke="#2fbf71" stroke-width="6"/>' +
+        '<path d="M228 158 h30 a16 16 0 0 1 16 16 v36" stroke="#2fbf71" stroke-width="6"/>' +
+        '<path d="M198 142 v20 M218 152 v20 M208 186 v20" stroke="#2fbf71" stroke-width="3"/>' +
+        '<path d="M150 118 l-12 -12 M266 116 l12 -12" stroke="#2fbf71" stroke-width="4"/>' +
+        '<path d="M152 238 h112 l-12 40 h-88 z" stroke="#8b5a2b" stroke-width="6"/>' +
+        '<path d="M146 238 h124" stroke="#8b5a2b" stroke-width="6"/>' +
+        '<path d="M78 282 q56 -14 112 0 q56 14 112 -6" stroke="#ffb020" stroke-width="4"/>'
+      ];
+
+      var PLAYERS = [
+        { name: "Ravi",  hue: "#4f7cff", imposter: false, out: false },
+        { name: "Mira",  hue: "#ef4c4c", imposter: true,  out: false },
+        { name: "Tomas", hue: "#2fbf71", imposter: false, out: true  },
+        { name: "Anouk", hue: "#ff8a1f", imposter: false, out: false }
+      ];
+
+      function svgFor(i) {
+        return '<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+          '<rect width="400" height="300" fill="#fffefb"/>' +
+          '<g fill="none" stroke-linecap="round" stroke-linejoin="round">' + SCENES[i % SCENES.length] + '</g>' +
+          '</svg>';
+      }
+      function el(tag, cls, html) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (html != null) n.innerHTML = html;
+        return n;
+      }
+      function ordinal(n) { return "Round " + n; }
+
+      var count = 3;
+      // Per-option selection, so switching round count does not reset the other panels oddly.
+      var sel = { o2: null, o4: null };
+
+      function clampSel() {
+        if (sel.o2 == null || sel.o2 >= count) sel.o2 = count - 1;
+        if (sel.o4 == null || sel.o4 >= count) sel.o4 = count - 1;
+      }
+
+      // ---- settled: pairs + per-round word grid ----
+      function renderSettled() {
+        var pairs = document.getElementById("pairs");
+        pairs.innerHTML = "";
+        for (var i = 0; i < count; i++) {
+          var r = ROUNDS[i], last = i === count - 1;
+          var row = el("div", "roundpair" + (last ? " is-final" : ""));
+          row.appendChild(el("span", "rn", String(i + 1)));
+          row.appendChild(el("span", "pair",
+            '<span>' + r.common + '</span><span class="vs">vs</span><span class="imp">' + r.imposter + '</span>'));
+          pairs.appendChild(row);
+        }
+
+        var head = document.getElementById("rgrid-head");
+        var h = "<tr><th>Player</th>";
+        for (var j = 0; j < count; j++) h += "<th>R" + (j + 1) + "</th>";
+        head.innerHTML = h + "</tr>";
+
+        var body = document.getElementById("rgrid-body");
+        body.innerHTML = "";
+        PLAYERS.forEach(function (p) {
+          var tr = el("tr", p.imposter ? "imp" : "");
+          var td0 = el("td", "");
+          var av = el("span", "avatar", p.name.charAt(0));
+          av.style.background = p.hue;
+          av.style.width = "1.5rem"; av.style.height = "1.5rem"; av.style.fontSize = ".64rem";
+          td0.appendChild(av);
+          td0.appendChild(document.createTextNode(p.name));
+          tr.appendChild(td0);
+          for (var k = 0; k < count; k++) {
+            var word = p.imposter ? ROUNDS[k].imposter : ROUNDS[k].common;
+            // An eliminated seat is dealt no word from the round after it goes out.
+            var gone = p.out && k >= count - 1;
+            tr.appendChild(el("td", "w", gone ? '<span style="color:var(--ink-3);font-weight:700">—</span>' : word));
+          }
+          body.appendChild(tr);
+        });
+      }
+
+      // ---- option 1 ----
+      function renderO1() {
+        var i = count - 1;
+        document.getElementById("o1-stage").innerHTML = svgFor(i);
+        document.getElementById("o1-cap").textContent =
+          ordinal(count) + " — " + ROUNDS[i].common + " / " + ROUNDS[i].imposter;
+        var lost = count - 1;
+        document.getElementById("o1-ghost").textContent =
+          lost === 0 ? "Nothing lost — a one-round match." :
+          lost + " earlier canvas" + (lost === 1 ? "" : "es") + " wiped and unrecoverable";
+      }
+
+      // ---- option 2 ----
+      function renderO2() {
+        var tabs = document.getElementById("o2-tabs");
+        tabs.innerHTML = "";
+        for (var i = 0; i < count; i++) {
+          (function (i) {
+            var last = i === count - 1;
+            var b = el("button", "rtab" + (last ? " rtab-final" : ""), ordinal(i + 1));
+            b.type = "button";
+            b.setAttribute("role", "tab");
+            b.setAttribute("aria-selected", String(i === sel.o2));
+            b.title = ROUNDS[i].common + " / " + ROUNDS[i].imposter;
+            b.addEventListener("click", function () { sel.o2 = i; renderO2(); });
+            tabs.appendChild(b);
+          })(i);
+        }
+        document.getElementById("o2-stage").innerHTML = svgFor(sel.o2);
+      }
+
+      // ---- option 3 ----
+      function renderO3() {
+        var wrap = document.getElementById("o3-tiles");
+        wrap.innerHTML = "";
+        // Two across up to 4 rounds; a single row past 2 would be unreadable.
+        wrap.style.gridTemplateColumns = count <= 1 ? "1fr" : "repeat(2, 1fr)";
+        for (var i = 0; i < count; i++) {
+          var last = i === count - 1;
+          var t = el("div", "tile" + (last ? " tile-final" : ""));
+          t.appendChild(el("div", "stage stage-locked", svgFor(i)));
+          t.appendChild(el("p", "cap", ordinal(i + 1) + " · " + ROUNDS[i].common + " / " + ROUNDS[i].imposter));
+          wrap.appendChild(t);
+        }
+      }
+
+      // ---- option 4 ----
+      function renderO4() {
+        document.getElementById("o4-stage").innerHTML = svgFor(sel.o4);
+        var r = ROUNDS[sel.o4];
+        document.getElementById("o4-word").innerHTML =
+          '<span>' + ordinal(sel.o4 + 1) + '</span>' +
+          '<span class="w">' + r.common + '</span>' +
+          '<span class="w imp">' + r.imposter + '</span>';
+
+        var strip = document.getElementById("o4-strip");
+        strip.innerHTML = "";
+        for (var i = 0; i < count; i++) {
+          (function (i) {
+            var b = el("button", "thumb");
+            b.type = "button";
+            b.setAttribute("aria-current", String(i === sel.o4));
+            b.setAttribute("aria-label", ordinal(i + 1));
+            b.appendChild(el("div", "stage", svgFor(i)));
+            b.appendChild(el("p", "cap", "R" + (i + 1)));
+            b.addEventListener("click", function () { sel.o4 = i; renderO4(); });
+            strip.appendChild(b);
+          })(i);
+        }
+      }
+
+      function renderAll() {
+        clampSel();
+        renderSettled(); renderO1(); renderO2(); renderO3(); renderO4();
+      }
+
+      document.getElementById("seg").addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-n]");
+        if (!b) return;
+        count = Number(b.dataset.n);
+        Array.prototype.forEach.call(this.querySelectorAll("button"), function (x) {
+          x.setAttribute("aria-pressed", String(x === b));
+        });
+        sel.o2 = null; sel.o4 = null;
+        renderAll();
+      });
+
+      renderAll();
+    </script>
+  </body>
+</html>

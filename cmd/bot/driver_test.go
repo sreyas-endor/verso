@@ -589,7 +589,7 @@ func TestTheLeakSearchActuallyFindsALeak(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := w.Inspect("observer", "VERSO-CANARY-OMEGA", tc.ev)
+			got := w.Inspect("observer", []string{"VERSO-CANARY-OMEGA"}, tc.ev)
 			if (len(got) > 0) != tc.want {
 				t.Fatalf("Inspect found %d leaks, want any = %v (%v)", len(got), tc.want, got)
 			}

@@ -21,14 +21,19 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   const chart = tallyChart();
   const word = wordPanel();
-  const clock = timer("Time until the next round");
+  // What actually comes next is the new round's word reveal, not a drawing
+  // turn — the round deals a fresh pair on a blank canvas before anybody draws.
+  const clock = timer("Time until the next word");
+  // Only on the rounds that have a next one. On the final round this screen is
+  // followed by the reveal, and promising a new word would be a lie.
+  const nextNote = el("p", { class: "hint" });
 
   const kicker = el("div", { class: "phasehead-kicker" });
   const title = el("div", { class: "phasehead-title" });
   const head = el(
     "section",
     { class: "card phasehead" },
-    el("div", { class: "phasehead-main" }, kicker, title),
+    el("div", { class: "phasehead-main" }, kicker, title, nextNote),
     clock.root,
   );
 
@@ -49,6 +54,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     word.update(s.word);
     chart.update(s);
     setText(kicker, `Round ${s.round} of ${s.totalRounds} · result`);
+    setText(
+      nextNote,
+      s.round < s.totalRounds
+        ? `Round ${s.round + 1} deals a new word on a blank canvas.`
+        : "",
+    );
 
     const ev = s.elimination;
     const gone = ev?.eliminated ? s.players.find((p) => p.id === ev.playerId) : undefined;

@@ -61,28 +61,94 @@
 .rules-yes b { color: var(--good-dk); }
 .rules-no  b { color: var(--bad-dk); }
 
-/* ---- final reveal ---- */
+/* ---- final reveal ----
+   The modifier is -imposter, matching the proto and every other name in the
+   app. It was -outlier here and -imposter in the markup, so all three amber
+   treatments below silently applied to nothing. */
 .winner { text-align: center; padding: 1.7rem 1.2rem; border-width: 3px; box-shadow:5px 6px 0 rgba(38,50,56,.13); }
-.winner-group   { background: var(--good-sf); border-color: var(--good); }
-.winner-outlier { background: var(--amber-sf); border-color: var(--amber); }
+.winner-group    { background: var(--good-sf); border-color: var(--good); }
+.winner-imposter { background: var(--amber-sf); border-color: var(--amber); }
 .winner-side { font-size: clamp(1.8rem, 7vw, 2.6rem); font-weight: 900; letter-spacing: -.02em; }
-.winner-group .winner-side   { color: var(--good-dk); }
-.winner-outlier .winner-side { color: var(--amber-dk); }
+.winner-group .winner-side    { color: var(--good-dk); }
+.winner-imposter .winner-side { color: var(--amber-dk); }
 .winner-why { font-weight: 700; color: var(--ink-2); }
 
 .wordpair { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
 .wordbox { border-radius: var(--radius-sm); padding: .7rem; text-align: center; background: var(--surface-2); border: 2px solid var(--border); }
-.wordbox-outlier { background: var(--amber-sf); border-color: var(--amber); }
+.wordbox-imposter { background: var(--amber-sf); border-color: var(--amber); }
 .wordbox-label { font-size: .72rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-2); }
 .wordbox-value { font-size: 1.3rem; font-weight: 900; word-break: break-word; }
+
+/* One pair per round played. The number carries the round so the two word
+   boxes keep the exact layout a single-round match has. */
+.roundpair { display: flex; align-items: center; gap: .5rem; }
+.roundpair + .roundpair { margin-top: .45rem; padding-top: .45rem; border-top: 2px dashed var(--border); }
+.roundpair-n {
+  flex: none; display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem;
+  border-radius: 999px; background: var(--surface-2); border: 2px solid var(--border-str);
+  font: 900 .7rem var(--mono); color: var(--ink-2);
+}
+.roundpair-final .roundpair-n { background: var(--amber-sf); border-color: var(--amber); color: var(--amber-dk); }
+.roundpair .wordpair { min-width: 0; }
+.roundpair .wordbox { padding: .5rem; }
+.roundpair .wordbox-value { font-size: 1.05rem; }
 
 .reveals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
 .reveal-row {
   display: flex; align-items: center; gap: .55rem;
   padding: .4rem .5rem; border-radius: var(--radius-sm); background: var(--surface-2);
 }
-.reveal-row-outlier { background: var(--amber-sf); }
+.reveal-row-imposter { background: var(--amber-sf); }
 .reveal-word-cell { margin-left: auto; font-weight: 900; text-align: right; }
+/* A word per round. They stack rather than sitting in a row: the column is
+   ~250px and three words never fit across it. */
+.reveal-words { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: .1rem; }
+.reveal-words .reveal-word-cell { margin-left: 0; font-size: .84rem; }
+/* A round this player had already been eliminated out of. Not the same as
+   holding the common word, which arrives as the word itself. */
+.reveal-word-gone { color: var(--ink-3); font-weight: 700; }
+
+/* ---- the reveal filmstrip ----
+   Every round wipes the canvas, so a finished match is one drawing per round.
+   One is promoted to full size and the rest sit under it, which keeps the whole
+   match visible without shrinking any single canvas past legibility — a fourth
+   round costs a scroll, not a smaller thumbnail. */
+.filmstrip-wrap { display: flex; flex-direction: column; }
+.filmstrip-wrap > .stage > canvas { display: block; width: 100%; height: 100%; }
+.filmstrip-now {
+  margin: .45rem 0 0; text-align: center;
+  font-size: .84rem; font-weight: 800; color: var(--ink-2);
+}
+.filmstrip {
+  display: flex; gap: .45rem; margin-top: .55rem;
+  overflow-x: auto; padding-bottom: .2rem; scrollbar-width: thin;
+}
+.filmstrip[hidden] { display: none; }
+.filmstrip-thumb {
+  flex: none; width: 5.5rem; padding: 0; border: none; background: none;
+  cursor: pointer; font: inherit; color: inherit;
+}
+.filmstrip-thumb .stage {
+  display: block; border-width: 2.5px; border-radius: var(--radius-sm);
+  box-shadow: 2px 3px 0 rgba(38,50,56,.14);
+}
+.filmstrip-thumb canvas { display: block; width: 100%; height: 100%; }
+.filmstrip-cap {
+  display: block; margin-top: .22rem; text-align: center;
+  font: 900 .62rem var(--mono); letter-spacing: .06em; color: var(--ink-3);
+}
+.filmstrip-thumb[aria-selected="true"] .stage { border-color: var(--accent); box-shadow: 2px 3px 0 var(--accent-sf); }
+.filmstrip-thumb[aria-selected="true"] .filmstrip-cap { color: var(--accent-dk); }
+.filmstrip-thumb:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: var(--radius-sm); }
+
+/* The new pair a round deals, called out on the reveal screen so nobody draws
+   round 2 with round 1's word still in their head. */
+.reveal-fresh {
+  margin: .7rem 0 0; padding: .5rem .7rem;
+  border-radius: var(--radius-sm); background: var(--amber-sf); border: 2px solid var(--amber);
+  font-size: .84rem; font-weight: 800; color: var(--amber-dk);
+}
+.reveal-fresh:empty { display: none; }
 
 /* ---- turn handoff ---- */
 .handoff-canvas { position: relative; isolation: isolate; }

@@ -173,6 +173,7 @@ func (r *Room) finishMatch() {
 		ImposterPlayerId: r.imposterID,
 		Reveals:          r.buildReveals(),
 		RoundsPlayed:     r.round,
+		Rounds:           r.buildRoundWords(),
 	}})
 
 	// Never the words: the reveal is on the wire, not in the log.

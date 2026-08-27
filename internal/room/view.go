@@ -10,11 +10,15 @@ package room
 //
 //	grep -rn 'p\.word\|\.word\b' internal/
 //
-// Every consumer in this file goes through viewFor rather than touching the
-// field — including buildReveals, which needs every player's word for the
-// final reveal and gets each one out of that player's own private view. The
-// cost is one Snapshot per player, once, at the end of a match; the benefit is
-// that a second reader is a visible new line rather than an easy accident.
+// sendYourWord goes through viewFor rather than touching the field: it takes
+// the value out of that player's own private view. The cost is one Snapshot
+// per player per round; the benefit is that a second reader is a visible new
+// line rather than an easy accident.
+//
+// buildReveals does not read Player.word at all. It cannot: the final reveal
+// now shows EVERY round's words, and the field only ever holds the current
+// one. It reads r.history instead, which assignWords fills in from the pair it
+// has just drawn. Fewer readers of the field, not more.
 //
 // viewFor's result is unicast-only: EvSnapshot carries no broadcastSafe
 // marker, so it cannot be handed to Broadcast. MatchEnded is the one
@@ -42,7 +46,8 @@ func (r *Room) sendYourWord(p *Player) {
 	}
 	r.SendTo(p.ID, EvYourWord{&genpb.YourWord{
 		Word: view.GetYourWord(),
-		// The word is dealt before round 1 opens and holds for the whole match.
+		// The reveal that deals round n runs while r.round is still n-1, so
+		// this names the round the word is FOR, not the one just finished.
 		Round: r.round + 1,
 	}})
 }
@@ -58,30 +63,67 @@ func (r *Room) sendSnapshot(playerID, cid string) {
 	r.SendReply(playerID, cid, EvSnapshot{view})
 }
 
+// buildRoundWords renders every round's pair for the final reveal, oldest
+// first. Valid only once the match is over, for the same reason buildReveals
+// is.
+func (r *Room) buildRoundWords() []*genpb.RoundWords {
+	out := make([]*genpb.RoundWords, 0, len(r.history))
+	for _, h := range r.history {
+		out = append(out, &genpb.RoundWords{
+			Round:        h.round,
+			CommonWord:   h.common,
+			ImposterWord: h.imposter,
+		})
+	}
+	return out
+}
+
 // buildReveals renders the final-reveal rows: every player who was dealt a
-// word, with that word, whether they were the imposter, and whether they were
-// eliminated (DESIGN.md:75).
+// word in any round, the word they held in each of them, whether they were the
+// imposter, and whether they were eliminated (DESIGN.md:75).
 //
 // This is the one place the whole roster's words are published, and it is
 // valid only once the match is over — finishMatch has already moved the room
 // into PHASE_ENDED before calling it. Do not call it from anywhere else.
 //
-// It reads no words itself. Each one comes out of that player's own viewFor
-// Snapshot, so Player.word keeps exactly one reader (see the header above).
-// An empty word means a seat that was never dealt in, and it is skipped.
+// It reads no words off Player, so the field keeps its single reader (see the
+// header above). Every word here comes out of r.history, and each round's row
+// is derived rather than stored per player: within a round there are exactly
+// two words, and which one a seat got is decided by one comparison against the
+// pinned imposter id.
+//
+// Rounds a player was already eliminated for contribute an empty string, which
+// is how the client tells "held the common word" apart from "was not in this
+// round at all". A seat that was never dealt in at all is skipped entirely.
 func (r *Room) buildReveals() []*genpb.PlayerReveal {
 	out := make([]*genpb.PlayerReveal, 0, len(r.players))
 	for _, p := range r.players {
-		view := r.viewFor(p.ID)
-		if view == nil || view.GetYourWord() == "" {
+		words := make([]string, 0, len(r.history))
+		last := ""
+		dealtIn := false
+		for _, h := range r.history {
+			if !h.dealt[p.ID] {
+				words = append(words, "")
+				continue
+			}
+			dealtIn = true
+			w := h.common
+			if p.ID == r.imposterID {
+				w = h.imposter
+			}
+			words = append(words, w)
+			last = w
+		}
+		if !dealtIn {
 			continue
 		}
 		out = append(out, &genpb.PlayerReveal{
 			PlayerId:    p.ID,
 			Name:        p.Name,
-			Word:        view.GetYourWord(),
+			Word:        last,
 			WasImposter: p.ID == r.imposterID,
 			Eliminated:  p.Eliminated,
+			Words:       words,
 		})
 	}
 	return out

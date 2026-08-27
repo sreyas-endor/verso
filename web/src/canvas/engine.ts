@@ -20,7 +20,7 @@
 // than any incremental catch-up machinery (IMPLEMENTATION_PLAN.md §4.6).
 
 import type { Stroke, StrokeBegan, StrokeEnded, StrokePoints } from "../../gen/verso/v1/game_pb.js";
-import { renderPng, savePng, type SaveOutcome } from "./export.js";
+import { renderPng, savePng, type ExportStroke, type SaveOutcome } from "./export.js";
 import { StrokePen, renderStroke } from "./geometry.js";
 import {
   DEFAULT_WIDTH,
@@ -449,14 +449,25 @@ export class CanvasEngine implements PointerSink {
   // Export
   // -------------------------------------------------------------------------
 
-  /** Re-render the committed vectors at 2x and encode a PNG off the main thread. */
-  exportPng(scale = 2): Promise<Blob> {
-    const strokes = this.log.map((r) => ({
+  /**
+   * A detached copy of the committed vectors — everything on the canvas right
+   * now, minus any stroke still in flight.
+   *
+   * This is how a finished round survives the wipe that opens the next one. The
+   * points are copied, not aliased: reset() clears the log, and an archived
+   * round has to outlive it.
+   */
+  committedStrokes(): ExportStroke[] {
+    return this.log.map((r) => ({
       colorIndex: r.colorIndex,
       width: r.width,
-      points: r.pts,
+      points: [...r.pts],
     }));
-    return renderPng(strokes, scale);
+  }
+
+  /** Re-render the committed vectors at 2x and encode a PNG off the main thread. */
+  exportPng(scale = 2): Promise<Blob> {
+    return renderPng(this.committedStrokes(), scale);
   }
 
   /** Export, then hand it to the share sheet or a download. */

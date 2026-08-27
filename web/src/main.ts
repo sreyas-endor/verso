@@ -3,7 +3,7 @@ import "./styles/index.css";
 
 import { Phase } from "../gen/verso/v1/game_pb.js";
 import { createAudio, createAudioDriver } from "./audio/index.js";
-import { CanvasEngine } from "./canvas/index.js";
+import { CanvasEngine, LOGICAL_W, paint, renderPng, savePng, type ExportStroke } from "./canvas/index.js";
 import { castVote, rematch, requestSnapshot, setReady, startMatch, strokeBegin, strokeEnd, strokePoints, updateSettings } from "./net/commands.js";
 import { VersoSocket } from "./net/socket.js";
 import { GameStore } from "./state/store.js";
@@ -24,6 +24,20 @@ const engine = new CanvasEngine({
     requestSnapshot: (haveSeq) => socket.request(requestSnapshot(haveSeq)),
   },
 });
+
+/**
+ * Finished canvases, keyed by round.
+ *
+ * Every round wipes the paper, so without this the final reveal could only ever
+ * show the last round's drawing — MatchEnded carries no strokes, and the engine
+ * holds exactly one canvas. A round is archived at the moment the server
+ * announces the next one's word reveal, which is the last instant its vectors
+ * still exist.
+ *
+ * Vectors, not bitmaps: a round is a few hundred stroke records, and the reveal
+ * repaints them at whatever size it needs.
+ */
+const roundCanvases = new Map<number, ExportStroke[]>();
 
 let canvasMounted = false;
 const canvas: CanvasHandle = {
@@ -50,7 +64,38 @@ const canvas: CanvasHandle = {
   async savePng() {
     await engine.downloadPng();
   },
+  archivedRounds() {
+    return [...roundCanvases.keys()].sort((a, b) => a - b);
+  },
+  paintRound(round, target) {
+    const ctx = target.getContext("2d");
+    if (!ctx) return;
+    // paint() draws on the logical 1024x768 grid, so the scale is whatever
+    // shrinks that onto this particular target — a thumbnail and the promoted
+    // canvas run the identical code path at different scales.
+    paint(ctx, roundCanvases.get(round) ?? [], target.width / LOGICAL_W);
+  },
+  async savePngForRound(round) {
+    const blob = await renderPng(roundCanvases.get(round) ?? []);
+    await savePng(blob, `verso-canvas-round-${round}`);
+  },
 };
+
+/**
+ * Keep the canvas the round just finished with.
+ *
+ * Called on the PHASE_ASSIGNING that opens the NEXT round, which is both the
+ * last moment the vectors exist and the same transition that clears them — so
+ * the archive can never be a frame late. `round` is the server's counter, which
+ * during that reveal still names the round being left behind.
+ *
+ * An empty round is still archived: "nobody drew anything" is a real thing for
+ * the reveal to show, and a missing entry would read as a gap in the match.
+ */
+function archiveRound(round: number): void {
+  if (round < 1) return;
+  roundCanvases.set(round, engine.committedStrokes());
+}
 
 const actions: Actions = {
   createRoom(displayName) {
@@ -136,8 +181,29 @@ socket.onFrame((frame) => {
     case "strokeEnded": engine.applyStrokeEnded(frame.body.value); break;
     case "snapshot": engine.replay(frame.body.value.strokes, frame.body.value.seq); break;
     case "phaseChanged":
-      if (frame.body.value.phase === Phase.LOBBY || frame.body.value.phase === Phase.ASSIGNING) {
-        engine.reset();
+      switch (frame.body.value.phase) {
+        case Phase.ASSIGNING:
+          // ASSIGNING opens every round, and the canvas it is about to clear is
+          // the finished evidence of the round just played. Keep it before
+          // resetting — after engine.reset() those vectors are gone. `round` is
+          // 0 for the reveal that opens a match, which archiveRound ignores.
+          archiveRound(frame.body.value.round);
+          engine.reset();
+          break;
+        case Phase.LOBBY:
+          // A rematch. Nothing from the last match belongs to the next one.
+          roundCanvases.clear();
+          engine.reset();
+          break;
+        case Phase.ENDED:
+          // The final round has no next reveal to be archived by, and the
+          // reveal screen wants every round through one code path — so catch
+          // the last one here. The canvas is deliberately NOT reset: the match
+          // is over and nothing else will draw on it.
+          archiveRound(frame.body.value.round);
+          break;
+        default:
+          break;
       }
       break;
   }
