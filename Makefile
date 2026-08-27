@@ -42,12 +42,35 @@ docker: web
 	docker build -t $(SERVICE):local .
 
 # Room state lives in the process, so the service is pinned to exactly one
-# always-warm instance:
+# instance:
 #   --max-instances=1     a second instance would hold a disjoint set of rooms
-#   --min-instances=1     a cold start drops every live WebSocket
+#   --min-instances=0     scales to zero when idle - see the caveat below
 #   --no-cpu-throttling   phase timers have to run between requests
 #   --concurrency         the default 80 caps the whole server at 80 sockets
 #   --timeout=3600        a WebSocket request lives as long as the match
+#
+# --min-instances=0 does NOT drop live sockets. Cloud Run counts an open
+# WebSocket as an in-flight request and will not reclaim an instance that has
+# one, so a match in progress holds its own instance up. What it does cost is
+# the two windows that exist precisely when no socket is open:
+#
+#   room.GraceWindow (60 s, internal/room/reconnect.go) - a player whose phone
+#     locked or whose wifi blipped gets their seat back.
+#   registry.DefaultEmptyGrace (3 min, internal/registry/registry.go:42) - a
+#     room with no live socket at all survives this long.
+#
+# Both assume the process outlives the last socket. Under --min-instances=0 it
+# may not. If every player in the only live room drops at once, the instance
+# becomes idle and is eligible for shutdown immediately; Cloud Run usually
+# lingers for some minutes but promises nothing. A reconnect that lands after
+# the reclaim gets "room not found" instead of its seat, and the match is gone.
+# The one-player-blips case is safe (the others' sockets hold the instance);
+# the everyone-drops case is a coin toss, and a host closing the tab at the end
+# of a match is the common way to reach it.
+#
+# The trade is cost: an always-warm --cpu=4 instance bills around the clock for
+# a game that is used in bursts. Set --min-instances=1 back if lost rooms
+# matter more than an idle bill.
 #
 # --concurrency and -max-conns are a PAIR, and the application cap is the lower
 # of the two on purpose. Every live WebSocket occupies a Cloud Run request slot
@@ -98,7 +121,7 @@ deploy: web
 	  --allow-unauthenticated \
 	  --cpu=4 \
 	  --memory=2Gi \
-	  --min-instances=1 \
+	  --min-instances=0 \
 	  --max-instances=1 \
 	  --no-cpu-throttling \
 	  --concurrency=200 \
