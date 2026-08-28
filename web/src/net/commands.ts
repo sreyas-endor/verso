@@ -25,15 +25,17 @@ import {
   StrokePointsSchema,
   UpdateSettingsSchema,
 } from "../../gen/verso/v1/game_pb.js";
-import type { Avatar, Difficulty, MatchSettings, PenRule } from "../../gen/verso/v1/game_pb.js";
+import type { Avatar, MatchSettings } from "../../gen/verso/v1/game_pb.js";
 import {
   MAX_DISCUSS_SECONDS,
   MAX_DRAW_SECONDS,
+  MAX_IMPOSTERS,
   MAX_INTERMISSION_SECONDS,
   MAX_ROUNDS,
   MAX_STROKE_WIDTH,
   MIN_DISCUSS_SECONDS,
   MIN_DRAW_SECONDS,
+  MIN_IMPOSTERS,
   MIN_INTERMISSION_SECONDS,
   MIN_ROUNDS,
   MIN_STROKE_WIDTH,
@@ -42,15 +44,16 @@ import {
 } from "./protocol.js";
 import type { ClientCommandBody } from "./protocol.js";
 
-/** The host-configurable settings, as plain numbers. */
-export interface SettingsInit {
-  difficulty: Difficulty;
-  penRule: PenRule;
-  maxRounds: number;
-  drawSeconds: number;
-  discussSeconds: number;
-  intermissionSeconds: number;
-}
+/**
+ * Every host-configurable setting, derived from the message rather than listed.
+ *
+ * Derived on purpose. This used to be a hand-written subset, and because a
+ * subset is structurally satisfied by the whole, passing a real MatchSettings
+ * to it compiled fine while `toSettings` quietly dropped the two fields the
+ * subset had never heard of. Add a field to MatchSettings now and toSettings
+ * stops compiling until somebody decides what to do with it.
+ */
+export type SettingsInit = Omit<MatchSettings, "$typeName" | "$unknown">;
 
 export function joinRoom(init: {
   roomCode: string;
@@ -149,12 +152,19 @@ export function kickPlayer(targetPlayerId: string): ClientCommandBody {
 // no-op: the wire default for a proto3 scalar is 0, the room reads 0 as "not
 // specified" (internal/room/api.go:830) and substitutes its own default, so a
 // dropped field silently resets that setting on every change to any other one.
+//
+// `next` is annotated rather than inferred, and that annotation is the whole
+// defence: SettingsInit requires every field, so leaving one out is a compile
+// error instead of a setting that will not stick. Imposters and elimination
+// results were both missing here for exactly as long as nothing enforced it.
 export function toSettings(init: SettingsInit): MatchSettings {
-  return create(MatchSettingsSchema, {
+  const next: SettingsInit = {
     difficulty: init.difficulty,
     // No range to clamp — an enum the room does not know becomes its default
     // there, the same as any other unset field.
     penRule: init.penRule,
+    eliminationResults: init.eliminationResults,
+    imposterCount: clamp(Math.round(init.imposterCount), MIN_IMPOSTERS, MAX_IMPOSTERS),
     maxRounds: clamp(Math.round(init.maxRounds), MIN_ROUNDS, MAX_ROUNDS),
     drawSeconds: clamp(Math.round(init.drawSeconds), MIN_DRAW_SECONDS, MAX_DRAW_SECONDS),
     discussSeconds: clamp(Math.round(init.discussSeconds), MIN_DISCUSS_SECONDS, MAX_DISCUSS_SECONDS),
@@ -163,5 +173,6 @@ export function toSettings(init: SettingsInit): MatchSettings {
       MIN_INTERMISSION_SECONDS,
       MAX_INTERMISSION_SECONDS,
     ),
-  });
+  };
+  return create(MatchSettingsSchema, next);
 }
