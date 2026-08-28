@@ -128,7 +128,12 @@ func cnryArtist(r *Room) string {
 }
 
 func cnryImposter(r *Room) string {
-	return cnryGet(r, func(r *Room) string { return r.imposterID })
+	return cnryGet(r, func(r *Room) string {
+		if len(r.imposterIDs) == 0 {
+			return ""
+		}
+		return r.imposterIDs[0]
+	})
 }
 
 func cnryWordOf(r *Room, id string) string {
@@ -523,6 +528,25 @@ func TestCanaryCompleteMatch(t *testing.T) {
 					if hasTheirs {
 						t.Errorf("player %d frame %d: Snapshot bytes contain the other sentinel", i, n)
 					}
+				case "SpectatorInfo":
+					// The dossier of an eliminated player legitimately carries
+					// BOTH sentinels: it publishes every seat's word for every
+					// round dealt (MULTIPLE_IMPOSTERS.md, "Eliminated-player
+					// Spectator View"). The thing that makes it safe is who
+					// receives it, so that is what is asserted here.
+					if ids[i] != target {
+						t.Errorf("player %d frame %d: SpectatorInfo carrying words reached a "+
+							"player who is not the eliminated spectator", i, n)
+					}
+					si := f.ev.GetSpectatorInfo()
+					for _, rd := range si.GetRounds() {
+						for _, a := range rd.GetAssignments() {
+							if w := a.GetWord(); w != canaryAlpha && w != canaryBeta {
+								t.Errorf("player %d frame %d: dossier assigns %q, neither sentinel",
+									i, n, w)
+							}
+						}
+					}
 				default:
 					t.Errorf("player %d frame %d: sentinel bytes in a %s frame — "+
 						"this frame type must never carry a word (mine=%v theirs=%v)",
@@ -571,9 +595,16 @@ func TestCanaryCompleteMatch(t *testing.T) {
 						t.Errorf("player %d frame %d: SpectatorInfo reached a player who is "+
 							"not the eliminated spectator", i, n)
 					}
-					if si.GetImposterPlayerId() != imposterID {
-						t.Errorf("player %d frame %d: SpectatorInfo names %q, imposter is %q",
-							i, n, si.GetImposterPlayerId(), imposterID)
+					named := si.GetImposters()
+					if len(named) != 1 || named[0].GetPlayerId() != imposterID {
+						t.Errorf("player %d frame %d: dossier names %d imposters (%v), want just %q",
+							i, n, len(named), cnryImposterIDs(si), imposterID)
+					}
+					if len(named) == 1 && named[0].GetName() == "" {
+						t.Errorf("player %d frame %d: dossier carries no imposter name", i, n)
+					}
+					if len(si.GetRounds()) == 0 {
+						t.Errorf("player %d frame %d: dossier carries no rounds", i, n)
 					}
 					if reveals[i] >= 0 && n > reveals[i] {
 						t.Errorf("player %d frame %d: SpectatorInfo arrived after MatchEnded", i, n)
@@ -583,8 +614,12 @@ func TestCanaryCompleteMatch(t *testing.T) {
 					pe := f.ev.GetPlayerEliminated()
 					// Nobody eliminated in this match was the imposter, so
 					// was_imposter must be false in every one of these frames.
-					// It may only ever be true in the same resolution that
-					// awards the group win (DESIGN.md:65).
+					// The default settings are Reveal, so alignment_revealed is
+					// set and the flag is a real "no", not a withheld one.
+					if pe.GetEliminated() && !pe.GetAlignmentRevealed() {
+						t.Errorf("player %d frame %d: alignment_revealed is clear under the "+
+							"default Reveal setting", i, n)
+					}
 					if pe.GetWasImposter() {
 						t.Errorf("player %d frame %d: PlayerEliminated.was_imposter is set "+
 							"for a non-imposter elimination", i, n)
@@ -595,9 +630,9 @@ func TestCanaryCompleteMatch(t *testing.T) {
 					}
 				case "MatchEnded":
 					me := f.ev.GetMatchEnded()
-					if me.GetImposterPlayerId() != imposterID {
-						t.Errorf("player %d frame %d: MatchEnded names imposter %q, want %q",
-							i, n, me.GetImposterPlayerId(), imposterID)
+					if got := me.GetImposterPlayerIds(); len(got) != 1 || got[0] != imposterID {
+						t.Errorf("player %d frame %d: MatchEnded names imposters %v, want [%q]",
+							i, n, got, imposterID)
 					}
 					if len(me.GetReveals()) != players {
 						t.Errorf("player %d frame %d: %d reveals, want %d",
@@ -864,4 +899,13 @@ func TestBroadcastOfASecretDoesNotCompile(t *testing.T) {
 		}
 	}
 	t.Logf("go build rejected all five secret-bearing wrappers:\n%s", strings.TrimSpace(got))
+}
+
+// cnryImposterIDs flattens a dossier's imposter list for a failure message.
+func cnryImposterIDs(si *genpb.SpectatorInfo) []string {
+	out := make([]string, 0, len(si.GetImposters()))
+	for _, im := range si.GetImposters() {
+		out = append(out, im.GetPlayerId())
+	}
+	return out
 }

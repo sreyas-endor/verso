@@ -336,8 +336,9 @@ func TestImposterDisconnectAwardsTheGroupTheMatch(t *testing.T) {
 	if res.Reason == genpb.MatchEndReason_MATCH_END_REASON_TWO_PLAYERS_REMAIN {
 		t.Error("the imposter was awarded the match for leaving")
 	}
+	dropped := res.ImposterIDs[0]
 	for _, rep := range res.Reports {
-		if rep.PlayerID == res.ImposterID {
+		if rep.PlayerID == dropped {
 			if rep.Ended != nil {
 				t.Error("the disconnected imposter's socket received MatchEnded")
 			}
@@ -424,18 +425,26 @@ func TestNonImposterEliminationMakesOneSpectator(t *testing.T) {
 		t.Errorf("rounds played = %d, want the match to have continued to 2", res.RoundsPlayed)
 	}
 
+	imposterID := res.ImposterIDs[0]
 	spectators := 0
 	for _, rep := range res.Reports {
 		if rep.Spectator == nil {
 			continue
 		}
 		spectators++
-		if rep.PlayerID == res.ImposterID {
+		if rep.PlayerID == imposterID {
 			t.Error("the imposter was told who the imposter is")
 		}
-		if rep.Spectator.GetImposterPlayerId() != res.ImposterID {
-			t.Errorf("SpectatorInfo named %q as the imposter, want %q",
-				rep.Spectator.GetImposterPlayerId(), res.ImposterID)
+		named := rep.Spectator.GetImposters()
+		if len(named) != 1 || named[0].GetPlayerId() != imposterID {
+			t.Errorf("SpectatorInfo named %d imposters, want just %q", len(named), imposterID)
+		}
+		// The dossier is the whole match so far. A spectator eliminated in
+		// round 1 gets round 2's assignments as they are dealt, so by the end
+		// they hold both rounds (MULTIPLE_IMPOSTERS.md, "Eliminated-player
+		// Spectator View").
+		if n := len(rep.Spectator.GetRounds()); n != int(res.RoundsPlayed) {
+			t.Errorf("the spectator's dossier carries %d rounds, want %d", n, res.RoundsPlayed)
 		}
 		if !rep.Eliminated {
 			t.Errorf("%s received SpectatorInfo without being eliminated", rep.Name)
@@ -607,5 +616,163 @@ func TestTheHarnessRejectsAnImpossibleSeatCount(t *testing.T) {
 		} else if !strings.Contains(err.Error(), "want 3..10") {
 			t.Errorf("a %d-player plan failed with %v, want a seat-count complaint", n, err)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Multiple imposters (MULTIPLE_IMPOSTERS.md)
+// ---------------------------------------------------------------------------
+
+// twoImposterSettings is fastSettings with the two new knobs set.
+func twoImposterSettings(rounds int32, results genpb.EliminationResults) *genpb.MatchSettings {
+	s := fastSettings(rounds)
+	s.ImposterCount = 2
+	s.EliminationResults = results
+	return s
+}
+
+// TestTwoImpostersRunEndToEnd plays a full two-imposter match over real
+// sockets. The gang converges on one of the pair, which under Reveal is the
+// elimination the match SURVIVES — the branch the base design has no way to
+// reach, and the one every invariant in bot.go had to be restated for.
+//
+// Everything asserted here is asserted by the bots themselves as the frames
+// arrive; play() fails on any violation or leak. What this adds is the shape of
+// the run: five players so findImposters can tell the two groups apart, and a
+// second round to prove the seats did not re-roll.
+func TestTwoImpostersRunEndToEnd(t *testing.T) {
+	t.Parallel()
+	res := play(t, MatchPlan{
+		Name:       "5-player two-imposter match",
+		Players:    5,
+		Settings:   twoImposterSettings(2, genpb.EliminationResults_ELIMINATION_RESULTS_REVEAL),
+		Strategy:   "gang",
+		GangTarget: "imposter",
+		Draw:       DrawPlan{Strokes: 1, BatchesPerStroke: 2, PointsPerBatch: 4},
+		Provoke:    true,
+	})
+
+	if n := len(res.ImposterIDs); n != 2 {
+		t.Fatalf("the match dealt %d imposters, want 2", n)
+	}
+	if res.ImposterIDs[0] == res.ImposterIDs[1] {
+		t.Fatal("the same seat was dealt as both imposters")
+	}
+	// Catching the first did not end it: the second round was played.
+	if res.RoundsPlayed != 2 {
+		t.Errorf("rounds played = %d, want the match to have continued to 2", res.RoundsPlayed)
+	}
+
+	// The seat caught in round 1 is out and holds a dossier naming BOTH of
+	// them — including the partner they were never told about while playing
+	// (MULTIPLE_IMPOSTERS.md, "Eliminated-player Spectator View").
+	dossiers := 0
+	for _, rep := range res.Reports {
+		if rep.Spectator == nil {
+			continue
+		}
+		dossiers++
+		if !rep.Eliminated {
+			t.Errorf("%s holds a dossier without being eliminated", rep.Name)
+		}
+		named := map[string]bool{}
+		for _, im := range rep.Spectator.GetImposters() {
+			named[im.GetPlayerId()] = true
+		}
+		if len(named) != 2 {
+			t.Errorf("%s's dossier names %d imposters, want 2", rep.Name, len(named))
+		}
+		for _, rd := range rep.Spectator.GetRounds() {
+			odd := 0
+			for _, a := range rd.GetAssignments() {
+				if !a.GetIsImposter() {
+					continue
+				}
+				odd++
+				if !named[a.GetPlayerId()] {
+					t.Errorf("%s's dossier marks %q as an imposter in round %d but does "+
+						"not name them", rep.Name, a.GetPlayerId(), rd.GetRound())
+				}
+			}
+			// Round 1 dealt everybody in, so both are there. A later round is
+			// dealt only to the seats still standing, so an imposter caught in
+			// round 1 is ABSENT from round 2 rather than listed with a blank —
+			// which is why this is a bound rather than an equality.
+			if rd.GetRound() == 1 && odd != 2 {
+				t.Errorf("%s's dossier marks %d imposters in round 1, want 2", rep.Name, odd)
+			}
+			if odd == 0 || odd > 2 {
+				t.Errorf("%s's dossier marks %d imposters in round %d, want 1 or 2",
+					rep.Name, odd, rd.GetRound())
+			}
+		}
+	}
+	if dossiers == 0 {
+		t.Error("nobody was eliminated, so the spectator dossier was never exercised")
+	}
+}
+
+// TestHiddenResultsRunEndToEnd is the same shape with the results withheld.
+// The bots enforce it themselves: any alignment_revealed on a frame that
+// arrived before MatchEnded is recorded and checked against the winner.
+func TestHiddenResultsRunEndToEnd(t *testing.T) {
+	t.Parallel()
+	res := play(t, MatchPlan{
+		Name:       "5-player hidden-results match",
+		Players:    5,
+		Settings:   twoImposterSettings(2, genpb.EliminationResults_ELIMINATION_RESULTS_HIDDEN),
+		Strategy:   "gang",
+		GangTarget: "non-imposter",
+		Draw:       DrawPlan{Strokes: 1, BatchesPerStroke: 2, PointsPerBatch: 4},
+	})
+
+	for _, rep := range res.Reports {
+		for _, ev := range rep.Transcript {
+			e := ev.GetPlayerEliminated()
+			if e == nil || !e.GetEliminated() {
+				continue
+			}
+			// Every elimination in this run is a non-imposter and the match
+			// ends on the round limit, so no resolution here is terminal and
+			// none of them may disclose anything.
+			if e.GetAlignmentRevealed() || e.GetWasImposter() {
+				t.Errorf("%s was told the alignment of %q under Hidden results",
+					rep.Name, e.GetPlayerId())
+			}
+		}
+	}
+	if res.Winner != genpb.WinnerSide_WINNER_SIDE_IMPOSTER {
+		t.Errorf("winner = %v, want the imposter side to have survived", res.Winner)
+	}
+}
+
+// TestFourPlayersTwoImpostersIsAmbiguousToTheDriver documents the one
+// configuration the driver deliberately refuses: with two seats on each side
+// of the pair, the table cannot tell the imposters from the common word by
+// group size, and guessing would make every later assertion meaningless.
+//
+// The SERVER is perfectly happy with it — this is a limit of the omniscient
+// test driver, not of the game.
+func TestFourPlayersTwoImpostersIsAmbiguousToTheDriver(t *testing.T) {
+	t.Parallel()
+	_, _, _, err := findImposters(map[string]string{
+		"a": "CAT", "b": "CAT", "c": "DOG", "d": "DOG",
+	}, 2)
+	if err == nil {
+		t.Fatal("findImposters picked a side from a 2-2 split instead of refusing")
+	}
+	if !strings.Contains(err.Error(), "both sides") {
+		t.Fatalf("error does not explain the ambiguity: %v", err)
+	}
+
+	// Three players with two imposters IS decidable: the groups are 2 and 1.
+	ids, common, imposter, err := findImposters(map[string]string{
+		"a": "CAT", "b": "CAT", "c": "DOG",
+	}, 2)
+	if err != nil {
+		t.Fatalf("3 players with 2 imposters: %v", err)
+	}
+	if len(ids) != 2 || common != "DOG" || imposter != "CAT" {
+		t.Fatalf("got ids=%v common=%q imposter=%q, want the pair holding CAT", ids, common, imposter)
 	}
 }

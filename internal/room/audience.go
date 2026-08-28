@@ -295,11 +295,16 @@ func (e EvSnapshot) Envelope(cid string) *genpb.ServerEvent {
 }
 func (EvSnapshot) eventKind() EventKind { return KindSnapshot }
 
-// EvSpectatorInfo tells one just-eliminated non-imposter who the imposter is
-// (DESIGN.md:67).
+// EvSpectatorInfo is one eliminated player's private dossier: every imposter,
+// every round's pair, every seat's word, every finished canvas (DESIGN.md:67,
+// MULTIPLE_IMPOSTERS.md "Eliminated-player Spectator View").
 //
-// DELIBERATELY NOT Broadcastable: broadcasting the imposter's identity mid-match
-// ends the game instantly and invisibly.
+// DELIBERATELY NOT Broadcastable, and the single most dangerous payload in this
+// file after EvYourWord. It carries the whole roster's secrets, so broadcasting
+// it would not merely name the imposters — it would hand every active player
+// every other player's word and end the game instantly and invisibly.
+// Room.sendSpectatorInfo is the only producer, and it refuses any recipient who
+// is not already eliminated.
 type EvSpectatorInfo struct{ *genpb.SpectatorInfo }
 
 func (e EvSpectatorInfo) Envelope(cid string) *genpb.ServerEvent {

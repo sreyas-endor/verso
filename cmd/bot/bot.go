@@ -216,14 +216,24 @@ type Bot struct {
 	pluralityWinner string
 	sawTally        bool
 
-	sawImposter bool // saw PlayerEliminated{was_imposter:true}
-	spectator   *genpb.SpectatorInfo
-	frameCounts map[string]int
-	transcript  []*genpb.ServerEvent
-	errors      []*genpb.Error
-	violations  []string
-	leaks       []Leak
-	runErr      error
+	// sawImposter records a PlayerEliminated{was_imposter:true}. With one
+	// imposter it may only appear in the resolution that wins the match for the
+	// group; with two, the first one caught sets it in a resolution the match
+	// survives (MULTIPLE_IMPOSTERS.md, "Elimination Results").
+	sawImposter bool
+	// impostersCaught counts those frames, so a Reveal match can be checked
+	// against the configured imposter count.
+	impostersCaught int
+	// hiddenDisclosure records a Hidden match disclosing an alignment before
+	// MatchEnded arrived, which is only legal in the resolution that ends it.
+	hiddenDisclosure bool
+	spectator        *genpb.SpectatorInfo
+	frameCounts      map[string]int
+	transcript       []*genpb.ServerEvent
+	errors           []*genpb.Error
+	violations       []string
+	leaks            []Leak
+	runErr           error
 }
 
 // resyncExpect is the state a bot asserts it gets back after a reconnect.
@@ -925,6 +935,13 @@ func (b *Bot) onSnapshot(s *genpb.Snapshot) {
 	b.round = s.GetRound()
 	b.totalRounds = s.GetTotalRounds()
 	b.settings = s.GetSettings()
+	if s.GetYouAreEliminated() {
+		// The grace-expiry path eliminates a seat without a PlayerEliminated
+		// broadcast — the socket was gone to hear one. A reconnecting spectator
+		// learns it here, and the dossier arrives right behind this Snapshot.
+		b.eliminated = true
+		b.becomeSpectator()
+	}
 	b.setRoster(s.GetPlayers())
 	b.turnOrder = s.GetTurnOrder()
 	b.artistID = s.GetArtistId()
@@ -1249,7 +1266,21 @@ func (b *Bot) onPlayerEliminated(e *genpb.PlayerEliminated) {
 		if e.GetWasImposter() {
 			b.violate("PlayerEliminated says nobody went but was_imposter is true")
 		}
+		if e.GetAlignmentRevealed() {
+			b.violate("PlayerEliminated says nobody went but alignment_revealed is true")
+		}
 		return
+	}
+	// A verdict may never ride on a flag the room did not license
+	// (game.proto PlayerEliminated).
+	if e.GetWasImposter() && !e.GetAlignmentRevealed() {
+		b.violate("PlayerEliminated sets was_imposter with alignment_revealed clear")
+	}
+	// Under Hidden the only elimination allowed to disclose an alignment is the
+	// one that ends the match, and MatchEnded arrives in the same resolution.
+	if b.settings.GetEliminationResults() == genpb.EliminationResults_ELIMINATION_RESULTS_HIDDEN &&
+		e.GetAlignmentRevealed() && b.ended == nil {
+		b.hiddenDisclosure = true
 	}
 	if p := b.roster[e.GetPlayerId()]; p != nil {
 		p.Eliminated = true
@@ -1257,9 +1288,11 @@ func (b *Bot) onPlayerEliminated(e *genpb.PlayerEliminated) {
 	if e.GetPlayerId() == b.playerID {
 		b.eliminated = true
 		b.drawPen = nil
+		b.becomeSpectator()
 	}
 	if e.GetWasImposter() {
 		b.sawImposter = true
+		b.impostersCaught++
 	}
 }
 
@@ -1299,23 +1332,60 @@ func (b *Bot) onMatchEnded(m *genpb.MatchEnded) {
 		b.violate("MatchEnded revealed the same word twice: %q", m.GetCommonWord())
 	}
 
-	// was_imposter may only be true in the resolution that ends the match for
-	// the group (game.proto PlayerEliminated, DESIGN.md:65).
-	if b.sawImposter && m.GetWinner() != genpb.WinnerSide_WINNER_SIDE_GROUP {
-		b.violate("saw PlayerEliminated{was_imposter:true} but the match ended %s", m.GetWinner())
+	// A Hidden match may only ever disclose an alignment in the resolution that
+	// also ends it, and by then MatchEnded is publishing every alignment anyway
+	// (MULTIPLE_IMPOSTERS.md, "Elimination Results"). hiddenDisclosure is set
+	// only for a frame that arrived while b.ended was still nil.
+	if b.hiddenDisclosure && m.GetWinner() != genpb.WinnerSide_WINNER_SIDE_GROUP {
+		b.violate("Hidden elimination results disclosed an alignment in a match that ended %s",
+			m.GetWinner())
+	}
+
+	// Catching every imposter is the group's only win by vote. Catching some of
+	// them and then losing is legal with two, so the invariant is about the
+	// count rather than about having seen one at all: a group win by vote must
+	// have taken all of them out, and only IMPOSTER_ELIMINATED is that path.
+	want := int(b.settings.GetImposterCount())
+	if want == 0 {
+		want = 1
+	}
+	if m.GetReason() == genpb.MatchEndReason_MATCH_END_REASON_IMPOSTER_ELIMINATED &&
+		b.settings.GetEliminationResults() != genpb.EliminationResults_ELIMINATION_RESULTS_HIDDEN &&
+		b.impostersCaught != want {
+		b.violate("the group won by elimination having caught %d of %d imposters",
+			b.impostersCaught, want)
+	}
+	if b.sawImposter && b.impostersCaught == want &&
+		m.GetWinner() != genpb.WinnerSide_WINNER_SIDE_GROUP {
+		b.violate("every imposter was eliminated but the match ended %s", m.GetWinner())
 	}
 
 	b.checkRoundWords(m)
+
+	named := make(map[string]bool, len(m.GetImposterPlayerIds()))
+	for _, id := range m.GetImposterPlayerIds() {
+		named[id] = true
+	}
+	if len(named) != len(m.GetImposterPlayerIds()) {
+		b.violate("imposter_player_ids repeats a seat: %v", m.GetImposterPlayerIds())
+	}
+	if len(named) != want {
+		b.violate("imposter_player_ids names %d seats but the match was set to %d imposters",
+			len(named), want)
+	}
 
 	imposters := 0
 	mine := ""
 	for _, rv := range m.GetReveals() {
 		if rv.GetWasImposter() {
 			imposters++
-			if rv.GetPlayerId() != m.GetImposterPlayerId() {
-				b.violate("reveal marks %q as the imposter but imposter_player_id is %q",
-					rv.GetPlayerId(), m.GetImposterPlayerId())
+			if !named[rv.GetPlayerId()] {
+				b.violate("reveal marks %q as an imposter but imposter_player_ids is %v",
+					rv.GetPlayerId(), m.GetImposterPlayerIds())
 			}
+		} else if named[rv.GetPlayerId()] {
+			b.violate("imposter_player_ids names %q but their reveal row is not marked",
+				rv.GetPlayerId())
 		}
 
 		// PlayerReveal.word is the word from the LAST round this seat was dealt
@@ -1366,8 +1436,8 @@ func (b *Bot) onMatchEnded(m *genpb.MatchEnded) {
 			b.checkOwnRoundWords(rv)
 		}
 	}
-	if imposters != 1 {
-		b.violate("MatchEnded marked %d players as the imposter, want exactly 1", imposters)
+	if imposters != want {
+		b.violate("MatchEnded marked %d players as imposters, want exactly %d", imposters, want)
 	}
 	if b.word != "" && mine != "" && mine != b.word {
 		b.violate("the final reveal gives this bot %q, but it was dealt %q", mine, b.word)
@@ -1572,4 +1642,12 @@ func (b *Bot) violate(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	b.violations = append(b.violations, b.cfg.Name+": "+msg)
 	b.log.Error("protocol violation", "detail", msg)
+}
+
+// becomeSpectator tells the shared watchdog this seat is out, so the dossier
+// that follows is judged as sanctioned rather than as a leak. Idempotent.
+func (b *Bot) becomeSpectator() {
+	if b.cfg.Watch != nil {
+		b.cfg.Watch.RegisterSpectator(b.playerID)
+	}
 }

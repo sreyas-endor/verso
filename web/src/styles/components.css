@@ -221,10 +221,61 @@
 .wordpanel-label { font-weight: 900; font-size: .9rem; }
 .wordpanel-note { font-size: .78rem; color: var(--ink-2); font-weight: 700; }
 
-/* ---- spectator ---- */
+/* ---- spectator ----
+   The dossier is the one place a player legitimately reads somebody else's
+   word, so it is deliberately the darkest surface in the app: nothing else in
+   the game looks like this, and a glance across a shared couch registers it as
+   private before any of the words are legible. */
 .spectator { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .spectator .card-title { color: var(--ink-3); }
 .spectator strong { color: var(--amber); }
+.spectator .hint { color: var(--ink-3); }
+
+.stack-tight { display: flex; flex-direction: column; gap: .3rem; }
+
+.dossier-label {
+  font-size: .74rem; font-weight: 900; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.dossier-imposters { margin: .5rem 0 .2rem; }
+.dossier-who { gap: .35rem; }
+.dossier-who strong { color: var(--amber); }
+
+.dossier-round {
+  border-top: 1px solid rgba(255,253,247,.16);
+  margin-top: .7rem; padding-top: .55rem;
+}
+.dossier-head { display: flex; align-items: baseline; gap: .5rem; }
+.dossier-n {
+  font-weight: 900; font-size: .78rem; color: var(--ink-3);
+  min-width: 1.7rem;
+}
+.dossier-pair { font-weight: 800; font-size: .92rem; word-break: break-word; }
+.dossier-slash { color: var(--ink-3); }
+/* The odd word is named, not merely coloured: the label beside it in the round
+   block already says which side it is. */
+.dossier-odd { color: var(--amber); }
+
+.dossier-seats { list-style: none; margin: .35rem 0 0; padding: 0; }
+.dossier-seat {
+  display: flex; gap: .5rem; align-items: baseline;
+  font-size: .82rem; padding: .1rem 0;
+}
+.dossier-seat-name { color: var(--ink-3); flex: 1 1 auto; min-width: 0; word-break: break-word; }
+.dossier-seat-word { font-weight: 800; }
+.dossier-seat-odd .dossier-seat-word { color: var(--amber); }
+.dossier-seat-odd .dossier-seat-name::after { content: " ●"; color: var(--amber); }
+
+/* ---- the unwinnable-configuration warning ----
+   A settings control that stays enabled while telling you not to use it. It has
+   to read as a consequence rather than an error, because starting the match
+   anyway is a supported choice (MULTIPLE_IMPOSTERS.md, "Three-player warning"). */
+.warn {
+  margin: .45rem 0 0; padding: .5rem .6rem;
+  border: 2px solid var(--amber); border-radius: var(--radius-sm);
+  background: var(--amber-sf); color: var(--amber-dk);
+  font-size: .78rem; font-weight: 800; line-height: 1.35;
+}
 
 /* ---- the paintress ----
    Ambient decoration on a floor strip *below* the stage. She paints up at the

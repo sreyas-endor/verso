@@ -16,8 +16,9 @@ package room
 //     question 4).
 //   - A socket that drops mid-drawing-turn skips that turn immediately (open
 //     question 5, DESIGN.md:122).
-//   - The imposter's grace window expiring ends the match with a group win
-//     (DESIGN.md:125).
+//   - ANY imposter's grace window expiring ends the match with a group win
+//     (DESIGN.md:125, MULTIPLE_IMPOSTERS.md "Win Conditions"). An ALREADY
+//     eliminated imposter's does not — see expireSeat.
 
 import (
 	"time"
@@ -265,9 +266,21 @@ func (r *Room) expireSeat(p *Player) {
 	r.log.Info("grace window expired", "player", p.ID)
 
 	if r.matchInProgress() {
-		if p.ID == r.imposterID {
+		// !p.Eliminated is load-bearing with more than one imposter. In the base
+		// design an eliminated imposter ends the match, so this branch could
+		// never see one; with two, an imposter voted out in round 1 sits in the
+		// roster for the rest of the match and may well let their socket go.
+		// Without the check their grace window would hand the group a win the
+		// vote had not earned, with the second imposter still holding the odd
+		// word.
+		if !p.Eliminated && r.isImposter[p.ID] {
 			// DESIGN.md:125 — end the match immediately and award a group win.
 			// The outcome intentionally leaks the disconnected player's role.
+			//
+			// Still ANY imposter, not the last one: the rule exists to stop a
+			// hidden imposter stalling the match indefinitely, and one of a pair
+			// can stall it exactly as well as a lone one
+			// (MULTIPLE_IMPOSTERS.md, "Win Conditions").
 			r.log.Info("imposter lost, group wins by default")
 			r.endNow(genpb.WinnerSide_WINNER_SIDE_GROUP,
 				genpb.MatchEndReason_MATCH_END_REASON_IMPOSTER_DISCONNECTED)
@@ -280,6 +293,10 @@ func (r *Room) expireSeat(p *Player) {
 		delete(r.votes, p.ID)
 		r.Broadcast(r.presence(p))
 		r.reevaluateEnd()
+		// They are a spectator now, and sendSpectatorInfo unicasts to a socket
+		// that is currently nil. The dossier reaches them if and when they
+		// reconnect, through sendSnapshot — which is the only reason that call
+		// site exists.
 
 		// The denominator just shrank. Republish the progress count so the UI is
 		// not left showing "3 of 4", and re-check the early-resolve condition:

@@ -8,7 +8,7 @@
 // Everything here is read-only by convention: the store replaces the whole
 // object on every change and never mutates one it has already published.
 
-import { Difficulty, PenRule, Phase } from "../../gen/verso/v1/game_pb.js";
+import { Difficulty, EliminationResults, PenRule, Phase } from "../../gen/verso/v1/game_pb.js";
 import { MatchSettingsSchema } from "../../gen/verso/v1/game_pb.js";
 import type {
   ErrorCode,
@@ -23,6 +23,7 @@ import { create } from "@bufbuild/protobuf";
 import {
   DEFAULT_DISCUSS_SECONDS,
   DEFAULT_DRAW_SECONDS,
+  DEFAULT_IMPOSTERS,
   DEFAULT_INTERMISSION_SECONDS,
   DEFAULT_ROUNDS,
   GRACE_SECONDS,
@@ -115,7 +116,15 @@ export interface GameState {
   // -- results ------------------------------------------------------------
   readonly tally: VoteTally | null;
   readonly elimination: PlayerEliminated | null;
-  /** Populated only for a player who has been eliminated themselves. */
+  /**
+   * The behind-the-scenes dossier, and populated only for a player who has
+   * been eliminated themselves: every imposter, and every round's pair, seat
+   * assignments and finished canvas
+   * (MULTIPLE_IMPOSTERS.md, "Eliminated-player Spectator View").
+   *
+   * The server re-sends it whole on every deal and on every resync, so this is
+   * always the complete match so far rather than something accumulated here.
+   */
   readonly spectator: SpectatorInfo | null;
   readonly matchEnd: MatchEnded | null;
 }
@@ -128,6 +137,8 @@ export function defaultSettings(): MatchSettings {
     drawSeconds: DEFAULT_DRAW_SECONDS,
     discussSeconds: DEFAULT_DISCUSS_SECONDS,
     intermissionSeconds: DEFAULT_INTERMISSION_SECONDS,
+    imposterCount: DEFAULT_IMPOSTERS,
+    eliminationResults: EliminationResults.REVEAL,
   });
 }
 

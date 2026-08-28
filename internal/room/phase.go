@@ -16,7 +16,7 @@ package room
 //
 // Note where the "next round" arrow lands: on ASSIGNING, not on DRAWING. Every
 // round opens with its own word reveal, because every round wipes the canvas
-// and deals a fresh pair (DESIGN.md:36). The imposter is not re-rolled.
+// and deals a fresh pair (DESIGN.md:36). The imposter seats are not re-rolled.
 
 import (
 	"time"
@@ -100,17 +100,21 @@ func (r *Room) onStartMatch(p *Player, cid string) {
 // The round counter stays 0 until the first round opens.
 func (r *Room) beginAssigning() {
 	r.round = 0
-	r.imposterID = ""
+	r.imposterIDs = nil
+	r.isImposter = map[string]bool{}
 	r.history = nil
 	r.winner = genpb.WinnerSide_WINNER_SIDE_UNSPECIFIED
 	r.endReason = genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED
 
 	r.openWordReveal()
-	r.log.Info("match started", "players", len(r.players), "rounds", r.settings.GetMaxRounds())
+	r.log.Info("match started",
+		"players", len(r.players),
+		"imposters", r.settings.GetImposterCount(),
+		"rounds", r.settings.GetMaxRounds())
 }
 
 // beginRoundReveal opens rounds 2..n. It is beginAssigning without the
-// match-level reset: the imposter, the round counter and the accumulated
+// match-level reset: the imposter seats, the round counter and the accumulated
 // history all survive, and only the round's own state is cleared.
 func (r *Room) beginRoundReveal() {
 	r.openWordReveal()
@@ -125,6 +129,11 @@ func (r *Room) beginRoundReveal() {
 // same transition keeps the two sides in step, and it gives the client the
 // whole reveal to archive the finished drawing before the next round marks it.
 func (r *Room) openWordReveal() {
+	// Freeze the outgoing round's canvas before the wipe below throws it away.
+	// beginVotingIntermission has normally already done it; this catches the
+	// round that never reached a vote, and is a no-op when it did.
+	r.archiveCanvas()
+
 	r.phase = genpb.Phase_PHASE_ASSIGNING
 	r.turnOrder = nil
 	r.turnIndex = 0
@@ -146,10 +155,19 @@ func (r *Room) openWordReveal() {
 	r.Broadcast(r.phaseChanged(AssignDuration))
 
 	// One unicast per player, each carrying only that player's own word. No
-	// player is told their role or anyone else's word (DESIGN.md:25).
+	// player is told their role, the imposter count, or anyone else's word
+	// (DESIGN.md:25, MULTIPLE_IMPOSTERS.md "Role Assignment"). An eliminated
+	// seat is not dealt in and viewFor hands it nothing, so sendYourWord is
+	// already silent for them.
 	for _, p := range r.players {
 		r.sendYourWord(p)
 	}
+
+	// Spectators watch the new round's assignments land as it is dealt, rather
+	// than waiting for the final reveal. This is the "and the same word and
+	// assignment information for every later round as soon as it is dealt" half
+	// of the dossier, and it must run AFTER assignWords has appended the round.
+	r.sendSpectatorUpdates()
 }
 
 // ---------------------------------------------------------------------------
@@ -301,6 +319,13 @@ func (r *Room) skipCurrentTurn() {
 func (r *Room) beginVotingIntermission() {
 	r.commitOpen(nil)
 	r.artistID = ""
+	// Every turn is spent, so the round's canvas is final: freeze it for the
+	// spectator dossier while it still exists, and hand it straight to the
+	// people already out. Doing it here rather than at the next reveal is what
+	// lets a spectator study the finished drawing during the discussion they
+	// are sitting out.
+	r.archiveCanvas()
+	r.sendSpectatorUpdates()
 	// turnOrder deliberately survives the last turn. The room votes on what it
 	// just watched being drawn, and the order it was drawn in is how players
 	// hold that in their heads: "the third one" means something to them. Wiping
@@ -387,7 +412,8 @@ func (r *Room) resetToLobby() {
 	clear(r.votes)
 	r.commonWord = ""
 	r.imposterWord = ""
-	r.imposterID = ""
+	r.imposterIDs = nil
+	r.isImposter = map[string]bool{}
 	r.history = nil
 	r.winner = genpb.WinnerSide_WINNER_SIDE_UNSPECIFIED
 	r.endReason = genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED

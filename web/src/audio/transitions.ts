@@ -190,7 +190,7 @@ function endCue(next: AudioFacts): CueName | null {
   const m = next.matchEnd;
   if (m === null) return null;
   if (m.winner === WinnerSide.UNSPECIFIED) return null;
-  const iAmImposter = m.imposterPlayerId !== "" && m.imposterPlayerId === next.selfId;
+  const iAmImposter = next.selfId !== "" && m.imposterPlayerIds.includes(next.selfId);
   const side = iAmImposter ? WinnerSide.IMPOSTER : WinnerSide.GROUP;
   return m.winner === side ? "win" : "loss";
 }

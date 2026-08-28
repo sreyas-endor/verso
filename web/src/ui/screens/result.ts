@@ -2,12 +2,43 @@ import type { ScreenCtx, ViewState } from "../context.js";
 import { avatar } from "../avatar.js";
 import { Disposers, el, fill, setText } from "../dom.js";
 import { playerList } from "../playerList.js";
+import { spectatorPanel } from "../spectatorPanel.js";
 import { stage } from "../stage.js";
 import { tallyChart } from "../tally.js";
 import { timer } from "../timer.js";
 import { wordPanel } from "../wordPanel.js";
 
 let d: Disposers | null = null;
+
+/**
+ * What the room is told about the player who just went
+ * (MULTIPLE_IMPOSTERS.md, "Elimination Results").
+ *
+ * Under Hidden the answer is that there is no answer, and the copy has to say
+ * so rather than defaulting to the reassuring half of the truth — a silent
+ * "they were not the imposter" would be a lie the setting exists to prevent.
+ *
+ * Under Reveal with two imposters, catching one does not end the match, so the
+ * line cannot promise a group win. It does not count the survivors either: the
+ * doc leaves that implied by the public Imposters setting, and a count computed
+ * here would be one more thing to get wrong across a reconnect.
+ */
+function verdict(s: ViewState, revealed: boolean, wasImposter: boolean): string {
+  const many = s.settings.imposterCount > 1;
+  if (!revealed) {
+    return many
+      ? "Which side they were on stays hidden. Somebody here is still holding a different word."
+      : "Which side they were on stays hidden — that is how this match is set up.";
+  }
+  if (!wasImposter) {
+    return many
+      ? "They were not an imposter. Two people here are still holding a different word."
+      : "They were not the imposter. Somebody here is still holding a different word.";
+  }
+  return many
+    ? `That was an imposter. The group only wins once all ${s.settings.imposterCount} are out.`
+    : "They were the imposter. The group wins.";
+}
 
 export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   d = new Disposers();
@@ -38,11 +69,10 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   );
 
   const outcome = el("section", { class: "card" });
-  const privateCard = el("section", { class: "card spectator" });
-  privateCard.hidden = true;
+  const dossier = spectatorPanel("You are out of the game. Here is the match as it really is.");
 
   const main = el("div", { class: "col-main" }, head, outcome, board.root);
-  const right = el("div", { class: "col-right stack" }, chart.root, privateCard, word.root);
+  const right = el("div", { class: "col-right stack" }, chart.root, dossier.root, word.root);
   const view = el("div", { class: "cols" }, roster.root, main, right);
   root.appendChild(view);
   dd.add(() => view.remove());
@@ -64,7 +94,6 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     const ev = s.elimination;
     const gone = ev?.eliminated ? s.players.find((p) => p.id === ev.playerId) : undefined;
     const goneName = gone?.name ?? "";
-    const itWasMe = ev?.eliminated === true && ev.playerId === s.selfId;
 
     if (!ev || !ev.eliminated) {
       fill(title, el("em", { text: "Nobody was eliminated" }));
@@ -84,29 +113,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
           avatar(ev.playerId, goneName),
           el("span", { text: `${goneName} was voted out.` }),
         ),
-        // The group is told only that a non-imposter went. DESIGN.md:65.
-        el("p", {
-          class: "muted",
-          text: ev.wasImposter
-            ? "They were the imposter. The group wins."
-            : "They were not the imposter. Somebody here is still holding a different word.",
-        }),
+        el("p", { class: "muted", text: verdict(s, ev.alignmentRevealed, ev.wasImposter) }),
       );
     }
 
     // Private, and only ever for the player who was just eliminated.
-    if (s.youAreEliminated && s.spectator) {
-      privateCard.hidden = false;
-      fill(
-        privateCard,
-        el("div", { class: "card-title", text: "For your eyes only" }),
-        el("p", { text: itWasMe ? "You are out of the game." : "You are spectating." }),
-        el("p", {}, el("span", { text: "The imposter is " }), el("strong", { text: s.spectator.imposterName }), "."),
-        el("p", { class: "hint", text: "Keep it to yourself. You watch from here — you no longer draw or vote." }),
-      );
-    } else {
-      privateCard.hidden = true;
-    }
+    dossier.update(s);
 
     clock.update(s.deadline, s.durationMs);
 

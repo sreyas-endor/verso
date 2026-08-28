@@ -6,13 +6,29 @@ import { playerList } from "../playerList.js";
 
 let d: Disposers | null = null;
 
-const REASON: Record<number, string> = {
-  [MatchEndReason.IMPOSTER_ELIMINATED]: "The group voted out the imposter.",
-  [MatchEndReason.FINAL_ROUND_SURVIVED]: "The imposter survived the final round.",
-  [MatchEndReason.TWO_PLAYERS_REMAIN]: "Only two active players were left.",
-  [MatchEndReason.IMPOSTER_DISCONNECTED]: "The imposter left the room.",
-  [MatchEndReason.ABANDONED]: "The match was abandoned.",
-};
+/**
+ * The headline under the winner. Keyed by reason, and by whether the match had
+ * more than one imposter — "the group voted out the imposter" is the wrong
+ * sentence for a match where they had to catch both.
+ */
+function reasonText(reason: MatchEndReason, many: boolean): string {
+  switch (reason) {
+    case MatchEndReason.IMPOSTER_ELIMINATED:
+      return many ? "The group voted out every imposter." : "The group voted out the imposter.";
+    case MatchEndReason.FINAL_ROUND_SURVIVED:
+      return many
+        ? "At least one imposter survived the final round."
+        : "The imposter survived the final round.";
+    case MatchEndReason.TWO_PLAYERS_REMAIN:
+      return "Only two active players were left.";
+    case MatchEndReason.IMPOSTER_DISCONNECTED:
+      return many ? "An imposter left the room." : "The imposter left the room.";
+    case MatchEndReason.ABANDONED:
+      return "The match was abandoned.";
+    default:
+      return "The match is over.";
+  }
+}
 
 /**
  * Backing-store size for a repainted round. The canvas is 4:3 on a logical
@@ -177,12 +193,21 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       return;
     }
 
+    // Every imposter, in the order the server pinned them. The reveal rows are
+    // the source rather than imposter_player_ids so a name comes with each id;
+    // the two are cross-checked by the server's own tests, not here.
+    const imposters = m.reveals.filter((r) => r.wasImposter);
+    const many = imposters.length > 1;
+
     const groupWon = m.winner === WinnerSide.GROUP;
     banner.className = `card winner ${groupWon ? "winner-group" : "winner-imposter"}`;
     fill(
       banner,
-      el("div", { class: "winner-side", text: groupWon ? "The group wins" : "The imposter wins" }),
-      el("p", { class: "winner-why", text: REASON[m.reason] ?? "The match is over." }),
+      el("div", {
+        class: "winner-side",
+        text: groupWon ? "The group wins" : many ? "The imposters win" : "The imposter wins",
+      }),
+      el("p", { class: "winner-why", text: reasonText(m.reason, many) }),
       el("p", { class: "hint", text: `${m.roundsPlayed} round${m.roundsPlayed === 1 ? "" : "s"} played.` }),
     );
 
@@ -195,7 +220,6 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       promote(s, rounds[rounds.length - 1] ?? 1);
     }
 
-    const imposter = m.reveals.find((r) => r.wasImposter);
     fill(
       words,
       el("div", {
@@ -226,16 +250,35 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         ),
       ),
       el("div", { style: "height:.6rem" }),
+      // One row per imposter. They were pinned to those seats for the whole
+      // match and were never told about each other, which is worth saying out
+      // loud here — it is the thing everybody wants to argue about afterwards.
       el(
-        "p",
-        { class: "row" },
-        avatar(m.imposterPlayerId, imposter?.name ?? "?"),
-        el(
-          "span",
-          {},
-          el("strong", { text: imposter?.name ?? "Someone" }),
-          ` was the imposter${m.rounds.length > 1 ? " in every round" : ""}.`,
-        ),
+        "div",
+        { class: "stack-tight" },
+        ...(imposters.length === 0
+          ? [el("p", { class: "muted", text: "Nobody was dealt the odd word." })]
+          : imposters.map((r) =>
+              el(
+                "p",
+                { class: "row" },
+                avatar(r.playerId, r.name),
+                el(
+                  "span",
+                  {},
+                  el("strong", { text: r.name }),
+                  many
+                    ? ` was an imposter${m.rounds.length > 1 ? " in every round" : ""}.`
+                    : ` was the imposter${m.rounds.length > 1 ? " in every round" : ""}.`,
+                ),
+              ),
+            )),
+        many
+          ? el("p", {
+              class: "hint",
+              text: "They held the same word all match and were never told about each other.",
+            })
+          : null,
       ),
     );
 
@@ -254,7 +297,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
             "div",
             { class: "grow" },
             el("div", { class: "pitem-name", text: r.name }),
-            el("div", { class: "pitem-sub", text: r.wasImposter ? "imposter" : r.eliminated ? "eliminated" : "survived" }),
+            el("div", {
+              class: "pitem-sub",
+              text: r.wasImposter
+                ? r.eliminated ? "imposter — caught" : "imposter"
+                : r.eliminated ? "eliminated" : "survived",
+            }),
           ),
           multi
             ? el(
@@ -278,9 +326,15 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       const pairs = m.rounds
         .map((rw) => `round ${rw.round}, ${rw.imposterWord} against ${rw.commonWord}`)
         .join("; ");
+      const names = imposters.map((r) => r.name);
+      const who = names.length === 0
+        ? "Nobody was the imposter."
+        : names.length === 1
+          ? `${names[0]} was the imposter.`
+          : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]} were the imposters.`;
       ctx.announce(
-        `${groupWon ? "The group wins." : "The imposter wins."} ` +
-        `${imposter?.name ?? "The imposter"} was the imposter. ` +
+        `${groupWon ? "The group wins." : many ? "The imposters win." : "The imposter wins."} ` +
+        `${who} ` +
         (pairs === "" ? "" : `The pairs were: ${pairs}.`),
       );
     }

@@ -1,6 +1,7 @@
 import type { ScreenCtx, ViewState } from "../context.js";
 import { Disposers, el, fill, setText } from "../dom.js";
 import { playerList } from "../playerList.js";
+import { spectatorPanel } from "../spectatorPanel.js";
 import { stage } from "../stage.js";
 import { timer } from "../timer.js";
 import { votePicker } from "../votePicker.js";
@@ -34,9 +35,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   const spectator = el("section", { class: "card spectator" });
   spectator.hidden = true;
+  // The full dossier, not just "the imposter is X": a spectator sitting out
+  // the discussion is the one person who can read the whole match at once.
+  const dossier = spectatorPanel("You are out. Here is the match as it really is.");
 
   const main = el("div", { class: "col-main" }, head, board.root);
-  const right = el("div", { class: "col-right stack" }, picker.root, spectator, word.root);
+  const right = el("div", { class: "col-right stack" }, picker.root, spectator, dossier.root, word.root);
   const view = el("div", { class: "cols" }, roster.root, main, right);
   root.appendChild(view);
   dd.add(() => view.remove());
@@ -49,6 +53,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     setText(kicker, `Round ${s.round} of ${s.totalRounds}`);
     fill(title, el("em", { text: "Discuss" }), " — then vote in secret");
 
+    dossier.update(s);
     if (s.youAreEliminated) {
       picker.root.hidden = true;
       spectator.hidden = false;
@@ -56,9 +61,6 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         spectator,
         el("div", { class: "card-title", text: "Spectating" }),
         el("p", { text: "You were eliminated, so you no longer vote. The others are deciding." }),
-        s.spectator
-          ? el("p", {}, el("span", { text: "The imposter is " }), el("strong", { text: s.spectator.imposterName }), ".")
-          : null,
         el("p", { class: "hint", text: `${s.votesCast} of ${s.activeCount} votes in.` }),
       );
     } else {

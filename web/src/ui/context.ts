@@ -3,7 +3,7 @@
 // Nothing under web/src/ui/ imports from those modules directly, so the three
 // halves can be built in parallel and adapted at wiring time.
 
-import { PenRule } from "../../gen/verso/v1/game_pb.js";
+import { EliminationResults, PenRule } from "../../gen/verso/v1/game_pb.js";
 import type {
   Difficulty,
   ErrorCode,
@@ -204,6 +204,8 @@ export const RECOMMENDED = {
   drawSeconds: 15,
   discussSeconds: 120,
   intermissionSeconds: 10,
+  imposterCount: 1,
+  eliminationResults: EliminationResults.REVEAL,
 } as const;
 
 export const LIMITS = {
@@ -217,6 +219,15 @@ export const LIMITS = {
   maxDiscussSeconds: 180,
   minIntermissionSeconds: 3,
   maxIntermissionSeconds: 30,
+  minImposters: 1,
+  maxImposters: 2,
+  /**
+   * At or below this many players, two imposters cannot be beaten: removing
+   * either one leaves two active players, which ends the match for the
+   * imposter side (MULTIPLE_IMPOSTERS.md, "Three-player warning"). The lobby
+   * warns; it does not disable the control, and the server does not refuse it.
+   */
+  unwinnableTwoImposterPlayers: 3,
   codeLength: 5,
   maxNameLength: 24,
 } as const;

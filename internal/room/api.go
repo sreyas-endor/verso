@@ -40,6 +40,13 @@ const (
 	MinIntermissionSeconds     = 3
 	MaxIntermissionSeconds     = 30
 	DefaultIntermissionSeconds = 10
+
+	// Imposter seats (MULTIPLE_IMPOSTERS.md, "Match Settings"). Legal at every
+	// supported player count: three players with two imposters cannot be won by
+	// the group, and the lobby warns about that rather than refusing it.
+	MinImposters     = 1
+	MaxImposters     = 2
+	DefaultImposters = 1
 )
 
 // Canvas grid and stroke limits (IMPLEMENTATION_PLAN.md §4.7).
@@ -129,7 +136,11 @@ const (
 
 	// ProtocolVersion is echoed in Joined. Bump on any incompatible change to
 	// proto/verso/v1/game.proto.
-	ProtocolVersion = 1
+	//
+	// 2: multiple imposters. MatchEnded.imposter_player_id and the two singular
+	// SpectatorInfo fields are reserved, so a version-1 client reading either
+	// would see an empty imposter where there is one or two.
+	ProtocolVersion = 2
 )
 
 // ---------------------------------------------------------------------------
@@ -498,14 +509,23 @@ type Room struct {
 	votes map[string]string
 
 	// commonWord and imposterWord are the CURRENT round's pair; every round
-	// deals a fresh one. imposterID is picked once, at match start, and pinned
-	// to that seat for the whole match — no round re-rolls it, which is what
-	// makes the accumulated suspicion across rounds mean anything.
+	// deals a fresh one. Both imposters receive the same imposterWord: their
+	// only shared advantage is holding the same odd word (MULTIPLE_IMPOSTERS.md,
+	// "Role Assignment"), and there is no second pair and no private channel.
 	//
-	// All three are broadcast exactly once, in MatchEnded (DESIGN.md:75).
+	// imposterIDs are picked once, at match start, and pinned to those seats for
+	// the whole match — no round re-rolls them, which is what makes the
+	// accumulated suspicion across rounds mean anything. Seat order, so the wire
+	// bytes never depend on the order the shuffle happened to pick them in.
+	// isImposter is the same set by id, kept beside it because the hot readers
+	// (assignWords, buildReveals, evaluateEnd) all ask "is this seat one of
+	// them" rather than "which one".
+	//
+	// All of them are broadcast exactly once, in MatchEnded (DESIGN.md:75).
 	commonWord   string
 	imposterWord string
-	imposterID   string
+	imposterIDs  []string
+	isImposter   map[string]bool
 
 	// history records every round's pair in order, so the final reveal can show
 	// the whole match rather than only the pair that happened to be live when it
@@ -556,6 +576,7 @@ func New(code string, hostName string, opts Options) *Room {
 		sweep:        time.NewTicker(SweepInterval),
 		byID:         map[string]*Player{},
 		bySeatToken:  map[string]*Player{},
+		isImposter:   map[string]bool{},
 		settings:     settings,
 		phase:        genpb.Phase_PHASE_LOBBY,
 		votes:        map[string]string{},
@@ -887,6 +908,8 @@ func DefaultSettings() *genpb.MatchSettings {
 		DiscussSeconds:      DefaultDiscussSeconds,
 		IntermissionSeconds: DefaultIntermissionSeconds,
 		PenRule:             genpb.PenRule_PEN_RULE_FREE,
+		ImposterCount:       DefaultImposters,
+		EliminationResults:  genpb.EliminationResults_ELIMINATION_RESULTS_REVEAL,
 	}
 }
 
@@ -922,6 +945,14 @@ func ClampSettings(s *genpb.MatchSettings) *genpb.MatchSettings {
 		genpb.PenRule_PEN_RULE_ONE_LINE,
 		genpb.PenRule_PEN_RULE_MAX_FIVE:
 		out.PenRule = s.GetPenRule()
+	}
+	if v := s.GetImposterCount(); v != 0 {
+		out.ImposterCount = clamp32(v, MinImposters, MaxImposters)
+	}
+	switch s.GetEliminationResults() {
+	case genpb.EliminationResults_ELIMINATION_RESULTS_REVEAL,
+		genpb.EliminationResults_ELIMINATION_RESULTS_HIDDEN:
+		out.EliminationResults = s.GetEliminationResults()
 	}
 	return out
 }

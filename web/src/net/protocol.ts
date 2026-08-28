@@ -31,7 +31,7 @@ import type { ClientCommand, ServerEvent } from "../../gen/verso/v1/game_pb.js";
 // --------------------------------------------------------------------------
 
 /** Bumped in lockstep with `room.ProtocolVersion`. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 10;
@@ -51,6 +51,23 @@ export const DEFAULT_DISCUSS_SECONDS = 120;
 export const MIN_INTERMISSION_SECONDS = 3;
 export const MAX_INTERMISSION_SECONDS = 30;
 export const DEFAULT_INTERMISSION_SECONDS = 10;
+
+/**
+ * Imposter seats (`room.MinImposters`..`room.MaxImposters`). Legal at every
+ * player count: three players with two imposters cannot be won by the group,
+ * and the lobby warns rather than disabling the control.
+ */
+export const MIN_IMPOSTERS = 1;
+export const MAX_IMPOSTERS = 2;
+export const DEFAULT_IMPOSTERS = 1;
+
+/**
+ * Below this many players, two imposters is unwinnable for the group: taking
+ * either one out leaves two active players, which ends the match for the
+ * imposter side before the second can be removed
+ * (MULTIPLE_IMPOSTERS.md, "Three-player warning").
+ */
+export const UNWINNABLE_TWO_IMPOSTER_PLAYERS = 3;
 
 /** Wire coordinate space: 1024x768 logical at quarter-unit precision. */
 export const GRID_WIDTH = 4096;

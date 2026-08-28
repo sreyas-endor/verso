@@ -20,6 +20,12 @@ package room
 // one. It reads r.history instead, which assignWords fills in from the pair it
 // has just drawn. Fewer readers of the field, not more.
 //
+// buildSpectatorInfo is the same trick for the same reason. It publishes every
+// seat's word for every round dealt so far, and it reads r.history rather than
+// Player.word to do it — so the field still has exactly one reader. What guards
+// it instead is the recipient: sendSpectatorInfo refuses to send to a player
+// who is not eliminated, and EvSpectatorInfo has no broadcastSafe marker.
+//
 // viewFor's result is unicast-only: EvSnapshot carries no broadcastSafe
 // marker, so it cannot be handed to Broadcast. MatchEnded is the one
 // broadcast that legitimately carries words, and it is emitted only in
@@ -61,6 +67,129 @@ func (r *Room) sendSnapshot(playerID, cid string) {
 		return
 	}
 	r.SendReply(playerID, cid, EvSnapshot{view})
+
+	// A spectator resyncing gets their dossier back with it. Snapshot carries
+	// the live canvas and the recipient's own word and nothing else, so without
+	// this a player who dropped after being eliminated would return holding
+	// strictly less than they had — and a seat that was eliminated BY its grace
+	// window expiring would come back never having seen one at all.
+	//
+	// Only while a match is running: in the lobby there is nothing to tell, and
+	// in PHASE_ENDED the broadcast reveal has already said all of it.
+	if p := r.byID[playerID]; p != nil && p.Eliminated && r.matchInProgress() {
+		r.sendSpectatorInfo(p)
+	}
+}
+
+// sendSpectatorInfo unicasts one eliminated player their complete
+// behind-the-scenes view (MULTIPLE_IMPOSTERS.md, "Eliminated-player Spectator
+// View").
+//
+// Two conditions gate it, and both live here rather than at the four call
+// sites so a fifth cannot forget one.
+//
+// The recipient must be ELIMINATED. That is the whole access control.
+// p.Eliminated is set before this is reached on every path: applyElimination
+// flags the seat before announcing, and the reconnect and round-boundary paths
+// only look at seats that are already out.
+//
+// The match must still be UNDECIDED. Once a winner is recorded, MatchEnded is
+// what tells everybody everything (DESIGN.md:75) — including the spectator,
+// and including the eight seconds of result screen before it goes out. A
+// dossier in that window is not a leak, it is just a second answer to a
+// question already settled, and a resync landing there would produce one out of
+// nowhere. Deferring the verdict while an imposter's socket is dark leaves the
+// reason unset, which is correct: that match really is still being played.
+//
+// It is sent whole every time rather than as a delta — on the elimination, on
+// every later deal, and beside the Snapshot of a reconnect — for the same
+// reason Snapshot replays the entire stroke log: there is no catch-up path to
+// get wrong (IMPLEMENTATION_PLAN.md §4.6).
+func (r *Room) sendSpectatorInfo(p *Player) {
+	if p == nil || !p.Eliminated {
+		return
+	}
+	if r.endReason != genpb.MatchEndReason_MATCH_END_REASON_UNSPECIFIED {
+		return
+	}
+	r.SendTo(p.ID, EvSpectatorInfo{r.buildSpectatorInfo()})
+}
+
+// sendSpectatorUpdates re-issues the dossier to every player already out. Call
+// it whenever the dossier gained something a spectator is owed: a fresh deal,
+// or a canvas being archived.
+func (r *Room) sendSpectatorUpdates() {
+	for _, p := range r.players {
+		if p.Eliminated {
+			r.sendSpectatorInfo(p)
+		}
+	}
+}
+
+// buildSpectatorInfo renders the whole match so far: every imposter, and for
+// every round dealt, the pair, each seat's word and the finished canvas.
+//
+// SPECTATOR-ONLY. The result carries other players' secrets, so it may only
+// ever be handed to sendSpectatorInfo, which is the one function that checks
+// the recipient is out of the match. Do not call this from viewFor, from any
+// broadcast path, or from anything that runs for an active player.
+//
+// Like buildReveals it derives each seat's word rather than storing one per
+// player: a round has exactly two words in it, and which one a seat got is one
+// comparison against the pinned imposter set.
+//
+// SIZE. The canvases dominate, and this is the largest frame the server sends:
+// a Snapshot replays one round's stroke log, and a late-match dossier replays
+// every round's. The worst case is bounded — MaxPointsPerTurn per artist per
+// round, so roughly four Snapshots at MaxRounds — and a real match is orders
+// of magnitude under it. If that ever stops being true, the fix is to send the
+// canvases once rather than to drop them: sendSpectatorUpdates re-sends the
+// whole dossier on every deal precisely because there is no catch-up path, and
+// adding one would need its own reconnect story.
+func (r *Room) buildSpectatorInfo() *genpb.SpectatorInfo {
+	imposters := make([]*genpb.SpectatorImposter, 0, len(r.imposterIDs))
+	for _, id := range r.imposterIDs {
+		p := r.byID[id]
+		if p == nil {
+			continue
+		}
+		imposters = append(imposters, &genpb.SpectatorImposter{
+			PlayerId: p.ID,
+			Name:     p.Name,
+		})
+	}
+
+	rounds := make([]*genpb.SpectatorRound, 0, len(r.history))
+	for _, h := range r.history {
+		// Seat order, from r.players rather than from h.dealt, so the table is
+		// stable frame to frame and does not depend on map iteration.
+		assignments := make([]*genpb.SpectatorAssignment, 0, len(h.dealt))
+		for _, p := range r.players {
+			if !h.dealt[p.ID] {
+				continue
+			}
+			word := h.common
+			if r.isImposter[p.ID] {
+				word = h.imposter
+			}
+			assignments = append(assignments, &genpb.SpectatorAssignment{
+				PlayerId:   p.ID,
+				Word:       word,
+				IsImposter: r.isImposter[p.ID],
+			})
+		}
+		rounds = append(rounds, &genpb.SpectatorRound{
+			Round:        h.round,
+			CommonWord:   h.common,
+			ImposterWord: h.imposter,
+			Assignments:  assignments,
+			// Shared, not copied: the archive is frozen and neither the room nor
+			// the marshaller writes through it. The live round has none yet.
+			Strokes: h.strokes,
+		})
+	}
+
+	return &genpb.SpectatorInfo{Imposters: imposters, Rounds: rounds}
 }
 
 // buildRoundWords renders every round's pair for the final reveal, oldest
@@ -108,7 +237,7 @@ func (r *Room) buildReveals() []*genpb.PlayerReveal {
 			}
 			dealtIn = true
 			w := h.common
-			if p.ID == r.imposterID {
+			if r.isImposter[p.ID] {
 				w = h.imposter
 			}
 			words = append(words, w)
@@ -121,7 +250,7 @@ func (r *Room) buildReveals() []*genpb.PlayerReveal {
 			PlayerId:    p.ID,
 			Name:        p.Name,
 			Word:        last,
-			WasImposter: p.ID == r.imposterID,
+			WasImposter: r.isImposter[p.ID],
 			Eliminated:  p.Eliminated,
 			Words:       words,
 		})

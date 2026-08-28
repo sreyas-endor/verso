@@ -531,8 +531,8 @@ func TestImposterEliminatedGroupWins(t *testing.T) {
 		if me.GetWinner() != genpb.WinnerSide_WINNER_SIDE_GROUP {
 			t.Fatalf("winner = %v", me.GetWinner())
 		}
-		if me.GetImposterPlayerId() != imposter {
-			t.Fatalf("MatchEnded named %q as the imposter", me.GetImposterPlayerId())
+		if got := me.GetImposterPlayerIds(); len(got) != 1 || got[0] != imposter {
+			t.Fatalf("MatchEnded named %v as the imposters, want [%q]", got, imposter)
 		}
 		if me.GetRoundsPlayed() != 1 {
 			t.Fatalf("rounds_played = %d, want 1", me.GetRoundsPlayed())
@@ -790,11 +790,21 @@ func TestNonImposterEliminationTellsTheGroupNothingMore(t *testing.T) {
 				if len(spec) != 1 {
 					t.Fatalf("the new spectator received %d SpectatorInfo frames, want 1", len(spec))
 				}
-				if got := spec[0].GetImposterPlayerId(); got != h.ids[oi] {
-					t.Fatalf("SpectatorInfo names %q as the imposter, want %q", got, h.ids[oi])
+				named := spec[0].GetImposters()
+				if len(named) != 1 || named[0].GetPlayerId() != h.ids[oi] {
+					t.Fatalf("SpectatorInfo names %d imposters, want just %q", len(named), h.ids[oi])
 				}
-				if spec[0].GetImposterName() == "" {
+				if named[0].GetName() == "" {
 					t.Fatal("SpectatorInfo carries no imposter name")
+				}
+				// The dossier is the whole match so far, not just a name
+				// (MULTIPLE_IMPOSTERS.md, "Eliminated-player Spectator View").
+				rounds := spec[0].GetRounds()
+				if len(rounds) != 1 {
+					t.Fatalf("dossier carries %d rounds, want 1", len(rounds))
+				}
+				if n := len(rounds[0].GetAssignments()); n != len(h.ids) {
+					t.Fatalf("dossier assigns %d seats, want %d", n, len(h.ids))
 				}
 				continue
 			}
@@ -877,17 +887,17 @@ func TestRoleAssignment(t *testing.T) {
 				if common != n-1 {
 					t.Fatalf("seed %d: %d players hold the common word, want %d", seed, common, n-1)
 				}
-				if r.imposterID == "" {
-					t.Fatalf("seed %d: no imposter recorded", seed)
+				if len(r.imposterIDs) != 1 {
+					t.Fatalf("seed %d: %d imposters recorded, want 1", seed, len(r.imposterIDs))
 				}
-				if p := r.byID[r.imposterID]; p == nil || p.word != r.imposterWord {
-					t.Fatalf("seed %d: imposterID does not hold the imposter word", seed)
+				if p := r.byID[r.imposterIDs[0]]; p == nil || p.word != r.imposterWord {
+					t.Fatalf("seed %d: imposterIDs[0] does not hold the imposter word", seed)
 				}
 				if r.commonWord == r.imposterWord {
 					t.Fatalf("seed %d: both sides of the pair are %q", seed, r.commonWord)
 				}
 				orientation[r.commonWord]++
-				imposterSeats[r.imposterID]++
+				imposterSeats[r.imposterIDs[0]]++
 			}
 
 			// Both directions of the pair really occur.
@@ -913,19 +923,29 @@ func TestNoPlayerIsToldTheirRole(t *testing.T) {
 		t.Fatalf("YourWord fields = %v, want exactly %v", got, want)
 	}
 
-	// Sweep the whole schema for anything that names the imposter. Only five
-	// messages may: the private spectator note, the final reveal with its rows
-	// and its per-round pairs, and the elimination event — whose was_imposter
-	// is set only on the resolution that has already ended the match.
+	// Sweep the whole schema for anything that names the imposter. Only these
+	// messages may, and each for a stated reason.
 	//
 	// RoundWords is on this list for the same reason PlayerReveal is: it has no
-	// existence outside MatchEnded, which is emitted only in PHASE_ENDED.
+	// existence outside MatchEnded, which is emitted only in PHASE_ENDED. The
+	// three Spectator* messages have no existence outside SpectatorInfo, which
+	// only sendSpectatorInfo produces and only an eliminated player receives.
+	//
+	// MatchSettings.imposter_count is the odd one out and is deliberate: the
+	// COUNT is a public lobby setting every player reads before the match
+	// starts, and knowing that a room has two imposters tells nobody which
+	// seats they are (MULTIPLE_IMPOSTERS.md, "Role Assignment"). It is exactly
+	// because the count is public that YourWord does not carry it.
 	allowed := map[string]bool{
-		"SpectatorInfo":    true,
-		"MatchEnded":       true,
-		"PlayerReveal":     true,
-		"RoundWords":       true,
-		"PlayerEliminated": true,
+		"SpectatorInfo":       true,
+		"SpectatorImposter":   true,
+		"SpectatorAssignment": true,
+		"SpectatorRound":      true,
+		"MatchEnded":          true,
+		"PlayerReveal":        true,
+		"RoundWords":          true,
+		"PlayerEliminated":    true,
+		"MatchSettings":       true,
 	}
 	file := (&genpb.VoteTally{}).ProtoReflect().Descriptor().ParentFile()
 	var offenders []string

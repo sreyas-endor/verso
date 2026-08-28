@@ -270,10 +270,11 @@ func (h *harness) strokeCount() int {
 }
 func (h *harness) seq() int32 { return smokeGet(h.r, func(r *Room) int32 { return r.seq }) }
 
-func (h *harness) phase() genpb.Phase { return smokePhase(h.r) }
-func (h *harness) artist() string     { return smokeArtist(h.r) }
-func (h *harness) imposter() string   { return smokeImposter(h.r) }
-func (h *harness) round() int32       { return smokeGet(h.r, func(r *Room) int32 { return r.round }) }
+func (h *harness) phase() genpb.Phase  { return smokePhase(h.r) }
+func (h *harness) artist() string      { return smokeArtist(h.r) }
+func (h *harness) imposter() string    { return smokeImposter(h.r) }
+func (h *harness) imposters() []string { return smokeImposters(h.r) }
+func (h *harness) round() int32        { return smokeGet(h.r, func(r *Room) int32 { return r.round }) }
 func (h *harness) activeCount() int {
 	return smokeGet(h.r, func(r *Room) int { return r.ActiveCount() })
 }
@@ -316,8 +317,19 @@ func (h *harness) indexOf(id string) int {
 // artistIdx is the harness index of the current artist, or -1.
 func (h *harness) artistIdx() int { return h.indexOf(h.artist()) }
 
-// imposterIdx is the harness index of the dealt imposter, or -1.
+// imposterIdx is the harness index of the dealt imposter, or -1. Single
+// imposter only — see smokeImposter.
 func (h *harness) imposterIdx() int { return h.indexOf(h.imposter()) }
+
+// imposterIdxs is every dealt imposter's harness index, in seat order.
+func (h *harness) imposterIdxs() []int {
+	ids := h.imposters()
+	out := make([]int, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, h.indexOf(id))
+	}
+	return out
+}
 
 // anyIdxExcept returns the lowest active index not in skip.
 func (h *harness) anyIdxExcept(skip ...int) int {

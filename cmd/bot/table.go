@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -95,15 +96,16 @@ type MatchResult struct {
 	CommonWord   string
 	ImposterWord string
 	Rounds       []*genpb.RoundWords
-	ImposterID   string
-	ImposterName string
-	Words        map[string]string
-	Duration     time.Duration
-	Frames       int
-	Strokes      int
-	FrameTypes   map[string]int
-	Violations   []string
-	Leaks        []Leak
+	// ImposterIDs and ImposterNames are every imposter seat, in the same order.
+	ImposterIDs   []string
+	ImposterNames []string
+	Words         map[string]string
+	Duration      time.Duration
+	Frames        int
+	Strokes       int
+	FrameTypes    map[string]int
+	Violations    []string
+	Leaks         []Leak
 }
 
 // OK reports whether the match ended cleanly with nothing to answer for.
@@ -120,7 +122,19 @@ func (r *MatchResult) Summary() string {
 		strings.TrimPrefix(r.Winner.String(), "WINNER_SIDE_"), r.Duration.Round(time.Millisecond))
 	fmt.Fprintf(&b, "  reason        %s after %d round(s)\n",
 		strings.TrimPrefix(r.Reason.String(), "MATCH_END_REASON_"), r.RoundsPlayed)
-	fmt.Fprintf(&b, "  imposter      %s (%s), the same seat every round\n", r.ImposterName, r.ImposterID)
+	if len(r.ImposterIDs) == 1 {
+		fmt.Fprintf(&b, "  imposter      %s (%s), the same seat every round\n",
+			first(r.ImposterNames), r.ImposterIDs[0])
+	} else {
+		fmt.Fprintf(&b, "  imposters     %d seats, the same ones every round\n", len(r.ImposterIDs))
+		for i, id := range r.ImposterIDs {
+			name := ""
+			if i < len(r.ImposterNames) {
+				name = r.ImposterNames[i]
+			}
+			fmt.Fprintf(&b, "                %s (%s)\n", name, id)
+		}
+	}
 	// One pair per round: the deal is per round, and printing only the last
 	// would hide three quarters of a four-round match.
 	for _, rw := range r.Rounds {
@@ -286,16 +300,29 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	for _, b := range bots {
 		words[b.PlayerID()] = b.Word()
 	}
-	imposterID, common, imposter, err := findImposter(words)
+	imposterIDs, common, imposter, err := findImposters(words, wantImposters(settings))
 	if err != nil {
 		return nil, err
 	}
+	isImposter := make(map[string]bool, len(imposterIDs))
+	for _, id := range imposterIDs {
+		isImposter[id] = true
+	}
+	// The seat the imposter-shaped scripts act on. With two imposters the
+	// driver drives ONE of them — dropping both would end the match on the
+	// first grace expiry twice over and tell us nothing the single drop does
+	// not. Seat order, so it is the same seat on every replay of a seed.
+	imposterID := imposterIDs[0]
+
 	switch plan.GangTarget {
 	case "", "imposter":
+		// With two imposters the gang converges on one of them, which under
+		// Reveal is the elimination that continues the match rather than ending
+		// it — exactly the branch MULTIPLE_IMPOSTERS.md adds.
 		tgt.set(imposterID)
 	case "non-imposter":
 		for _, b := range bots {
-			if b.PlayerID() != imposterID {
+			if !isImposter[b.PlayerID()] {
 				tgt.set(b.PlayerID())
 				break
 			}
@@ -303,7 +330,7 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	default:
 		return nil, fmt.Errorf("unknown gang target %q (imposter, non-imposter)", plan.GangTarget)
 	}
-	log.Info("words dealt", "imposter", imposterID, "gang target", tgt.get())
+	log.Info("words dealt", "imposters", imposterIDs, "gang target", tgt.get())
 
 	// Bots that will still be here at the end. The imposter's socket is about to
 	// vanish for good in the disconnect scenario, so it never sees MatchEnded.
@@ -346,12 +373,12 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	}
 
 	res := &MatchResult{
-		Plan:       plan,
-		Code:       code,
-		Words:      words,
-		ImposterID: imposterID,
-		Duration:   time.Since(started),
-		FrameTypes: map[string]int{},
+		Plan:        plan,
+		Code:        code,
+		Words:       words,
+		ImposterIDs: imposterIDs,
+		Duration:    time.Since(started),
+		FrameTypes:  map[string]int{},
 	}
 
 	var canonical *genpb.MatchEnded
@@ -390,10 +417,12 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 	res.ImposterWord = canonical.GetImposterWord()
 	res.Rounds = canonical.GetRounds()
 
-	if canonical.GetImposterPlayerId() != imposterID {
+	revealed := append([]string(nil), canonical.GetImposterPlayerIds()...)
+	slices.Sort(revealed)
+	if !slices.Equal(revealed, imposterIDs) {
 		res.Violations = append(res.Violations, fmt.Sprintf(
-			"the final reveal names %q as the imposter, but the minority word was dealt to %q",
-			canonical.GetImposterPlayerId(), imposterID))
+			"the final reveal names %v as the imposters, but the minority word was dealt to %v",
+			revealed, imposterIDs))
 	}
 	// `common` and `imposter` were captured from the sockets at the FIRST deal,
 	// before round 1. Every round deals a fresh pair, so the headline on
@@ -414,8 +443,8 @@ func RunMatch(ctx context.Context, url string, plan MatchPlan) (*MatchResult, er
 			fmt.Sprintf("the final reveal has %d rows for %d players", n, plan.Players))
 	}
 	for _, rv := range canonical.GetReveals() {
-		if rv.GetPlayerId() == imposterID {
-			res.ImposterName = rv.GetName()
+		if isImposter[rv.GetPlayerId()] {
+			res.ImposterNames = append(res.ImposterNames, rv.GetName())
 		}
 	}
 
@@ -462,31 +491,61 @@ func runRematch(ctx context.Context, bots []*Bot, host *Bot, plan MatchPlan, log
 	return nil
 }
 
-// findImposter reduces the dealt words to the one seat that differs.
-func findImposter(words map[string]string) (id, common, imposter string, err error) {
+// findImposters reduces the dealt words to the seats holding the odd one, given
+// how many of them the plan asked for.
+//
+// The deal is always exactly two words however many imposters there are, so the
+// imposters are identified by GROUP SIZE: the side held by `want` seats. That
+// is decidable for every configuration the driver supports except one — `want`
+// seats on each side, which is 4 players with 2 imposters. There the two groups
+// are indistinguishable from the words alone, and the driver says so rather
+// than picking one and reporting nonsense for the rest of the match. Use 5
+// players to exercise a two-imposter scenario that needs to know who they are.
+//
+// Returned ids are sorted, so a run is reproducible and a failure message does
+// not depend on map iteration.
+func findImposters(words map[string]string, want int) (ids []string, common, imposter string, err error) {
+	if want < 1 {
+		want = 1
+	}
 	counts := make(map[string]int, 2)
 	for _, w := range words {
 		counts[w]++
 	}
 	if len(counts) != 2 {
-		return "", "", "", fmt.Errorf("%d distinct words were dealt, want exactly 2", len(counts))
+		return nil, "", "", fmt.Errorf("%d distinct words were dealt, want exactly 2", len(counts))
 	}
+
+	matches := make([]string, 0, 2)
 	for w, n := range counts {
-		if n == 1 {
-			imposter = w
-		} else {
+		if n == want {
+			matches = append(matches, w)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return nil, "", "", fmt.Errorf(
+			"the deal was %v, which has no side held by exactly %d seats", counts, want)
+	case 2:
+		return nil, "", "", fmt.Errorf(
+			"the deal was %v: both sides are held by %d seats, so the imposters cannot be "+
+				"told from the common word by group size — use a player count where they differ",
+			counts, want)
+	}
+	imposter = matches[0]
+	for w := range counts {
+		if w != imposter {
 			common = w
 		}
 	}
-	if imposter == "" || common == "" {
-		return "", "", "", fmt.Errorf("the deal was %v, which has no single minority word", counts)
-	}
+
 	for pid, w := range words {
 		if w == imposter {
-			id = pid
+			ids = append(ids, pid)
 		}
 	}
-	return id, common, imposter, nil
+	slices.Sort(ids)
+	return ids, common, imposter, nil
 }
 
 func dedupeLeaks(in []Leak) []Leak {
@@ -550,4 +609,22 @@ func waitUntil(ctx context.Context, every time.Duration, what string, cond func(
 			return fmt.Errorf("timed out waiting for %s: %w", what, ctx.Err())
 		}
 	}
+}
+
+// wantImposters is the imposter count the server will actually use, after
+// clamping. The driver reads it back off the clamped settings rather than off
+// the plan, so a plan asking for three gets checked against the two it got.
+func wantImposters(settings *genpb.MatchSettings) int {
+	if n := int(settings.GetImposterCount()); n > 0 {
+		return n
+	}
+	return room.DefaultImposters
+}
+
+// first is the head of a slice, or "" when it is empty.
+func first(s []string) string {
+	if len(s) == 0 {
+		return ""
+	}
+	return s[0]
 }

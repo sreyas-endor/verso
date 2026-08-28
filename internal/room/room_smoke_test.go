@@ -118,8 +118,26 @@ func smokeArtist(r *Room) string {
 	return smokeGet(r, func(r *Room) string { return r.artistID })
 }
 
+// smokeImposter is the single imposter of a default-settings match, or "" when
+// none has been dealt. It fails the test outright on a match dealt more than
+// one, so a multi-imposter room can never be silently read as a
+// single-imposter one by a caller that only ever wanted the base game.
 func smokeImposter(r *Room) string {
-	return smokeGet(r, func(r *Room) string { return r.imposterID })
+	ids := smokeImposters(r)
+	switch len(ids) {
+	case 0:
+		return ""
+	case 1:
+		return ids[0]
+	default:
+		panic("smokeImposter: match has more than one imposter; use smokeImposters")
+	}
+}
+
+func smokeImposters(r *Room) []string {
+	return smokeGet(r, func(r *Room) []string {
+		return append([]string(nil), r.imposterIDs...)
+	})
 }
 
 func smokeWordOf(r *Room, id string) string {

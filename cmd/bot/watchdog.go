@@ -76,14 +76,35 @@ type Watchdog struct {
 	// stop the scanner watching for it the moment the next round began.
 	words  map[string][]string // playerID -> every word dealt, in order
 	tokens map[string]string   // playerID -> seat token
-	leaks  []Leak
+	// spectators are the players known to be out of the match, and therefore
+	// the only ones a SpectatorInfo dossier may lawfully reach
+	// (MULTIPLE_IMPOSTERS.md, "Eliminated-player Spectator View").
+	//
+	// Membership is monotonic — nobody comes back from eliminated — which is
+	// what makes it safe for SweepAll to re-judge round-1 frames with the final
+	// set in hand.
+	spectators map[string]bool
+	leaks      []Leak
 }
 
 func NewWatchdog() *Watchdog {
 	return &Watchdog{
-		words:  make(map[string][]string),
-		tokens: make(map[string]string),
+		words:      make(map[string][]string),
+		tokens:     make(map[string]string),
+		spectators: make(map[string]bool),
 	}
+}
+
+// RegisterSpectator records that a player is out of the match. Called the
+// moment a bot learns it was eliminated, so the SpectatorInfo that follows is
+// judged against a table that already knows the recipient is entitled to it.
+func (w *Watchdog) RegisterSpectator(playerID string) {
+	if playerID == "" {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.spectators[playerID] = true
 }
 
 // RegisterToken records a bot's seat token. Called as soon as Joined arrives.
@@ -142,6 +163,14 @@ func (w *Watchdog) Leaks() []Leak {
 // MatchEnded is exempt from the word scan entirely: it is the final
 // reveal, the one broadcast the protocol allows to carry every word, and it is
 // only ever emitted in PHASE_ENDED (game.proto MatchEnded).
+//
+// SpectatorInfo is exempt too, and on a much narrower condition: only when the
+// observer is a registered spectator. The dossier is every seat's word for
+// every round dealt, so it is the second-largest disclosure in the protocol
+// after the final reveal, and the only thing that makes it legitimate is who
+// received it. A dossier reaching anyone still in the match is therefore
+// recorded twice over — once as the frame having no business there at all, and
+// again for each word it carried.
 func (w *Watchdog) Inspect(observer string, ownWords []string, ev *genpb.ServerEvent) []Leak {
 	if ev == nil {
 		return nil
@@ -169,7 +198,16 @@ func (w *Watchdog) Inspect(observer string, ownWords []string, ev *genpb.ServerE
 		found = append(found, l)
 	}
 
-	if _, exempt := ev.GetEvt().(*genpb.ServerEvent_MatchEnded); !exempt {
+	_, isDossier := ev.GetEvt().(*genpb.ServerEvent_SpectatorInfo)
+	// A dossier on an active player's socket is a leak in its own right, before
+	// anybody looks at what is in it.
+	if isDossier && !w.spectators[observer] {
+		record(observer, "spectator_dossier", "recipient")
+	}
+
+	_, revealed := ev.GetEvt().(*genpb.ServerEvent_MatchEnded)
+	sanctioned := revealed || (isDossier && w.spectators[observer])
+	if !sanctioned {
 		for owner, owned := range w.words {
 			if owner == observer {
 				continue

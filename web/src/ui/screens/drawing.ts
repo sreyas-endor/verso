@@ -5,6 +5,7 @@ import { avatar } from "../avatar.js";
 import { paintress } from "../paintress.js";
 import { avatarColor } from "../palette.js";
 import { playerList } from "../playerList.js";
+import { spectatorPanel } from "../spectatorPanel.js";
 import { stage } from "../stage.js";
 import { timer } from "../timer.js";
 import { tools } from "../tools.js";
@@ -125,7 +126,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   };
 
   const main = el("div", { class: "col-main" }, head, board.root, paint.root);
-  const right = el("div", { class: "col-right stack" }, status, pens.root, word.root);
+  // Compact: this column sits beside a live canvas, and a spectator watching
+  // the drawing wants the names to hand, not the whole word table. The full
+  // one is on the discussion and result screens, where there is room to read.
+  const dossier = spectatorPanel("You are out. Watch what they draw knowing this:", true);
+
+  const right = el("div", { class: "col-right stack" }, status, dossier.root, pens.root, word.root);
   const view = el("div", { class: "cols" }, roster.root, main, right);
   root.appendChild(view);
   dd.add(() => view.remove());
@@ -214,15 +220,13 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       ruleCard.remove();
     }
 
+    dossier.update(s);
     if (s.youAreEliminated) {
       status.className = "card spectator";
       setStatusTitle("Spectating", "");
       fill(
         statusBody,
         el("p", { text: "You were eliminated. You can still watch every stroke, but you no longer draw or vote." }),
-        s.spectator
-          ? el("p", {}, el("span", { text: "The imposter is " }), el("strong", { text: s.spectator.imposterName }), ".")
-          : null,
       );
       pens.root.hidden = true;
     } else {

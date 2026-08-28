@@ -106,7 +106,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   const render = (s: ViewState) => {
     roster.update(s);
-    settings.update(s.settings, s.isHost);
+    settings.update(s.settings, s.isHost, s.players.length);
     setText(codeBox, s.roomCode || "—");
     setText(urlBox, s.joinUrl);
 

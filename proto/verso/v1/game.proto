@@ -70,6 +70,21 @@ enum PenRule {
   PEN_RULE_MAX_FIVE = 3;
 }
 
+// What a valid elimination discloses to the players still in the match
+// (MULTIPLE_IMPOSTERS.md, "Elimination Results"). Vote totals are aggregate-only
+// either way; this never makes an individual ballot visible.
+//
+// It governs the NON-TERMINAL result only. The elimination that ends the match
+// is followed by MatchEnded, which reveals everything on purpose
+// (DESIGN.md:75), so Hidden cannot and does not conceal that one.
+enum EliminationResults {
+  ELIMINATION_RESULTS_UNSPECIFIED = 0;
+  // The public result names the eliminated player's alignment.
+  ELIMINATION_RESULTS_REVEAL = 1;
+  // The public result names only who went, never which side they were on.
+  ELIMINATION_RESULTS_HIDDEN = 2;
+}
+
 // Server-authoritative match phase (IMPLEMENTATION_PLAN.md §4.5).
 //
 // Discussion and voting share one combined timer (DESIGN.md:46), so they are a
@@ -163,6 +178,17 @@ message MatchSettings {
   // default like every other field here, so a newer client cannot hand this
   // room a rule it does not enforce.
   PenRule pen_rule = 6;
+  // How many seats hold the odd word. Range 1..2, default 1
+  // (MULTIPLE_IMPOSTERS.md, "Match Settings").
+  //
+  // Public: it is a lobby setting every player can read, which is exactly why
+  // YourWord does not carry it. Legal at every supported player count — three
+  // players with two imposters is unwinnable for the group and the lobby warns
+  // about it rather than refusing it.
+  int32 imposter_count = 7;
+  // What a non-terminal elimination discloses. Default
+  // ELIMINATION_RESULTS_REVEAL.
+  EliminationResults elimination_results = 8;
 }
 
 // Public roster entry. Contains nothing a player is not allowed to know about
@@ -442,11 +468,24 @@ message PlayerEliminated {
   bool eliminated = 2;
   // Empty when eliminated is false.
   string player_id = 3;
-  // Active players are told only that a NON-imposter was eliminated
-  // (DESIGN.md:65). This flag is therefore only ever true in the same
-  // resolution that produces a MatchEnded with WINNER_SIDE_GROUP. Whenever the
-  // match continues it MUST be false.
+  // The eliminated player's alignment. Meaningless unless alignment_revealed
+  // is true, and the server leaves it false in that case rather than sending a
+  // value a careless client could read.
+  //
+  // With ELIMINATION_RESULTS_REVEAL and two imposters this is true for the
+  // FIRST imposter caught, in a resolution the match survives — the base
+  // design's "only ever true alongside a group win" no longer holds. The group
+  // win is the separate MatchEnded, not this flag.
   bool was_imposter = 4;
+  // Whether was_imposter carries a verdict at all.
+  //
+  // True under ELIMINATION_RESULTS_REVEAL, and true for the elimination that
+  // ends the match under either setting, because the MatchEnded that follows
+  // discloses every alignment anyway. False under ELIMINATION_RESULTS_HIDDEN
+  // for a result the match survives: the room is told who went and nothing
+  // else. Also false when eliminated is false, where there is nobody to have
+  // an alignment.
+  bool alignment_revealed = 5;
 }
 
 // One round's pair, revealed only when the match is over. Every round deals a
@@ -488,15 +527,23 @@ message MatchEnded {
   // one pair.
   string common_word = 3;
   string imposter_word = 4;
-  // The imposter is picked once and pinned to that seat for the whole match.
-  // Every round re-deals the words; none of them re-rolls this.
-  string imposter_player_id = 5;
+  // Superseded by imposter_player_ids. A single id could only ever describe a
+  // one-imposter match, and a client reading it in a two-imposter match would
+  // name one of the pair and silently lose the other. Reserved rather than
+  // repurposed, so a stale build cannot read the new list through the old
+  // field number.
+  reserved 5;
+  reserved "imposter_player_id";
   // Every player who was dealt a word in any round, eliminated or not.
   repeated PlayerReveal reveals = 6;
   int32 rounds_played = 7;
   // Every round's pair, oldest first. len(rounds) == rounds_played whenever
   // the match got past assignment.
   repeated RoundWords rounds = 8;
+  // Every imposter seat, in seat order. Chosen once at match start and pinned
+  // for the whole match: every round re-deals the words, none of them re-rolls
+  // this. Length equals MatchSettings.imposter_count.
+  repeated string imposter_player_ids = 9;
 }
 
 // A player's connection state or host flag changed. Also the host-migration
@@ -593,12 +640,63 @@ message Snapshot {
   string next_artist_id = 19;
 }
 
-// Sent once, to a player who was just eliminated and was not the imposter: they
-// privately learn the real imposter's identity (DESIGN.md:67). Never sent to an
-// active player, and never to the imposter about themself.
+// One imposter's public identity, named privately to a spectator. The name is
+// carried rather than looked up so a dossier renders without a roster join.
+message SpectatorImposter {
+  string player_id = 1;
+  string name = 2;
+}
+
+// One seat's dealt word for one round. SPECTATOR-ONLY: this is another player's
+// secret, and it may appear on no message an active player can receive.
+message SpectatorAssignment {
+  string player_id = 1;
+  string word = 2;
+  // Redundant with comparing `word` against SpectatorRound.imposter_word, and
+  // carried anyway so a renderer never has to compare two strings to colour a
+  // row.
+  bool is_imposter = 3;
+}
+
+// One round, seen from behind the scenes.
+message SpectatorRound {
+  // 1-based, matching RoundWords.round.
+  int32 round = 1;
+  string common_word = 2;
+  string imposter_word = 3;
+  // Every seat dealt into this round, in seat order. A seat already eliminated
+  // when the round was dealt is absent rather than blank.
+  repeated SpectatorAssignment assignments = 4;
+  // This round's finished canvas, replayed the same way Snapshot replays the
+  // live one. Empty for the round still being drawn, and for a round the match
+  // ended part-way through.
+  repeated Stroke strokes = 5;
+}
+
+// The eliminated player's private dossier (MULTIPLE_IMPOSTERS.md,
+// "Eliminated-player Spectator View").
+//
+// Sent to a player only AFTER they are out: on the elimination itself, again on
+// every later deal so a spectator watches the next round's assignments land,
+// and again beside the Snapshot of a reconnect. Never to an active player, and
+// never broadcast — EvSpectatorInfo has no broadcastSafe marker for exactly
+// this reason.
+//
+// It is cumulative and complete each time, not a delta: a spectator who
+// reconnects three rounds later gets the whole match back in one frame, which
+// is the same reason Snapshot replays the entire stroke log.
 message SpectatorInfo {
-  string imposter_player_id = 1;
-  string imposter_name = 2;
+  // Superseded by `imposters`. One id and one name could only ever describe a
+  // single-imposter match. Reserved rather than repurposed so a stale build
+  // cannot read the new list through the old field numbers.
+  reserved 1, 2;
+  reserved "imposter_player_id", "imposter_name";
+
+  // Every imposter seat, in seat order. Length equals
+  // MatchSettings.imposter_count.
+  repeated SpectatorImposter imposters = 3;
+  // Every round dealt so far, oldest first, including the one in progress.
+  repeated SpectatorRound rounds = 4;
 }
 
 // Private acknowledgement that the voter's own irreversible vote was recorded.

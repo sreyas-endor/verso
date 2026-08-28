@@ -1,5 +1,6 @@
 import type { ScreenCtx, ViewState } from "../context.js";
 import { Disposers, el, setText } from "../dom.js";
+import { spectatorPanel } from "../spectatorPanel.js";
 import { timer } from "../timer.js";
 
 let d: Disposers | null = null;
@@ -34,6 +35,13 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   const wordText = el("div", { class: "reveal-word" });
   const shown = el("div", {}, wordText, el("p", { class: "hint", text: "Only you can see this." }));
   const wordTitle = el("div", { class: "card-title", text: "Your secret word" });
+  // A spectator is dealt no word, so this screen would otherwise be a blank
+  // card for the rest of the match. The dossier is what they get instead —
+  // and this is the transition where the next round's assignments land, so it
+  // is the most interesting moment they have.
+  const dossier = spectatorPanel("You are out. This round's words as they were dealt:");
+  // The word card and the rules card are for players still holding a word.
+  const wordCard = el("section", { class: "card reveal-card" }, wordTitle, shown);
   const clockTitle = el("div", { class: "card-title", text: "Round starts in" });
   // Rounds after the first deal a brand new pair on a blank canvas, and a
   // player who assumes their old word carries over will draw the wrong thing.
@@ -44,21 +52,29 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   const nextRound = (s: ViewState): number => s.round + 1;
   const clock = timer("Time until the round starts");
 
+  wordCard.appendChild(freshNote);
+  const rulesCard = el(
+    "section",
+    { class: "card" },
+    el("div", { class: "card-title", text: "Talking about it" }),
+    // The COUNT is a public lobby setting, so saying it here discloses nothing
+    // YourWord withheld (MULTIPLE_IMPOSTERS.md, "Role Assignment"). Who holds
+    // it is what stays secret — including from the imposters, who are not told
+    // about each other.
+    el("p", { class: "muted" }, el("span", { class: "reveal-count" })),
+    el("h3", { text: "You may not" }),
+    ruleList("rules-no", "No", MAY_NOT),
+    el("div", { style: "height:.6rem" }),
+    el("h3", { text: "You may" }),
+    ruleList("rules-yes", "Yes", MAY),
+  );
+
   const view = el(
     "div",
     { class: "reveal" },
-    el("section", { class: "card reveal-card" }, wordTitle, shown, freshNote),
-    el(
-      "section",
-      { class: "card" },
-      el("div", { class: "card-title", text: "Talking about it" }),
-      el("p", { class: "muted", text: "One of you was handed a different word. Nobody is told who." }),
-      el("h3", { text: "You may not" }),
-      ruleList("rules-no", "No", MAY_NOT),
-      el("div", { style: "height:.6rem" }),
-      el("h3", { text: "You may" }),
-      ruleList("rules-yes", "Yes", MAY),
-    ),
+    wordCard,
+    dossier.root,
+    rulesCard,
     el(
       "section",
       { class: "card row" },
@@ -73,9 +89,26 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
   let announcedFor = -1;
 
+  const countLine = view.querySelector<HTMLElement>(".reveal-count");
+
   const render = (s: ViewState) => {
     const n = nextRound(s);
     const first = n <= 1;
+    dossier.update(s);
+    // A spectator holds no word; showing them an empty card beside a dossier
+    // that has every word in the match would read as a bug.
+    wordCard.hidden = s.youAreEliminated;
+    rulesCard.hidden = s.youAreEliminated;
+    if (countLine) {
+      const imposters = Math.max(1, s.settings.imposterCount);
+      setText(
+        countLine,
+        imposters === 1
+          ? "One of you was handed a different word. Nobody is told who."
+          : `${imposters} of you were handed the same different word. Nobody is told who — ` +
+            "not even each other.",
+      );
+    }
     setText(wordText, s.word || "…");
     setText(wordTitle, first ? "Your secret word" : `Your secret word — round ${n}`);
     setText(clockTitle, first ? "First round starts in" : `Round ${n} starts in`);
@@ -87,6 +120,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
 
     // Re-announced every round: the word actually changed, and a screen reader
     // that only heard about round 1 would be reading a stale one.
+    if (s.youAreEliminated) return;
     if (s.word !== "" && announcedFor !== n) {
       announcedFor = n;
       ctx.announce(
