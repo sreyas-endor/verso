@@ -37,5 +37,5 @@ export type {
   ViewState,
   VoteChoice,
 } from "./context.js";
-export { NIB_WIDTHS, PEN_INKS, avatarColor, initials } from "./palette.js";
-export { codeFromLocation, parseRoomCode, rememberName, rememberedName } from "./roomCode.js";
+export { NIB_WIDTHS, PEN_INKS, avatarColor } from "./palette.js";
+export { codeFromLocation, parseRoomCode, rememberAvatar, rememberName, rememberedAvatar, rememberedName } from "./roomCode.js";

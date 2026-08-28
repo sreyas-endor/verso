@@ -1,3 +1,5 @@
+import { Avatar } from "../../gen/verso/v1/game_pb.js";
+import { AVATAR_CATALOG, FALLBACK_AVATAR } from "./avatars/catalog.js";
 import { LIMITS } from "./context.js";
 
 const CODE_RE = new RegExp(`[A-Z0-9]{${LIMITS.codeLength}}`);
@@ -36,5 +38,38 @@ export function rememberName(name: string): void {
     window.localStorage.setItem(NAME_KEY, name);
   } catch {
     /* private mode; the field just won't prefill next time */
+  }
+}
+
+const AVATAR_KEY = "verso.avatar";
+
+/**
+ * The portrait to preselect on the home screen.
+ *
+ * A first visit gets a RANDOM one rather than always the first in the catalog.
+ * Ten people opening the game for the first time should not all arrive as the
+ * beetle, and a preselected face is the whole reason Create still works on one
+ * keystroke — so it has to be a face worth keeping, not a placeholder.
+ *
+ * Never returns UNSPECIFIED. The picker's job is to make sure the client never
+ * sends one, so the server's fallback stays a defence against old builds rather
+ * than a value this build relies on.
+ */
+export function rememberedAvatar(): Avatar {
+  try {
+    const stored = Number(window.localStorage.getItem(AVATAR_KEY));
+    if (AVATAR_CATALOG.some((e) => e.value === stored)) return stored as Avatar;
+  } catch {
+    /* private mode; fall through to a random one */
+  }
+  const pick = AVATAR_CATALOG[Math.floor(Math.random() * AVATAR_CATALOG.length)];
+  return pick?.value ?? FALLBACK_AVATAR;
+}
+
+export function rememberAvatar(value: Avatar): void {
+  try {
+    window.localStorage.setItem(AVATAR_KEY, String(value));
+  } catch {
+    /* private mode; the picker just won't preselect this next time */
   }
 }

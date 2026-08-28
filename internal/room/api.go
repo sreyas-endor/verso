@@ -307,6 +307,13 @@ type Player struct {
 	// Name is the display name, already truncated to MaxDisplayNameLen.
 	Name string
 
+	// Avatar is the character this seat chose, already normalized so it is
+	// never the zero value. It is fixed for the life of the seat: attach does
+	// not read the avatar off a join frame, for the same reason it does not
+	// read the display name, so a reconnect keeps the face the rest of the
+	// room has been looking at instead of repainting it mid-match.
+	Avatar genpb.Avatar
+
 	// SeatToken is the bearer credential for reclaiming this seat. It is an
 	// opaque, room-local random string: transport must pass it through
 	// verbatim and must never parse, derive from, log, or broadcast it.
@@ -373,6 +380,7 @@ func (p *Player) Info() *genpb.PlayerInfo {
 	return &genpb.PlayerInfo{
 		Id:         p.ID,
 		Name:       p.Name,
+		Avatar:     p.Avatar,
 		Seat:       p.Seat,
 		Connected:  p.Connected,
 		Ready:      p.Ready,
@@ -555,8 +563,12 @@ type Room struct {
 // the room; that client then presents it to Attach when its socket opens. Every
 // other player takes a seat with Seat.
 //
+// The host's avatar is chosen here rather than when their socket arrives,
+// because their seat is minted before there is a socket to carry it: by the
+// time Attach runs the seat already exists and its choice is settled.
+//
 // New does not start the actor. Call Run.
-func New(code string, hostName string, opts Options) *Room {
+func New(code string, hostName string, avatar genpb.Avatar, opts Options) *Room {
 	rnd := opts.Rand
 	if rnd == nil {
 		rnd = mrand.New(mrand.NewPCG(mrand.Uint64(), mrand.Uint64()))
@@ -591,6 +603,7 @@ func New(code string, hostName string, opts Options) *Room {
 	host := &Player{
 		ID:        newID(),
 		Name:      truncateName(hostName),
+		Avatar:    normalizeAvatar(avatar),
 		SeatToken: newToken(),
 		Seat:      r.nextSeat,
 		IsHost:    true,
@@ -649,8 +662,8 @@ func (r *Room) Submit(cmd Command) {
 //
 // On success the room sends EvJoined followed by EvLobbyState on out.
 // Implemented in reconnect.go.
-func (r *Room) Seat(displayName string, out Session) (playerID, seatToken string, err error) {
-	return r.seat(displayName, out)
+func (r *Room) Seat(displayName string, avatar genpb.Avatar, out Session) (playerID, seatToken string, err error) {
+	return r.seat(displayName, avatar, out)
 }
 
 // Attach binds a live connection to an existing seat, for the host's first
@@ -998,6 +1011,22 @@ func truncateName(name string) string {
 		return string(runes[:MaxDisplayNameLen])
 	}
 	return string(runes)
+}
+
+// normalizeAvatar folds a client-supplied avatar into the set this build knows.
+// AVATAR_UNSPECIFIED and any value outside that set both become AVATAR_BEETLE
+// rather than being refused: a seat stored with the zero value would leave every
+// roster entry with no face to draw, and a client that simply forgot the field
+// is not worth failing a join over.
+//
+// Membership is tested against the generated name table instead of a hardcoded
+// ceiling, so adding a character to the proto does not quietly start folding it
+// back to the fallback here.
+func normalizeAvatar(a genpb.Avatar) genpb.Avatar {
+	if _, ok := genpb.Avatar_name[int32(a)]; !ok || a == genpb.Avatar_AVATAR_UNSPECIFIED {
+		return genpb.Avatar_AVATAR_BEETLE
+	}
+	return a
 }
 
 // newID mints a public player id.

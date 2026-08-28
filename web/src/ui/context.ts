@@ -5,6 +5,7 @@
 
 import { EliminationResults, PenRule } from "../../gen/verso/v1/game_pb.js";
 import type {
+  Avatar,
   Difficulty,
   ErrorCode,
   MatchEnded,
@@ -90,6 +91,13 @@ export interface ViewState {
   tally: VoteTally | null;
   /** Latest elimination outcome, cleared when a new round starts. */
   elimination: PlayerEliminated | null;
+  /**
+   * Counts vote ejections this client watched happen. Only the live
+   * `PlayerEliminated` broadcast advances it — never a snapshot, a resync or
+   * the kick reset — so it is the one safe trigger for anything that must fire
+   * exactly once per ejection. See GameState.eliminationSeq.
+   */
+  eliminationSeq: number;
   /** Only ever populated for a player who has been eliminated themselves. */
   spectator: SpectatorInfo | null;
   matchEnd: MatchEnded | null;
@@ -103,8 +111,12 @@ export interface ViewState {
 }
 
 export interface Actions {
-  createRoom(displayName: string): void;
-  joinRoom(roomCode: string, displayName: string): void;
+  // The avatar is a property of a FRESH seat, so it travels with the two
+  // commands that can create one and with nothing else. There is deliberately
+  // no setAvatar: the server would have to accept a mid-match identity change,
+  // and every screen showing that player would have to survive it.
+  createRoom(displayName: string, avatar: Avatar): void;
+  joinRoom(roomCode: string, displayName: string, avatar: Avatar): void;
   setReady(ready: boolean): void;
   updateSettings(settings: MatchSettings): void;
   startMatch(): void;

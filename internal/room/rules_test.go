@@ -835,7 +835,7 @@ func TestNonImposterEliminationTellsTheGroupNothingMore(t *testing.T) {
 // is the whole of role assignment isolated from the phase machine.
 func assignOnly(t *testing.T, n int, seed uint64) *Room {
 	t.Helper()
-	r := New("ROLE", "host", Options{
+	r := New("ROLE", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck:   pairDeck{"CAT", "DOG"},
 		Rand:   mrand.New(mrand.NewPCG(seed, seed^0xa5a5a5a5)),
 		Logger: discardLogger(),
@@ -1187,7 +1187,7 @@ func TestRosterBoundaries(t *testing.T) {
 				t.Fatalf("seats = %d, want %d", got, MaxPlayers)
 			}
 			extra := newSmokeSock()
-			if _, _, err := h.r.seat("eleventh", extra); err != ErrRoomFull {
+			if _, _, err := h.r.seat("eleventh", genpb.Avatar_AVATAR_COURIER, extra); err != ErrRoomFull {
 				t.Fatalf("seating an 11th player returned %v, want ErrRoomFull", err)
 			}
 			if got := h.seatCount(); got != MaxPlayers {
@@ -1203,7 +1203,7 @@ func TestRosterBoundaries(t *testing.T) {
 			defer h.stop()
 			h.start()
 			latecomer := newSmokeSock()
-			if _, _, err := h.r.seat("late", latecomer); err != ErrMatchInProgress {
+			if _, _, err := h.r.seat("late", genpb.Avatar_AVATAR_COURIER, latecomer); err != ErrMatchInProgress {
 				t.Fatalf("seating mid-match returned %v, want ErrMatchInProgress", err)
 			}
 		})

@@ -20,7 +20,13 @@ export const PEN_INKS: readonly string[] = [
 /** Brush nibs, in wire width units (clamped server-side to 1..32). */
 export const NIB_WIDTHS: readonly number[] = [3, 8, 16, 28];
 
-/** Ten hues, so a full 10-player room never has two identical avatars. */
+/**
+ * Ten hues, one per seat in a full room.
+ *
+ * These used to be the avatar itself and are now its ring. That is not a
+ * demotion: two players may choose the same creature, so the portrait alone
+ * cannot separate a ten-seat roster and the hue is the half that always can.
+ */
 const AVATAR_HUES: readonly string[] = [
   "#4f7cff", "#ef4c4c", "#2fbf71", "#ff8a1f", "#7a5cff",
   "#0fb5ba", "#e05bc8", "#d99b00", "#5d6a8c", "#3fae4a",
@@ -39,15 +45,4 @@ function hash(s: string): number {
 export function avatarColor(playerId: string): string {
   const hue = AVATAR_HUES[hash(playerId) % AVATAR_HUES.length];
   return hue ?? "#4f7cff";
-}
-
-/** Up to two initials, uppercased. Falls back to "?" for an empty name. */
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1] ?? "" : "";
-  const a = [...first][0] ?? "";
-  const b = parts.length > 1 ? [...last][0] ?? "" : [...first][1] ?? "";
-  return (a + b).toUpperCase() || "?";
 }

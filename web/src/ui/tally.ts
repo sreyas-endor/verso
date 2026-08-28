@@ -1,6 +1,6 @@
 import type { VoteTally } from "../../gen/verso/v1/game_pb.js";
 import type { ViewState } from "./context.js";
-import { avatar } from "./avatar.js";
+import { NO_AVATAR, avatar } from "./avatar.js";
 import { el, fill } from "./dom.js";
 
 export interface TallyView {
@@ -75,7 +75,7 @@ export function tallyChart(): TallyView {
           const label = el(
             "span",
             { class: "row" },
-            avatar(r.key, name, "sm"),
+            avatar(r.key, p?.avatar ?? NO_AVATAR, "sm"),
             el("span", { text: name }),
             r.key === eliminatedId ? el("span", { class: "badge badge-out", text: "OUT" }) : null,
           );

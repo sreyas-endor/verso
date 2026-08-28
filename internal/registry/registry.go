@@ -188,7 +188,7 @@ func New(ctx context.Context, cfg Config) *Registry {
 // caller holds one reference and must Release it, exactly as if it had called
 // Hold. That keeps the collector from reaping a room in the window between
 // creating it and attaching the host's socket.
-func (g *Registry) Create(hostName string) (Created, error) {
+func (g *Registry) Create(hostName string, avatar genpb.Avatar) (Created, error) {
 	g.mu.Lock()
 	if g.shut {
 		g.mu.Unlock()
@@ -215,7 +215,7 @@ func (g *Registry) Create(hostName string) (Created, error) {
 		deck = g.cfg.NewDeck()
 	}
 
-	rm := room.New(code, hostName, room.Options{
+	rm := room.New(code, hostName, avatar, room.Options{
 		Deck:     deck,
 		Rand:     rnd,
 		Settings: g.cfg.Settings,

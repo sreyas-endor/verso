@@ -1,6 +1,16 @@
+import type { Avatar } from "../../../gen/verso/v1/game_pb.js";
+import { avatar } from "../avatar.js";
+import { AVATAR_CATALOG } from "../avatars/catalog.js";
 import { LIMITS, type ScreenCtx } from "../context.js";
 import { Disposers, el, setText } from "../dom.js";
-import { codeFromLocation, parseRoomCode, rememberName, rememberedName } from "../roomCode.js";
+import {
+  codeFromLocation,
+  parseRoomCode,
+  rememberAvatar,
+  rememberName,
+  rememberedAvatar,
+  rememberedName,
+} from "../roomCode.js";
 
 let d: Disposers | null = null;
 
@@ -40,6 +50,74 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   const createHint = el("p", { class: "hint", text: "Clear the room code below to create a new room instead." });
   createHint.hidden = true;
 
+  // The avatar picker: one large face with an arrow either side.
+  //
+  // Preselected on purpose. An avatar belongs to a seat and cannot be changed
+  // once one exists, so this is the only place to choose — but making it a gate
+  // would cost every player a click and break the name-then-Enter path that
+  // gets a room open in one keystroke. The remembered face means the common
+  // case is no presses at all.
+  //
+  // A cycler rather than a grid of ten: at grid size the creatures are 46px of
+  // mush, and the whole point of drawing them was that somebody looks at them.
+  // The cost is that reaching a specific face takes up to five presses, which
+  // is what the dots are for — without a position readout a cycler feels
+  // endless and never tells you that you have now seen all of them.
+  let chosen: Avatar = rememberedAvatar();
+  let index = Math.max(0, AVATAR_CATALOG.findIndex((e) => e.value === chosen));
+
+  const face = el("div", { class: "face-chip" });
+  // Announced rather than silent: for a screen reader the arrows are the only
+  // evidence anything changed, and "Next face" does not say which face.
+  const faceName = el("div", { class: "face-name", "aria-live": "polite" });
+  const dots = el(
+    "div",
+    { class: "face-dots", "aria-hidden": "true" },
+    ...AVATAR_CATALOG.map(() => el("span", { class: "face-dot" })),
+  );
+
+  const arrow = (label: string, glyph: string, step: number) => {
+    const b = el(
+      "button",
+      { type: "button", class: "face-arrow", "aria-label": label, text: glyph },
+    ) as HTMLButtonElement;
+    dd.on(b, "click", () => show(index + step));
+    return b;
+  };
+  const prevFace = arrow("Previous face", "\u2039", -1);
+  const nextFace = arrow("Next face", "\u203a", 1);
+
+  function show(to: number): void {
+    const n = AVATAR_CATALOG.length;
+    index = ((to % n) + n) % n;
+    const entry = AVATAR_CATALOG[index];
+    if (entry === undefined) return;
+    chosen = entry.value;
+    face.replaceChildren(avatar("", entry.value, "lg"));
+    setText(faceName, entry.label);
+    for (let i = 0; i < dots.children.length; i++) {
+      dots.children[i]?.classList.toggle("face-dot-on", i === index);
+    }
+    rememberAvatar(chosen);
+  }
+
+  const picker = el(
+    "div",
+    { class: "facepick", role: "group", "aria-label": "Pick a face" },
+    el("div", { class: "facepick-row" }, prevFace, face, nextFace),
+    faceName,
+    dots,
+  );
+
+  // The arrows are two tab stops, so a keyboard player who has landed on either
+  // one can keep going with the arrow keys instead of alternating Tab and Space.
+  dd.on(picker, "keydown", (e) => {
+    if (e.key === "ArrowRight") show(index + 1);
+    else if (e.key === "ArrowLeft") show(index - 1);
+    else return;
+    e.preventDefault();
+  });
+
   const nameOk = () => name.value.trim().length > 0;
 
   // A typed code means the player means to JOIN. Creating a room here would
@@ -63,7 +141,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     if (!n) return fail("Type a name first — the others need to know who you are.", name);
     err.hidden = true;
     rememberName(n);
-    ctx.actions.createRoom(n);
+    ctx.actions.createRoom(n, chosen);
   });
 
   const submitJoin = () => {
@@ -76,7 +154,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     err.hidden = true;
     code.value = c;
     rememberName(n);
-    ctx.actions.joinRoom(c, n);
+    ctx.actions.joinRoom(c, n, chosen);
   };
 
   dd.on(join, "click", submitJoin);
@@ -102,6 +180,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
       "section",
       { class: "card" },
       el("label", { class: "field", for: "vs-name" }, el("span", { text: "Display name" }), name),
+      el("div", { class: "field" }, el("span", { text: "Pick a face" }), picker),
       el("div", { style: "height:.8rem" }),
       create,
       createHint,
@@ -149,6 +228,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   dd.add(unsub);
 
   syncCreate();
+  show(index);
 
   if (name.value && code.value) join.focus();
   else if (name.value) create.focus();

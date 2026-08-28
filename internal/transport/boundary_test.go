@@ -213,7 +213,7 @@ func TestEnvelopeRoundTrip(t *testing.T) {
 func TestSeatTokenIsUnguessable(t *testing.T) {
 	seen := map[string]bool{}
 	for range 200 {
-		r := room.New("AAAAA", "host", room.Options{})
+		r := room.New("AAAAA", "host", genpb.Avatar_AVATAR_BEETLE, room.Options{})
 		_, tok := r.HostSeat()
 		if len(tok) != 64 {
 			t.Fatalf("seat token %q is %d characters, want 64 hex (256 bits)", tok, len(tok))
@@ -335,7 +335,7 @@ func TestAnExpiredSeatTokenIsRejected(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := room.New("EXPY", "host", room.Options{
+		r := room.New("EXPY", "host", genpb.Avatar_AVATAR_BEETLE, room.Options{
 			Deck:   boundaryDeck{},
 			Logger: slog.New(slog.DiscardHandler),
 		})
@@ -347,7 +347,7 @@ func TestAnExpiredSeatTokenIsRejected(t *testing.T) {
 		}
 
 		sess := sessionOf(make(chan *genpb.ServerEvent, 256))
-		id, token, err := r.Seat("bee", sess)
+		id, token, err := r.Seat("bee", genpb.Avatar_AVATAR_COURIER, sess)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -423,7 +423,7 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	r := room.New("JAMM", "host", room.Options{
+	r := room.New("JAMM", "host", genpb.Avatar_AVATAR_BEETLE, room.Options{
 		Deck:   boundaryDeck{},
 		Logger: slog.New(slog.DiscardHandler),
 	})
@@ -435,14 +435,14 @@ func TestAFullOutboundQueueDoesNotStallTheRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := sessionOf(make(chan *genpb.ServerEvent, 4096))
-	secondID, _, err := r.Seat("grace", second)
+	secondID, _, err := r.Seat("grace", genpb.Avatar_AVATAR_COURIER, second)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Capacity 1 and never read: full after the very first frame, and full for
 	// the rest of the test. This is a socket that has stopped consuming.
 	stuck := sessionOf(make(chan *genpb.ServerEvent, 1))
-	stuckID, _, err := r.Seat("stuck", stuck)
+	stuckID, _, err := r.Seat("stuck", genpb.Avatar_AVATAR_COURIER, stuck)
 	if err != nil {
 		t.Fatal(err)
 	}

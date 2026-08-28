@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	r := room.New("TEST", "host", room.Options{})
+	r := room.New("TEST", "host", genpb.Avatar_AVATAR_BEETLE, room.Options{})
 	r.Broadcast(room.EvLobbyState{LobbyState: &genpb.LobbyState{}})
 	r.Broadcast(room.EvMatchEnded{MatchEnded: &genpb.MatchEnded{}})
 	r.Broadcast(room.EvStrokePoints{StrokePoints: &genpb.StrokePoints{}})

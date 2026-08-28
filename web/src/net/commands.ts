@@ -25,7 +25,7 @@ import {
   StrokePointsSchema,
   UpdateSettingsSchema,
 } from "../../gen/verso/v1/game_pb.js";
-import type { Difficulty, MatchSettings, PenRule } from "../../gen/verso/v1/game_pb.js";
+import type { Avatar, Difficulty, MatchSettings, PenRule } from "../../gen/verso/v1/game_pb.js";
 import {
   MAX_DISCUSS_SECONDS,
   MAX_DRAW_SECONDS,
@@ -56,6 +56,7 @@ export function joinRoom(init: {
   roomCode: string;
   displayName: string;
   seatToken?: string;
+  avatar: Avatar;
 }): ClientCommandBody {
   return {
     case: "join",
@@ -63,6 +64,10 @@ export function joinRoom(init: {
       roomCode: init.roomCode,
       displayName: init.displayName,
       seatToken: init.seatToken ?? "",
+      // Sent on every join and read by the server on exactly one of them: a
+      // fresh seat. A reclaim ignores it, the same as it ignores the name, so
+      // this is never how a portrait changes.
+      avatar: init.avatar,
       protocolVersion: PROTOCOL_VERSION,
     }),
   };

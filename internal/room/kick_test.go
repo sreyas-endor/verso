@@ -91,7 +91,7 @@ func TestKickIsNotABan(t *testing.T) {
 		synctest.Wait()
 
 		sk := newSmokeSock()
-		if _, _, err := h.r.seat("returning", sk); err != nil {
+		if _, _, err := h.r.seat("returning", genpb.Avatar_AVATAR_COURIER, sk); err != nil {
 			t.Fatalf("fresh seat after a kick: %v", err)
 		}
 		if got := h.seatCount(); got != 4 {

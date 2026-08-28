@@ -8,6 +8,7 @@ import { castVote, kickPlayer, rematch, requestSnapshot, setReady, startMatch, s
 import { VersoSocket } from "./net/socket.js";
 import { GameStore } from "./state/store.js";
 import { setDeepLink } from "./state/routes.js";
+import { cinematic } from "./ui/cinematic.js";
 import { createChrome, screens, type Actions, type CanvasHandle, type ScreenCtx, type ViewState } from "./ui/index.js";
 
 const root = document.querySelector<HTMLElement>("#app");
@@ -111,11 +112,11 @@ function archiveRound(round: number): void {
 }
 
 const actions: Actions = {
-  createRoom(displayName) {
-    socket.connect({ roomCode: "", displayName });
+  createRoom(displayName, avatar) {
+    socket.connect({ roomCode: "", displayName, avatar });
   },
-  joinRoom(roomCode, displayName) {
-    socket.connect({ roomCode, displayName });
+  joinRoom(roomCode, displayName, avatar) {
+    socket.connect({ roomCode, displayName, avatar });
   },
   setReady(ready) {
     socket.request(setReady(ready));
@@ -150,6 +151,13 @@ const chrome = createChrome(root, {
     if (on) audio.play("soundOn");
   },
 });
+// Mounted once, beside the screen root rather than inside it. An ejection runs
+// for 4.7 s and PHASE_RESOLVING is 8 s, so the screen underneath can be swapped
+// for the final reveal while the petals are still falling — an overlay owned by
+// a screen would be torn out mid-animation.
+const ejection = cinematic();
+root.appendChild(ejection.root);
+
 let mounted: keyof typeof screens | null = null;
 const ctx: ScreenCtx = {
   state: () => store.getState(),
@@ -162,6 +170,7 @@ const ctx: ScreenCtx = {
 
 function render(state: ViewState): void {
   chrome.render(state);
+  ejection.update(state);
   // Leave an incoming fragment alone until a room has actually been joined:
   // the home screen reads it to prefill a deep-link join code.
   if (state.roomCode !== "") setDeepLink(state.roomCode);

@@ -237,6 +237,88 @@ func (EliminationResults) EnumDescriptor() ([]byte, []int) {
 	return file_verso_v1_game_proto_rawDescGZIP(), []int{2}
 }
 
+// The fixed avatar roster. A player picks one before entering a room; it is
+// decorative reinforcement for the display name, never an identity of its own.
+//
+// These values are published the moment a build ships. Never renumber one,
+// never repurpose one, only append — a stale client that reads AVATAR_MOTH as
+// AVATAR_MASON shows the wrong face to a whole room.
+//
+// AVATAR_UNSPECIFIED is what an older client sends. The server substitutes the
+// designated fallback rather than storing a zero, so no seat is ever faceless.
+type Avatar int32
+
+const (
+	Avatar_AVATAR_UNSPECIFIED  Avatar = 0
+	Avatar_AVATAR_BEETLE       Avatar = 1
+	Avatar_AVATAR_COURIER      Avatar = 2
+	Avatar_AVATAR_LANTERN      Avatar = 3
+	Avatar_AVATAR_GEARSMITH    Avatar = 4
+	Avatar_AVATAR_SCOUT        Avatar = 5
+	Avatar_AVATAR_MOTH         Avatar = 6
+	Avatar_AVATAR_MASON        Avatar = 7
+	Avatar_AVATAR_PIPER        Avatar = 8
+	Avatar_AVATAR_COOK         Avatar = 9
+	Avatar_AVATAR_CARTOGRAPHER Avatar = 10
+)
+
+// Enum value maps for Avatar.
+var (
+	Avatar_name = map[int32]string{
+		0:  "AVATAR_UNSPECIFIED",
+		1:  "AVATAR_BEETLE",
+		2:  "AVATAR_COURIER",
+		3:  "AVATAR_LANTERN",
+		4:  "AVATAR_GEARSMITH",
+		5:  "AVATAR_SCOUT",
+		6:  "AVATAR_MOTH",
+		7:  "AVATAR_MASON",
+		8:  "AVATAR_PIPER",
+		9:  "AVATAR_COOK",
+		10: "AVATAR_CARTOGRAPHER",
+	}
+	Avatar_value = map[string]int32{
+		"AVATAR_UNSPECIFIED":  0,
+		"AVATAR_BEETLE":       1,
+		"AVATAR_COURIER":      2,
+		"AVATAR_LANTERN":      3,
+		"AVATAR_GEARSMITH":    4,
+		"AVATAR_SCOUT":        5,
+		"AVATAR_MOTH":         6,
+		"AVATAR_MASON":        7,
+		"AVATAR_PIPER":        8,
+		"AVATAR_COOK":         9,
+		"AVATAR_CARTOGRAPHER": 10,
+	}
+)
+
+func (x Avatar) Enum() *Avatar {
+	p := new(Avatar)
+	*p = x
+	return p
+}
+
+func (x Avatar) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Avatar) Descriptor() protoreflect.EnumDescriptor {
+	return file_verso_v1_game_proto_enumTypes[3].Descriptor()
+}
+
+func (Avatar) Type() protoreflect.EnumType {
+	return &file_verso_v1_game_proto_enumTypes[3]
+}
+
+func (x Avatar) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Avatar.Descriptor instead.
+func (Avatar) EnumDescriptor() ([]byte, []int) {
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{3}
+}
+
 // Server-authoritative match phase (IMPLEMENTATION_PLAN.md §4.5).
 //
 // Discussion and voting share one combined timer (DESIGN.md:46), so they are a
@@ -300,11 +382,11 @@ func (x Phase) String() string {
 }
 
 func (Phase) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[3].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[4].Descriptor()
 }
 
 func (Phase) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[3]
+	return &file_verso_v1_game_proto_enumTypes[4]
 }
 
 func (x Phase) Number() protoreflect.EnumNumber {
@@ -313,7 +395,7 @@ func (x Phase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Phase.Descriptor instead.
 func (Phase) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{3}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{4}
 }
 
 // Which side won the match (DESIGN.md:71).
@@ -350,11 +432,11 @@ func (x WinnerSide) String() string {
 }
 
 func (WinnerSide) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[4].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[5].Descriptor()
 }
 
 func (WinnerSide) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[4]
+	return &file_verso_v1_game_proto_enumTypes[5]
 }
 
 func (x WinnerSide) Number() protoreflect.EnumNumber {
@@ -363,7 +445,7 @@ func (x WinnerSide) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WinnerSide.Descriptor instead.
 func (WinnerSide) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{4}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{5}
 }
 
 // Why the match ended. Clients render the same final reveal either way; this
@@ -415,11 +497,11 @@ func (x MatchEndReason) String() string {
 }
 
 func (MatchEndReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[5].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[6].Descriptor()
 }
 
 func (MatchEndReason) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[5]
+	return &file_verso_v1_game_proto_enumTypes[6]
 }
 
 func (x MatchEndReason) Number() protoreflect.EnumNumber {
@@ -428,7 +510,7 @@ func (x MatchEndReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use MatchEndReason.Descriptor instead.
 func (MatchEndReason) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{5}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{6}
 }
 
 // Machine-readable failure reason on an Error event. The `cid` on the
@@ -510,11 +592,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_verso_v1_game_proto_enumTypes[6].Descriptor()
+	return file_verso_v1_game_proto_enumTypes[7].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_verso_v1_game_proto_enumTypes[6]
+	return &file_verso_v1_game_proto_enumTypes[7]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -523,7 +605,7 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_verso_v1_game_proto_rawDescGZIP(), []int{6}
+	return file_verso_v1_game_proto_rawDescGZIP(), []int{7}
 }
 
 // Host-configured match parameters (DESIGN.md:224). The server clamps every
@@ -661,7 +743,11 @@ type PlayerInfo struct {
 	Ready     bool  `protobuf:"varint,5,opt,name=ready,proto3" json:"ready,omitempty"`
 	IsHost    bool  `protobuf:"varint,6,opt,name=is_host,json=isHost,proto3" json:"is_host,omitempty"`
 	// Eliminated players are silent spectators (DESIGN.md:66).
-	Eliminated    bool `protobuf:"varint,7,opt,name=eliminated,proto3" json:"eliminated,omitempty"`
+	Eliminated bool `protobuf:"varint,7,opt,name=eliminated,proto3" json:"eliminated,omitempty"`
+	// The portrait this seat chose on the way in. Fixed for the life of the
+	// seat: it is set once when the seat is created and survives every
+	// reconnect, because JoinRoom.avatar is ignored on a seat-token reclaim.
+	Avatar        Avatar `protobuf:"varint,8,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -743,6 +829,13 @@ func (x *PlayerInfo) GetEliminated() bool {
 		return x.Eliminated
 	}
 	return false
+}
+
+func (x *PlayerInfo) GetAvatar() Avatar {
+	if x != nil {
+		return x.Avatar
+	}
+	return Avatar_AVATAR_UNSPECIFIED
 }
 
 // A committed stroke, replayed in Snapshot. Carries no artist id: the finished
@@ -828,8 +921,12 @@ type JoinRoom struct {
 	SeatToken string `protobuf:"bytes,3,opt,name=seat_token,json=seatToken,proto3" json:"seat_token,omitempty"`
 	// Bumped whenever a change to this file is not backward compatible.
 	ProtocolVersion int32 `protobuf:"varint,4,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The portrait for a FRESH seat. Ignored when seat_token is presented and
+	// valid, exactly as display_name is: the seated value wins. Unspecified and
+	// unknown both become the server's fallback avatar.
+	Avatar        Avatar `protobuf:"varint,5,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *JoinRoom) Reset() {
@@ -888,6 +985,13 @@ func (x *JoinRoom) GetProtocolVersion() int32 {
 		return x.ProtocolVersion
 	}
 	return 0
+}
+
+func (x *JoinRoom) GetAvatar() Avatar {
+	if x != nil {
+		return x.Avatar
+	}
+	return Avatar_AVATAR_UNSPECIFIED
 }
 
 type SetReady struct {
@@ -2571,7 +2675,10 @@ type PlayerReveal struct {
 	// MatchEnded.rounds — words[i] belongs to rounds[i]. Empty string for a
 	// round this player was not dealt into, which is every round after the one
 	// that eliminated them.
-	Words         []string `protobuf:"bytes,6,rep,name=words,proto3" json:"words,omitempty"`
+	Words []string `protobuf:"bytes,6,rep,name=words,proto3" json:"words,omitempty"`
+	// Same reason as SpectatorImposter.avatar: the final reveal duplicates id
+	// and name, so it must carry the portrait too.
+	Avatar        Avatar `protobuf:"varint,7,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2646,6 +2753,13 @@ func (x *PlayerReveal) GetWords() []string {
 		return x.Words
 	}
 	return nil
+}
+
+func (x *PlayerReveal) GetAvatar() Avatar {
+	if x != nil {
+		return x.Avatar
+	}
+	return Avatar_AVATAR_UNSPECIFIED
 }
 
 // Final reveal. This is the ONLY broadcast that carries assigned words, and it
@@ -3238,9 +3352,13 @@ func (x *Snapshot) GetNextArtistId() string {
 // One imposter's public identity, named privately to a spectator. The name is
 // carried rather than looked up so a dossier renders without a roster join.
 type SpectatorImposter struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PlayerId      string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	PlayerId string                 `protobuf:"bytes,1,opt,name=player_id,json=playerId,proto3" json:"player_id,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Carried because this message duplicates the roster's id and name. Without
+	// it the dossier would have to look the seat up in a roster it does not
+	// receive, and would render the wrong face for a player who has left.
+	Avatar        Avatar `protobuf:"varint,3,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3287,6 +3405,13 @@ func (x *SpectatorImposter) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *SpectatorImposter) GetAvatar() Avatar {
+	if x != nil {
+		return x.Avatar
+	}
+	return Avatar_AVATAR_UNSPECIFIED
 }
 
 // One seat's dealt word for one round. SPECTATOR-ONLY: this is another player's
@@ -3951,7 +4076,7 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x14intermission_seconds\x18\x05 \x01(\x05R\x13intermissionSeconds\x12,\n" +
 	"\bpen_rule\x18\x06 \x01(\x0e2\x11.verso.v1.PenRuleR\apenRule\x12%\n" +
 	"\x0eimposter_count\x18\a \x01(\x05R\rimposterCount\x12M\n" +
-	"\x13elimination_results\x18\b \x01(\x0e2\x1c.verso.v1.EliminationResultsR\x12eliminationResults\"\xb1\x01\n" +
+	"\x13elimination_results\x18\b \x01(\x0e2\x1c.verso.v1.EliminationResultsR\x12eliminationResults\"\xdb\x01\n" +
 	"\n" +
 	"PlayerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -3962,19 +4087,21 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\ais_host\x18\x06 \x01(\bR\x06isHost\x12\x1e\n" +
 	"\n" +
 	"eliminated\x18\a \x01(\bR\n" +
-	"eliminated\"t\n" +
+	"eliminated\x12(\n" +
+	"\x06avatar\x18\b \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\"t\n" +
 	"\x06Stroke\x12\x1b\n" +
 	"\tstroke_id\x18\x01 \x01(\x05R\bstrokeId\x12\x1f\n" +
 	"\vcolor_index\x18\x02 \x01(\x05R\n" +
 	"colorIndex\x12\x14\n" +
 	"\x05width\x18\x03 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06points\x18\x04 \x03(\x11R\x06points\"\x94\x01\n" +
+	"\x06points\x18\x04 \x03(\x11R\x06points\"\xbe\x01\n" +
 	"\bJoinRoom\x12\x1b\n" +
 	"\troom_code\x18\x01 \x01(\tR\broomCode\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
 	"\n" +
 	"seat_token\x18\x03 \x01(\tR\tseatToken\x12)\n" +
-	"\x10protocol_version\x18\x04 \x01(\x05R\x0fprotocolVersion\" \n" +
+	"\x10protocol_version\x18\x04 \x01(\x05R\x0fprotocolVersion\x12(\n" +
+	"\x06avatar\x18\x05 \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\" \n" +
 	"\bSetReady\x12\x14\n" +
 	"\x05ready\x18\x01 \x01(\bR\x05ready\"E\n" +
 	"\x0eUpdateSettings\x123\n" +
@@ -4092,7 +4219,7 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x1f\n" +
 	"\vcommon_word\x18\x02 \x01(\tR\n" +
 	"commonWord\x12#\n" +
-	"\rimposter_word\x18\x03 \x01(\tR\fimposterWord\"\xac\x01\n" +
+	"\rimposter_word\x18\x03 \x01(\tR\fimposterWord\"\xd6\x01\n" +
 	"\fPlayerReveal\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4101,7 +4228,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"eliminated\x18\x05 \x01(\bR\n" +
 	"eliminated\x12\x14\n" +
-	"\x05words\x18\x06 \x03(\tR\x05words\"\x81\x03\n" +
+	"\x05words\x18\x06 \x03(\tR\x05words\x12(\n" +
+	"\x06avatar\x18\a \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\"\x81\x03\n" +
 	"\n" +
 	"MatchEnded\x12,\n" +
 	"\x06winner\x18\x01 \x01(\x0e2\x14.verso.v1.WinnerSideR\x06winner\x120\n" +
@@ -4154,10 +4282,11 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"votes_cast\x18\x11 \x01(\x05R\tvotesCast\x12!\n" +
 	"\factive_count\x18\x12 \x01(\x05R\vactiveCount\x12$\n" +
-	"\x0enext_artist_id\x18\x13 \x01(\tR\fnextArtistId\"D\n" +
+	"\x0enext_artist_id\x18\x13 \x01(\tR\fnextArtistId\"n\n" +
 	"\x11SpectatorImposter\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"g\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12(\n" +
+	"\x06avatar\x18\x03 \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\"g\n" +
 	"\x13SpectatorAssignment\x12\x1b\n" +
 	"\tplayer_id\x18\x01 \x01(\tR\bplayerId\x12\x12\n" +
 	"\x04word\x18\x02 \x01(\tR\x04word\x12\x1f\n" +
@@ -4217,7 +4346,20 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x12EliminationResults\x12#\n" +
 	"\x1fELIMINATION_RESULTS_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aELIMINATION_RESULTS_REVEAL\x10\x01\x12\x1e\n" +
-	"\x1aELIMINATION_RESULTS_HIDDEN\x10\x02*\xab\x01\n" +
+	"\x1aELIMINATION_RESULTS_HIDDEN\x10\x02*\xe2\x01\n" +
+	"\x06Avatar\x12\x16\n" +
+	"\x12AVATAR_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rAVATAR_BEETLE\x10\x01\x12\x12\n" +
+	"\x0eAVATAR_COURIER\x10\x02\x12\x12\n" +
+	"\x0eAVATAR_LANTERN\x10\x03\x12\x14\n" +
+	"\x10AVATAR_GEARSMITH\x10\x04\x12\x10\n" +
+	"\fAVATAR_SCOUT\x10\x05\x12\x0f\n" +
+	"\vAVATAR_MOTH\x10\x06\x12\x10\n" +
+	"\fAVATAR_MASON\x10\a\x12\x10\n" +
+	"\fAVATAR_PIPER\x10\b\x12\x0f\n" +
+	"\vAVATAR_COOK\x10\t\x12\x17\n" +
+	"\x13AVATAR_CARTOGRAPHER\x10\n" +
+	"*\xab\x01\n" +
 	"\x05Phase\x12\x15\n" +
 	"\x11PHASE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vPHASE_LOBBY\x10\x01\x12\x13\n" +
@@ -4272,117 +4414,122 @@ func file_verso_v1_game_proto_rawDescGZIP() []byte {
 	return file_verso_v1_game_proto_rawDescData
 }
 
-var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_verso_v1_game_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_verso_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_verso_v1_game_proto_goTypes = []any{
 	(Difficulty)(0),             // 0: verso.v1.Difficulty
 	(PenRule)(0),                // 1: verso.v1.PenRule
 	(EliminationResults)(0),     // 2: verso.v1.EliminationResults
-	(Phase)(0),                  // 3: verso.v1.Phase
-	(WinnerSide)(0),             // 4: verso.v1.WinnerSide
-	(MatchEndReason)(0),         // 5: verso.v1.MatchEndReason
-	(ErrorCode)(0),              // 6: verso.v1.ErrorCode
-	(*MatchSettings)(nil),       // 7: verso.v1.MatchSettings
-	(*PlayerInfo)(nil),          // 8: verso.v1.PlayerInfo
-	(*Stroke)(nil),              // 9: verso.v1.Stroke
-	(*JoinRoom)(nil),            // 10: verso.v1.JoinRoom
-	(*SetReady)(nil),            // 11: verso.v1.SetReady
-	(*UpdateSettings)(nil),      // 12: verso.v1.UpdateSettings
-	(*StartMatch)(nil),          // 13: verso.v1.StartMatch
-	(*KickPlayer)(nil),          // 14: verso.v1.KickPlayer
-	(*StrokeBegin)(nil),         // 15: verso.v1.StrokeBegin
-	(*StrokePoints)(nil),        // 16: verso.v1.StrokePoints
-	(*StrokeEnd)(nil),           // 17: verso.v1.StrokeEnd
-	(*CastVote)(nil),            // 18: verso.v1.CastVote
-	(*RequestSnapshot)(nil),     // 19: verso.v1.RequestSnapshot
-	(*Rematch)(nil),             // 20: verso.v1.Rematch
-	(*ClientCommand)(nil),       // 21: verso.v1.ClientCommand
-	(*LobbyState)(nil),          // 22: verso.v1.LobbyState
-	(*SettingsChanged)(nil),     // 23: verso.v1.SettingsChanged
-	(*RoundStarted)(nil),        // 24: verso.v1.RoundStarted
-	(*TurnStarted)(nil),         // 25: verso.v1.TurnStarted
-	(*StrokeBegan)(nil),         // 26: verso.v1.StrokeBegan
-	(*StrokeEnded)(nil),         // 27: verso.v1.StrokeEnded
-	(*PhaseChanged)(nil),        // 28: verso.v1.PhaseChanged
-	(*VoteCastCount)(nil),       // 29: verso.v1.VoteCastCount
-	(*VoteCount)(nil),           // 30: verso.v1.VoteCount
-	(*VoteTally)(nil),           // 31: verso.v1.VoteTally
-	(*PlayerEliminated)(nil),    // 32: verso.v1.PlayerEliminated
-	(*RoundWords)(nil),          // 33: verso.v1.RoundWords
-	(*PlayerReveal)(nil),        // 34: verso.v1.PlayerReveal
-	(*MatchEnded)(nil),          // 35: verso.v1.MatchEnded
-	(*PlayerPresence)(nil),      // 36: verso.v1.PlayerPresence
-	(*Error)(nil),               // 37: verso.v1.Error
-	(*Joined)(nil),              // 38: verso.v1.Joined
-	(*YourWord)(nil),            // 39: verso.v1.YourWord
-	(*Snapshot)(nil),            // 40: verso.v1.Snapshot
-	(*SpectatorImposter)(nil),   // 41: verso.v1.SpectatorImposter
-	(*SpectatorAssignment)(nil), // 42: verso.v1.SpectatorAssignment
-	(*SpectatorRound)(nil),      // 43: verso.v1.SpectatorRound
-	(*SpectatorInfo)(nil),       // 44: verso.v1.SpectatorInfo
-	(*VoteAccepted)(nil),        // 45: verso.v1.VoteAccepted
-	(*ServerEvent)(nil),         // 46: verso.v1.ServerEvent
+	(Avatar)(0),                 // 3: verso.v1.Avatar
+	(Phase)(0),                  // 4: verso.v1.Phase
+	(WinnerSide)(0),             // 5: verso.v1.WinnerSide
+	(MatchEndReason)(0),         // 6: verso.v1.MatchEndReason
+	(ErrorCode)(0),              // 7: verso.v1.ErrorCode
+	(*MatchSettings)(nil),       // 8: verso.v1.MatchSettings
+	(*PlayerInfo)(nil),          // 9: verso.v1.PlayerInfo
+	(*Stroke)(nil),              // 10: verso.v1.Stroke
+	(*JoinRoom)(nil),            // 11: verso.v1.JoinRoom
+	(*SetReady)(nil),            // 12: verso.v1.SetReady
+	(*UpdateSettings)(nil),      // 13: verso.v1.UpdateSettings
+	(*StartMatch)(nil),          // 14: verso.v1.StartMatch
+	(*KickPlayer)(nil),          // 15: verso.v1.KickPlayer
+	(*StrokeBegin)(nil),         // 16: verso.v1.StrokeBegin
+	(*StrokePoints)(nil),        // 17: verso.v1.StrokePoints
+	(*StrokeEnd)(nil),           // 18: verso.v1.StrokeEnd
+	(*CastVote)(nil),            // 19: verso.v1.CastVote
+	(*RequestSnapshot)(nil),     // 20: verso.v1.RequestSnapshot
+	(*Rematch)(nil),             // 21: verso.v1.Rematch
+	(*ClientCommand)(nil),       // 22: verso.v1.ClientCommand
+	(*LobbyState)(nil),          // 23: verso.v1.LobbyState
+	(*SettingsChanged)(nil),     // 24: verso.v1.SettingsChanged
+	(*RoundStarted)(nil),        // 25: verso.v1.RoundStarted
+	(*TurnStarted)(nil),         // 26: verso.v1.TurnStarted
+	(*StrokeBegan)(nil),         // 27: verso.v1.StrokeBegan
+	(*StrokeEnded)(nil),         // 28: verso.v1.StrokeEnded
+	(*PhaseChanged)(nil),        // 29: verso.v1.PhaseChanged
+	(*VoteCastCount)(nil),       // 30: verso.v1.VoteCastCount
+	(*VoteCount)(nil),           // 31: verso.v1.VoteCount
+	(*VoteTally)(nil),           // 32: verso.v1.VoteTally
+	(*PlayerEliminated)(nil),    // 33: verso.v1.PlayerEliminated
+	(*RoundWords)(nil),          // 34: verso.v1.RoundWords
+	(*PlayerReveal)(nil),        // 35: verso.v1.PlayerReveal
+	(*MatchEnded)(nil),          // 36: verso.v1.MatchEnded
+	(*PlayerPresence)(nil),      // 37: verso.v1.PlayerPresence
+	(*Error)(nil),               // 38: verso.v1.Error
+	(*Joined)(nil),              // 39: verso.v1.Joined
+	(*YourWord)(nil),            // 40: verso.v1.YourWord
+	(*Snapshot)(nil),            // 41: verso.v1.Snapshot
+	(*SpectatorImposter)(nil),   // 42: verso.v1.SpectatorImposter
+	(*SpectatorAssignment)(nil), // 43: verso.v1.SpectatorAssignment
+	(*SpectatorRound)(nil),      // 44: verso.v1.SpectatorRound
+	(*SpectatorInfo)(nil),       // 45: verso.v1.SpectatorInfo
+	(*VoteAccepted)(nil),        // 46: verso.v1.VoteAccepted
+	(*ServerEvent)(nil),         // 47: verso.v1.ServerEvent
 }
 var file_verso_v1_game_proto_depIdxs = []int32{
 	0,  // 0: verso.v1.MatchSettings.difficulty:type_name -> verso.v1.Difficulty
 	1,  // 1: verso.v1.MatchSettings.pen_rule:type_name -> verso.v1.PenRule
 	2,  // 2: verso.v1.MatchSettings.elimination_results:type_name -> verso.v1.EliminationResults
-	7,  // 3: verso.v1.UpdateSettings.settings:type_name -> verso.v1.MatchSettings
-	10, // 4: verso.v1.ClientCommand.join:type_name -> verso.v1.JoinRoom
-	11, // 5: verso.v1.ClientCommand.set_ready:type_name -> verso.v1.SetReady
-	12, // 6: verso.v1.ClientCommand.update_settings:type_name -> verso.v1.UpdateSettings
-	13, // 7: verso.v1.ClientCommand.start_match:type_name -> verso.v1.StartMatch
-	15, // 8: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
-	16, // 9: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
-	17, // 10: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
-	18, // 11: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
-	19, // 12: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
-	20, // 13: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
-	14, // 14: verso.v1.ClientCommand.kick:type_name -> verso.v1.KickPlayer
-	8,  // 15: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
-	7,  // 16: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
-	3,  // 17: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
-	7,  // 18: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
-	3,  // 19: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
-	30, // 20: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
-	4,  // 21: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
-	5,  // 22: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
-	34, // 23: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
-	33, // 24: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
-	8,  // 25: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
-	6,  // 26: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
-	3,  // 27: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
-	7,  // 28: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
-	8,  // 29: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
-	9,  // 30: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
-	42, // 31: verso.v1.SpectatorRound.assignments:type_name -> verso.v1.SpectatorAssignment
-	9,  // 32: verso.v1.SpectatorRound.strokes:type_name -> verso.v1.Stroke
-	41, // 33: verso.v1.SpectatorInfo.imposters:type_name -> verso.v1.SpectatorImposter
-	43, // 34: verso.v1.SpectatorInfo.rounds:type_name -> verso.v1.SpectatorRound
-	22, // 35: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
-	23, // 36: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
-	24, // 37: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
-	25, // 38: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
-	26, // 39: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
-	16, // 40: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
-	27, // 41: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
-	28, // 42: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
-	29, // 43: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
-	31, // 44: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
-	32, // 45: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
-	35, // 46: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
-	36, // 47: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
-	37, // 48: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
-	38, // 49: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
-	39, // 50: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
-	40, // 51: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
-	44, // 52: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
-	45, // 53: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
-	54, // [54:54] is the sub-list for method output_type
-	54, // [54:54] is the sub-list for method input_type
-	54, // [54:54] is the sub-list for extension type_name
-	54, // [54:54] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	3,  // 3: verso.v1.PlayerInfo.avatar:type_name -> verso.v1.Avatar
+	3,  // 4: verso.v1.JoinRoom.avatar:type_name -> verso.v1.Avatar
+	8,  // 5: verso.v1.UpdateSettings.settings:type_name -> verso.v1.MatchSettings
+	11, // 6: verso.v1.ClientCommand.join:type_name -> verso.v1.JoinRoom
+	12, // 7: verso.v1.ClientCommand.set_ready:type_name -> verso.v1.SetReady
+	13, // 8: verso.v1.ClientCommand.update_settings:type_name -> verso.v1.UpdateSettings
+	14, // 9: verso.v1.ClientCommand.start_match:type_name -> verso.v1.StartMatch
+	16, // 10: verso.v1.ClientCommand.stroke_begin:type_name -> verso.v1.StrokeBegin
+	17, // 11: verso.v1.ClientCommand.stroke_points:type_name -> verso.v1.StrokePoints
+	18, // 12: verso.v1.ClientCommand.stroke_end:type_name -> verso.v1.StrokeEnd
+	19, // 13: verso.v1.ClientCommand.cast_vote:type_name -> verso.v1.CastVote
+	20, // 14: verso.v1.ClientCommand.request_snapshot:type_name -> verso.v1.RequestSnapshot
+	21, // 15: verso.v1.ClientCommand.rematch:type_name -> verso.v1.Rematch
+	15, // 16: verso.v1.ClientCommand.kick:type_name -> verso.v1.KickPlayer
+	9,  // 17: verso.v1.LobbyState.players:type_name -> verso.v1.PlayerInfo
+	8,  // 18: verso.v1.LobbyState.settings:type_name -> verso.v1.MatchSettings
+	4,  // 19: verso.v1.LobbyState.phase:type_name -> verso.v1.Phase
+	8,  // 20: verso.v1.SettingsChanged.settings:type_name -> verso.v1.MatchSettings
+	4,  // 21: verso.v1.PhaseChanged.phase:type_name -> verso.v1.Phase
+	31, // 22: verso.v1.VoteTally.counts:type_name -> verso.v1.VoteCount
+	3,  // 23: verso.v1.PlayerReveal.avatar:type_name -> verso.v1.Avatar
+	5,  // 24: verso.v1.MatchEnded.winner:type_name -> verso.v1.WinnerSide
+	6,  // 25: verso.v1.MatchEnded.reason:type_name -> verso.v1.MatchEndReason
+	35, // 26: verso.v1.MatchEnded.reveals:type_name -> verso.v1.PlayerReveal
+	34, // 27: verso.v1.MatchEnded.rounds:type_name -> verso.v1.RoundWords
+	9,  // 28: verso.v1.PlayerPresence.player:type_name -> verso.v1.PlayerInfo
+	7,  // 29: verso.v1.Error.code:type_name -> verso.v1.ErrorCode
+	4,  // 30: verso.v1.Snapshot.phase:type_name -> verso.v1.Phase
+	8,  // 31: verso.v1.Snapshot.settings:type_name -> verso.v1.MatchSettings
+	9,  // 32: verso.v1.Snapshot.players:type_name -> verso.v1.PlayerInfo
+	10, // 33: verso.v1.Snapshot.strokes:type_name -> verso.v1.Stroke
+	3,  // 34: verso.v1.SpectatorImposter.avatar:type_name -> verso.v1.Avatar
+	43, // 35: verso.v1.SpectatorRound.assignments:type_name -> verso.v1.SpectatorAssignment
+	10, // 36: verso.v1.SpectatorRound.strokes:type_name -> verso.v1.Stroke
+	42, // 37: verso.v1.SpectatorInfo.imposters:type_name -> verso.v1.SpectatorImposter
+	44, // 38: verso.v1.SpectatorInfo.rounds:type_name -> verso.v1.SpectatorRound
+	23, // 39: verso.v1.ServerEvent.lobby_state:type_name -> verso.v1.LobbyState
+	24, // 40: verso.v1.ServerEvent.settings_changed:type_name -> verso.v1.SettingsChanged
+	25, // 41: verso.v1.ServerEvent.round_started:type_name -> verso.v1.RoundStarted
+	26, // 42: verso.v1.ServerEvent.turn_started:type_name -> verso.v1.TurnStarted
+	27, // 43: verso.v1.ServerEvent.stroke_began:type_name -> verso.v1.StrokeBegan
+	17, // 44: verso.v1.ServerEvent.stroke_points:type_name -> verso.v1.StrokePoints
+	28, // 45: verso.v1.ServerEvent.stroke_ended:type_name -> verso.v1.StrokeEnded
+	29, // 46: verso.v1.ServerEvent.phase_changed:type_name -> verso.v1.PhaseChanged
+	30, // 47: verso.v1.ServerEvent.vote_cast_count:type_name -> verso.v1.VoteCastCount
+	32, // 48: verso.v1.ServerEvent.vote_tally:type_name -> verso.v1.VoteTally
+	33, // 49: verso.v1.ServerEvent.player_eliminated:type_name -> verso.v1.PlayerEliminated
+	36, // 50: verso.v1.ServerEvent.match_ended:type_name -> verso.v1.MatchEnded
+	37, // 51: verso.v1.ServerEvent.player_presence:type_name -> verso.v1.PlayerPresence
+	38, // 52: verso.v1.ServerEvent.error:type_name -> verso.v1.Error
+	39, // 53: verso.v1.ServerEvent.joined:type_name -> verso.v1.Joined
+	40, // 54: verso.v1.ServerEvent.your_word:type_name -> verso.v1.YourWord
+	41, // 55: verso.v1.ServerEvent.snapshot:type_name -> verso.v1.Snapshot
+	45, // 56: verso.v1.ServerEvent.spectator_info:type_name -> verso.v1.SpectatorInfo
+	46, // 57: verso.v1.ServerEvent.vote_accepted:type_name -> verso.v1.VoteAccepted
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_verso_v1_game_proto_init() }
@@ -4433,7 +4580,7 @@ func file_verso_v1_game_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_verso_v1_game_proto_rawDesc), len(file_verso_v1_game_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   0,

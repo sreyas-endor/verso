@@ -24,6 +24,7 @@ export type AudioFacts = Pick<
   | "matchEnd"
   | "youHaveVoted"
   | "youAreEliminated"
+  | "eliminationSeq"
 >;
 
 /**
@@ -76,6 +77,16 @@ export function cueFor(prev: AudioFacts, next: AudioFacts): CueName | null {
   // rather than the phase makes it fire exactly once, and only once the winning
   // side is actually known.
   if (prev.matchEnd === null && next.matchEnd !== null) return endCue(next);
+
+  // Somebody was voted out. Keyed off the counter rather than off `elimination`
+  // for the same reason the cinematic is: the payload sits in the state for the
+  // whole of RESOLVING and survives a resync, and only this counter separates
+  // watching it happen from being told it already had.
+  //
+  // It cannot collide with anything below. A PlayerEliminated arrives on its
+  // own frame, changing no phase and no artist, so the rest of this function
+  // would return null for it anyway.
+  if (next.eliminationSeq !== prev.eliminationSeq && next.eliminationSeq > 0) return "ejection";
 
   if (next.phase !== prev.phase) {
     switch (next.phase) {

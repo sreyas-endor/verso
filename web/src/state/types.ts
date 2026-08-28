@@ -117,6 +117,22 @@ export interface GameState {
   readonly tally: VoteTally | null;
   readonly elimination: PlayerEliminated | null;
   /**
+   * Counts vote ejections this client has WATCHED HAPPEN, and nothing else.
+   *
+   * `elimination` alone cannot drive the ejection cinematic. It is a value that
+   * sits in the state for the whole of PHASE_RESOLVING, survives a resync
+   * untouched (Snapshot carries no elimination, so fromSnapshot inherits it),
+   * and is republished on every unrelated update in between — a roster change,
+   * a presence blip, a latency sample. An overlay keyed off it would re-fire on
+   * all of those.
+   *
+   * This only ever moves in the `playerEliminated` reducer arm, and only when
+   * somebody actually went. A snapshot, a reconnect and the KICKED reset can
+   * none of them advance it, which is exactly the property the cinematic and
+   * the ejection cue both need.
+   */
+  readonly eliminationSeq: number;
+  /**
    * The behind-the-scenes dossier, and populated only for a player who has
    * been eliminated themselves: every imposter, and every round's pair, seat
    * assignments and finished canvas
@@ -185,6 +201,7 @@ export function initialState(): GameState {
 
     tally: null,
     elimination: null,
+    eliminationSeq: 0,
     spectator: null,
     matchEnd: null,
   };

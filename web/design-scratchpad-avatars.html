@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verso — avatars and the ejection cinematic</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800;900&display=swap");
+
+      /* Tokens lifted verbatim from web/src/styles/tokens.css. */
+      :root {
+        --bg:#f4eddf; --surface:#fffdf7; --surface-2:#f8f0e3;
+        --border:#e5d9c6; --border-str:#cbbca6;
+        --ink:#263238; --ink-2:#69716c; --ink-3:#958d80;
+        --accent:#ef5d5a; --accent-ink:#fff; --accent-sf:#ffe7df; --accent-dk:#bd4544;
+        --amber:#f5c744; --amber-dk:#a36c10; --amber-sf:#fff3cc;
+        --good:#3f966d; --good-dk:#256146; --good-sf:#e0f2e6;
+        --bad:#df5553; --bad-dk:#a73535; --bad-sf:#fbe3dd;
+        --radius:18px; --radius-sm:11px;
+        --shadow:3px 4px 0 rgba(38,50,56,.12);
+        --shadow-lg:6px 8px 0 rgba(38,50,56,.16), 0 16px 35px rgba(88,65,37,.12);
+        --font:"Nunito",ui-rounded,system-ui,sans-serif;
+        --mono:ui-monospace,"SF Mono",Menlo,monospace;
+
+        /* PROPOSED ADDITION to tokens.css. The creature art needs a muted
+           painterly palette that the existing theme tokens do not contain.
+           It goes in tokens.css rather than components.css because tokens.css
+           is the only sanctioned home for a colour literal. */
+        --av-paper:#f3ead9; --av-ink:#33302b;
+        --av-skin:#e7c8a2; --av-fur:#c9a06a; --av-shell:#7b6b8f;
+        --av-leaf:#6f8f6a; --av-rust:#c2705a; --av-stone:#8f9296;
+        --av-brass:#c9a227; --av-cloth:#6f8497; --av-blush:#e0a3a0;
+      }
+
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); }
+      .wrap { max-width:1560px; margin:0 auto; padding:34px 26px 110px; }
+      h1 { margin:0 0 6px; font:700 clamp(2rem,4vw,3.1rem)/.98 Fredoka,sans-serif; letter-spacing:-.05em; }
+      h1 span { color:var(--accent); }
+      .lede { max-width:80ch; margin:0 0 10px; font-size:1.02rem; line-height:1.55; color:var(--ink-2); }
+      .lede b { color:var(--ink); }
+      code { font:800 .86em var(--mono); }
+      .secttl { margin:46px 0 4px; font:900 1.5rem/1.1 var(--font); letter-spacing:-.03em; }
+      .secttl .n { display:inline-grid; place-items:center; width:1.7rem; height:1.7rem; margin-right:.5rem;
+                   border-radius:999px; background:var(--ink); color:#fff; font:900 .85rem var(--mono); vertical-align:.1em; }
+      .secsub { margin:0 0 18px; max-width:80ch; font-size:.93rem; line-height:1.55; color:var(--ink-2); }
+      .note { max-width:80ch; margin:14px 0; padding:13px 15px; border-left:4px solid var(--accent);
+              background:var(--accent-sf); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+              font-size:.9rem; line-height:1.55; }
+      .note.ok { border-left-color:var(--good); background:var(--good-sf); }
+      .note.warn { border-left-color:var(--amber-dk); background:var(--amber-sf); }
+      .note b { font-weight:900; }
+      .card { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+              box-shadow:var(--shadow); padding:18px 20px; }
+      .kicker { font:900 .64rem var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); }
+
+      /* ---- decisions strip ---- */
+      .decs { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:20px 0 4px; }
+      .dec { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+             box-shadow:var(--shadow); padding:13px 15px; }
+      .dec .q { font:900 .62rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+      .dec .a { margin-top:5px; font:900 1rem/1.25 var(--font); }
+      .dec .w { margin-top:5px; font-size:.83rem; line-height:1.45; color:var(--ink-2); }
+
+      /* ================= AVATAR CHIP ================= */
+      .chip { position:relative; display:inline-grid; place-items:center; flex:none;
+              border-radius:999px; background:var(--av-paper); overflow:hidden; }
+      .chip > svg { width:100%; height:100%; display:block; }
+      /* The deterministic per-player hue survives as the RING. Two players on
+         the same creature still read apart in a ten-seat roster. */
+      .chip { box-shadow:0 0 0 var(--ring-w,3px) var(--ring,var(--ink-3)) inset; }
+      .chip-sm { width:30px; height:30px; --ring-w:2px; }
+      .chip-md { width:46px; height:46px; --ring-w:3px; }
+      .chip-lg { width:104px; height:104px; --ring-w:4px; }
+      .chip-xl { width:172px; height:172px; --ring-w:6px; }
+
+      /* Creature art classes. In the app these live in components.css and read
+         the --av-* tokens above; nothing here is a bare literal. */
+      .av-art { --s:2.1; }
+      .av-art * { stroke:var(--av-ink); stroke-width:var(--s); stroke-linecap:round; stroke-linejoin:round; }
+      .av-art .ns { stroke:none; }
+      .a-skin{fill:var(--av-skin)} .a-fur{fill:var(--av-fur)} .a-shell{fill:var(--av-shell)}
+      .a-leaf{fill:var(--av-leaf)} .a-rust{fill:var(--av-rust)} .a-stone{fill:var(--av-stone)}
+      .a-brass{fill:var(--av-brass)} .a-cloth{fill:var(--av-cloth)} .a-blush{fill:var(--av-blush)}
+      .a-paper{fill:var(--av-paper)} .a-ink{fill:var(--av-ink)} .a-none{fill:none}
+
+      /* ---- roster of ten ---- */
+      .roster { display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:16px; }
+      .rcard { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+               box-shadow:var(--shadow); padding:16px 12px 13px; text-align:center; }
+      .rcard .nm { margin-top:9px; font:900 .95rem var(--font); }
+      .rcard .en { margin-top:3px; font:800 .64rem var(--mono); color:var(--ink-3); word-break:break-all; }
+      .rcard .sil { margin-top:6px; font-size:.78rem; line-height:1.4; color:var(--ink-2); }
+
+      /* ---- size proof ---- */
+      .sizes { display:flex; flex-wrap:wrap; gap:26px; align-items:flex-end; }
+      .sizecol { text-align:center; }
+      .sizecol .lb { margin-top:8px; font:800 .66rem var(--mono); letter-spacing:.08em;
+                     text-transform:uppercase; color:var(--ink-3); }
+      .seatrow { display:flex; align-items:center; gap:.55rem; padding:.4rem .6rem;
+                 border-bottom:1px dashed var(--border-str); }
+      .seatrow:last-child { border-bottom:0; }
+      .seatrow .who { font:800 .95rem var(--font); }
+      .seatrow .tag { margin-left:auto; font:900 .6rem var(--mono); letter-spacing:.1em;
+                      text-transform:uppercase; color:var(--ink-3); }
+
+      /* ---- picker ---- */
+      .home { max-width:430px; }
+      .field { display:block; margin-bottom:.75rem; }
+      .field > span { display:block; margin-bottom:.3rem; font:800 .78rem var(--font); color:var(--ink-2); }
+      .field input { width:100%; padding:.6rem .7rem; font:800 1rem var(--font); color:var(--ink);
+                     background:var(--surface-2); border:2px solid var(--ink); border-radius:var(--radius-sm); }
+      .facepick { display:flex; flex-direction:column; align-items:center; gap:.5rem; }
+      .facepick-row { display:flex; align-items:center; gap:.9rem; }
+      .face-chip { display:grid; place-items:center; }
+      .face-chip .chip { width:5.6rem; height:5.6rem; --ring-w:4px;
+                         box-shadow:0 0 0 4px var(--ink) inset, var(--shadow); }
+      .face-arrow { flex:none; width:2.6rem; height:2.6rem; cursor:pointer;
+                    display:grid; place-items:center; font:900 1.5rem/1 var(--font); color:var(--ink);
+                    background:var(--surface-2); border:2px solid var(--ink); border-radius:999px;
+                    box-shadow:var(--shadow); }
+      .face-arrow:hover { background:var(--accent-sf); }
+      .face-arrow:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+      .face-name { font:800 .92rem var(--font); color:var(--ink-2); }
+      .face-dots { display:flex; gap:.3rem; }
+      .face-dot { width:.42rem; height:.42rem; border-radius:999px; background:var(--border-str); }
+      .face-dot-on { background:var(--ink); transform:scale(1.25); }
+      .btn { padding:.62rem 1.1rem; font:900 .95rem var(--font); cursor:pointer; color:var(--ink);
+             background:var(--surface-2); border:2px solid var(--ink); border-radius:var(--radius-sm);
+             box-shadow:var(--shadow); }
+      .btn-primary { background:var(--accent); color:var(--accent-ink); }
+      .btn-block { display:block; width:100%; }
+
+      /* ================= GOMMAGE =================
+         Five acts over 7800 ms. Every duration and delay below is written as
+         calc(n * var(--k)), so the whole run retimes from one variable — that
+         is what the tempo switch changes, and it is how the reduced-motion
+         path shortens without a second set of keyframes. */
+      .cinwrap { --k:1; position:relative; display:grid; place-items:center; min-height:540px;
+                 overflow:hidden; background:var(--surface-2); border:2px solid var(--ink);
+                 border-radius:var(--radius); box-shadow:var(--shadow); }
+      .cinwrap.quick { --k:.385; }
+
+      /* A fake room behind the overlay, so the dim has something to dim. */
+      .fakeroom { position:absolute; inset:0; padding:16px; display:flex; flex-direction:column; gap:10px;
+                  font-size:.8rem; color:var(--ink-3); transform-origin:50% 46%; }
+      .fakeroom .bar { height:13px; border-radius:999px; background:var(--border); }
+      .fakeroom .paper { flex:1; border-radius:var(--radius-sm); background:var(--surface);
+                         border:2px dashed var(--border-str); display:grid; place-items:center;
+                         font:900 .7rem var(--mono); letter-spacing:.14em; color:var(--border-str); }
+
+      .cin { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; }
+      .cin[hidden] { display:none; }
+      /* Radial, not flat: the room does not just darken, it closes in. */
+      .cin-scrim { position:absolute; inset:0; opacity:0;
+                   background:radial-gradient(circle at 50% 44%,
+                     rgba(31,26,22,.70) 0%, rgba(22,19,16,.95) 64%); }
+      .cin-motes { position:absolute; inset:0; overflow:hidden; }
+      .mote { position:absolute; left:var(--ml); top:104%; width:var(--mw); height:calc(var(--mw) * 1.4);
+              opacity:0; will-change:transform,opacity; }
+      .mote svg, .petal svg { width:100%; height:100%; display:block; }
+
+      .cin-stage { position:relative; display:grid; place-items:center; gap:.6rem; text-align:center; }
+      .cin-figure { position:relative; display:grid; place-items:center; }
+      .cin-portrait { position:relative; z-index:1; will-change:transform,opacity; }
+      .cin-ring { position:absolute; width:172px; height:172px; border-radius:999px;
+                  border:3px solid var(--accent); opacity:0; will-change:transform,opacity; }
+      .cin-name { font:900 1.5rem var(--font); color:#fff; opacity:0; letter-spacing:-.01em; }
+      .cin-verdict { max-width:34ch; font:700 .95rem/1.5 var(--font); color:#efe3d2; opacity:0; }
+      .cin-petals { position:absolute; inset:0; display:grid; place-items:center; z-index:2; }
+      .petal { position:absolute; width:var(--pw); height:var(--ph); opacity:0;
+               will-change:transform,opacity; }
+      .p1{fill:var(--accent)} .p2{fill:var(--accent-dk)} .p3{fill:var(--accent-sf)} .p4{fill:var(--av-blush)}
+
+      /* --- the shipped keyframes: transform and opacity only --- */
+      @keyframes room-recede { from{transform:scale(1);opacity:1} to{transform:scale(.945);opacity:.5} }
+      @keyframes cin-scrim-in { 0%{opacity:0} 5%{opacity:1} 96%{opacity:1} 100%{opacity:0} }
+      @keyframes cin-rise {
+        0%   { transform:translateY(48px) scale(.80); opacity:0 }   /*    0  below the fold */
+        5%   { opacity:1 }                                          /*  400  act 2 opens    */
+        13%  { transform:translateY(0)    scale(1);   opacity:1 }   /* 1000  arrived        */
+        19%  { transform:translateY(-3px) scale(1.04);opacity:1 }   /* 1500  one breath     */
+        24%  { transform:translateY(0)    scale(1);   opacity:1 }   /* 1900  the beat ends  */
+        26%  { transform:translateY(-1px) scale(1.07);opacity:1 }   /* 2000  it gives       */
+        31%  { transform:translateY(12px) scale(.86); opacity:0 }   /* 2450  gone           */
+        100% { transform:translateY(12px) scale(.86); opacity:0 }
+      }
+      @keyframes ring-pulse { 0%{transform:scale(.78);opacity:0} 14%{opacity:.6} 100%{transform:scale(1.85);opacity:0} }
+      @keyframes cin-text-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+      @keyframes cin-text-out { from{opacity:1} to{opacity:0} }
+      @keyframes petal-go {
+        0%   { transform:translate3d(0,0,0) rotate(0deg) scale(.5); opacity:0 }
+        9%   { opacity:var(--po) }
+        70%  { opacity:calc(var(--po) * .82) }
+        100% { transform:translate3d(var(--px),var(--py),0) rotate(var(--pr)) scale(1); opacity:0 }
+      }
+      @keyframes mote-drift {
+        0%   { transform:translate3d(0,0,0) rotate(0deg); opacity:0 }
+        14%  { opacity:var(--mo) }
+        78%  { opacity:var(--mo) }
+        100% { transform:translate3d(var(--mdx),-640px,0) rotate(var(--mr)); opacity:0 }
+      }
+
+      .cinwrap.play .fakeroom    { animation:room-recede calc(400ms * var(--k)) ease-out both; }
+      .cinwrap.play .cin-scrim   { animation:cin-scrim-in calc(7800ms * var(--k)) linear both; }
+      .cinwrap.play .mote        { animation:mote-drift calc(var(--md) * var(--k) * 1ms) linear
+                                             calc(var(--mt) * var(--k) * 1ms) infinite both; }
+      .cinwrap.play .cin-portrait{ animation:cin-rise calc(7800ms * var(--k)) cubic-bezier(.33,.05,.2,1) both; }
+      .cinwrap.play .cin-ring    { animation:ring-pulse calc(900ms * var(--k)) ease-out calc(880ms * var(--k)) both; }
+      .cinwrap.play .cin-ring-2  { animation:ring-pulse calc(760ms * var(--k)) ease-out calc(1900ms * var(--k)) both; }
+      .cinwrap.play .cin-name    { animation:cin-text-in calc(340ms * var(--k)) ease-out calc(620ms * var(--k)) both,
+                                             cin-text-out calc(300ms * var(--k)) ease-in calc(7500ms * var(--k)) forwards; }
+      .cinwrap.play .cin-verdict { animation:cin-text-in calc(400ms * var(--k)) ease-out calc(2100ms * var(--k)) both,
+                                             cin-text-out calc(300ms * var(--k)) ease-in calc(7500ms * var(--k)) forwards; }
+      .cinwrap.play .petal       { animation:petal-go calc(var(--pd) * var(--k) * 1ms)
+                                             cubic-bezier(.22,.61,.36,1) calc(var(--pt) * var(--k) * 1ms) both; }
+
+      /* Reduced motion. Nothing rises, drifts, spins or falls. The room dims,
+         the portrait fades, and the authorised line still arrives on its own
+         beat — the build-up survives as timing, which is not motion. */
+      .cinwrap.calm .cin-scrim   { animation:cin-scrim-in 7500ms linear both; }
+      .cinwrap.calm .cin-portrait{ animation:cin-text-in 400ms ease-out 200ms both,
+                                             cin-text-out 500ms ease-in 1500ms forwards; }
+      .cinwrap.calm .cin-name    { animation:cin-text-in 300ms ease-out 450ms both,
+                                             cin-text-out 300ms ease-in 7200ms forwards; }
+      .cinwrap.calm .cin-verdict { animation:cin-text-in 400ms ease-out 1800ms both,
+                                             cin-text-out 300ms ease-in 7200ms forwards; }
+      .cinwrap.calm .petal, .cinwrap.calm .mote, .cinwrap.calm .cin-ring { display:none; }
+
+      .cinbar { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:0 0 12px; }
+      .cinbar .kicker { margin-right:.3rem; }
+      .cinbar button { font:900 .84rem var(--font); padding:.4rem .8rem; cursor:pointer; color:var(--ink);
+                       background:var(--surface); border:2px solid var(--ink); border-radius:999px; }
+      .cinbar button:hover { background:var(--accent-sf); }
+      .cinbar button.on { background:var(--ink); color:#fff; }
+
+      /* ---- act strip ---- */
+      .acts { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:20px 0 4px; }
+      .act { background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+             box-shadow:var(--shadow); padding:12px 13px; }
+      .act .no { font:900 .62rem var(--mono); letter-spacing:.1em; color:var(--ink-3); }
+      .act .ti { margin-top:4px; font:900 .98rem/1.2 var(--font); }
+      .act .ms { margin-top:3px; font:800 .7rem var(--mono); color:var(--accent-dk); }
+      .act .wh { margin-top:6px; font-size:.8rem; line-height:1.45; color:var(--ink-2); }
+      @media (max-width:1000px){ .acts { grid-template-columns:repeat(2,1fr); } }
+
+      /* ---- timeline ---- */
+      .tl { margin-top:20px; }
+      .tlrow { display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:center; margin-bottom:7px; }
+      .tlrow .lb { font:800 .78rem var(--font); color:var(--ink-2); text-align:right; }
+      .tltrack { position:relative; height:23px; background:var(--surface-2);
+                 border:2px solid var(--border-str); border-radius:999px; }
+      .tlbar { position:absolute; top:-2px; bottom:-2px; border:2px solid var(--ink); border-radius:999px;
+               display:grid; place-items:center; font:900 .62rem var(--mono); color:var(--ink); overflow:hidden; }
+      .tlscale { display:grid; grid-template-columns:170px 1fr; gap:12px; margin-top:9px; }
+      .tlticks { display:flex; justify-content:space-between; font:800 .64rem var(--mono); color:var(--ink-3); }
+
+      /* ---- tables ---- */
+      table { width:100%; border-collapse:collapse; font-size:.88rem; }
+      th,td { padding:.5rem .6rem; text-align:left; border-bottom:1px dashed var(--border-str); vertical-align:top; }
+      th { font:900 .64rem var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+      tbody tr:last-child td { border-bottom:0; }
+      td code { font-size:.8rem; }
+      .yes { color:var(--good-dk); font-weight:900; }
+      .no  { color:var(--bad-dk); font-weight:900; }
+
+      pre { margin:0; padding:14px 16px; overflow:auto; font:700 .82rem/1.5 var(--mono);
+            background:var(--surface); border:2px solid var(--ink); border-radius:var(--radius);
+            box-shadow:var(--shadow); }
+      pre .c { color:var(--ink-3); font-weight:600; }
+      pre .k { color:var(--accent-dk); }
+      .two { display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:20px; align-items:start; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Ver<span>so</span> — avatars and the ejection cinematic</h1>
+      <p class="lede">
+        Scratchpad for <b>docs/AVATARS_AND_EJECTION_PLAN.md</b>. Ten original creature portraits chosen before
+        entry, and a rose-petal dissolve that plays on every vote ejection. Everything below is the real
+        markup, the real palette and the real keyframes — the app copies from here, it does not reinterpret it.
+      </p>
+      <p class="lede">
+        Nothing here reproduces Clair Obscur art, characters, names, terminology or audio. The creatures are
+        drawn from scratch in this file. The effect is called <b>petal dissolve</b> in every shipped identifier.
+      </p>
+
+      <div class="decs">
+        <div class="dec"><div class="q">Art medium</div><div class="a">Inline SVG in code</div>
+          <div class="w">No binary assets, no extra requests. Same construction as <code>paintress.ts</code>.</div></div>
+        <div class="dec"><div class="q">Picker rule</div><div class="a">Preselect, allow change</div>
+          <div class="w">Name + Enter still enters in one keystroke. Never sends <code>UNSPECIFIED</code>.</div></div>
+        <div class="dec"><div class="q">Identity colour</div><div class="a">Hue becomes the ring</div>
+          <div class="w">Ten seats stay distinct even when two players pick the same creature.</div></div>
+        <div class="dec"><div class="q">Dissolve form</div><div class="a">Rose petals</div>
+          <div class="w">Thirty-six petals in seven depth bands, then a five-second verdict.</div></div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">1</span>The ten creatures</h2>
+      <p class="secsub">
+        Ten silhouettes that stay apart at 30 px. Every one is built from circles, ellipses, rectangles and
+        short paths, in the same two-pixel ink line the paintress uses. No creature copies a named character
+        from anything. <code>AVATAR_BEETLE</code> is the designated fallback for
+        <code>AVATAR_UNSPECIFIED</code> and for any value the server does not know.
+      </p>
+      <div class="roster" id="roster"></div>
+
+      <div class="note ok">
+        <b>Why the art is code.</b> The chip already renders inside a circular container at three sizes.
+        Inline SVG scales to all of them from one source, reads the <code>--av-*</code> tokens, costs no
+        request, and shows up in a diff. Ten PNGs would add ten fetches and freeze the palette.
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">2</span>One chip, three sizes, ten seats</h2>
+      <p class="secsub">
+        <code>avatar()</code> in <code>web/src/ui/avatar.ts:10</code> keeps its signature shape and changes
+        what it paints. The deterministic hue from <code>avatarColor()</code> moves from the fill to the ring,
+        so a full room stays readable when two players choose the same creature.
+      </p>
+
+      <div class="two">
+        <div>
+          <div class="card">
+            <div class="kicker">Sizes — sm 30px · md 46px · lg 104px</div>
+            <div style="height:.8rem"></div>
+            <div class="sizes" id="sizes"></div>
+          </div>
+          <div class="note">
+            <b>Accessibility is unchanged.</b> The chip stays <code>aria-hidden="true"</code>. The adjacent
+            display name is still the player's identity for a screen reader. The creature is reinforcement,
+            never the only label.
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="kicker">A ten-seat roster with three duplicate choices</div>
+            <div style="height:.7rem"></div>
+            <div id="seatlist"></div>
+          </div>
+          <div class="note warn">
+            <b>Seats 2, 5 and 9 all picked the moth.</b> The ring hue is derived from the player id, so the
+            three still separate at a glance. Duplicate choices are allowed by the plan and are not
+            discouraged in the picker.
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">3</span>The join picker</h2>
+      <p class="secsub">
+        Lives in <code>web/src/ui/screens/home.ts</code>, after the display-name field and before Create and
+        Join. It is not reachable from the lobby or from a live match. One creature is already selected on
+        load, so the existing name-then-Enter path still enters a room in one keystroke.
+      </p>
+      <p class="secsub">
+        One face at a time rather than a grid of ten. At grid size the creatures were 46 px of mush, and the
+        whole reason to draw them was that somebody looks at them. The cost is that reaching a specific face
+        takes up to five presses — which is what the dots are for. Without a position readout a cycler feels
+        endless and never tells you that you have now seen all of them.
+      </p>
+
+      <div class="two">
+        <div class="card">
+          <div class="home">
+            <label class="field"><span>Display name</span><input type="text" value="Ada" /></label>
+            <div class="field">
+              <span>Pick a face</span>
+              <div class="facepick" role="group" aria-label="Pick a face">
+                <div class="facepick-row">
+                  <button type="button" class="face-arrow" id="facePrev" aria-label="Previous face">&#8249;</button>
+                  <div class="face-chip" id="faceChip"></div>
+                  <button type="button" class="face-arrow" id="faceNext" aria-label="Next face">&#8250;</button>
+                </div>
+                <div class="face-name" id="faceName" aria-live="polite"></div>
+                <div class="face-dots" id="faceDots" aria-hidden="true"></div>
+              </div>
+            </div>
+            <div style="height:.4rem"></div>
+            <button class="btn btn-primary btn-block">Create a room</button>
+            <div style="height:.6rem"></div>
+            <div style="display:flex;gap:.5rem">
+              <input type="text" class="" style="flex:1;padding:.6rem .7rem;font:800 1rem var(--font);background:var(--surface-2);border:2px solid var(--ink);border-radius:var(--radius-sm)" placeholder="CODE" />
+              <button class="btn">Join</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <table class="card" style="display:table">
+            <thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr><td>Announced</td><td>The name under the face is an <code>aria-live="polite"</code> region. "Next face" does not say <i>which</i> face.</td></tr>
+              <tr><td>Default</td><td>The remembered choice from <code>localStorage</code>, or a random creature on a first visit. Never <code>UNSPECIFIED</code>.</td></tr>
+              <tr><td>Keyboard</td><td>Left and Right cycle from either arrow, so a keyboard player does not alternate Tab and Space. Focus ring is <code>3px</code> accent, offset <code>2px</code>.</td></tr>
+              <tr><td>Selected state</td><td>Whatever is showing is what is chosen. There is no armed-but-unconfirmed state to mis-read.</td></tr>
+              <tr><td>Touch</td><td>Two 2.6rem targets and one 5.6rem face. Fits any width without a breakpoint, and needs no hover.</td></tr>
+              <tr><td>Validation</td><td>Unchanged. Name and room code rules in <code>home.ts:69</code> keep their current messages.</td></tr>
+              <tr><td>Lifetime</td><td>Transient home-screen state. After a fresh seat exists, <code>PlayerInfo.avatar</code> is the only truth.</td></tr>
+              <tr><td>After a kick</td><td><code>ERROR_CODE_KICKED</code> resets to home, so the player picks again for the new seat.</td></tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <b>Reconnect ignores it.</b> <code>Attach</code> discards the incoming avatar exactly as it already
+            discards the incoming display name (<code>proto/verso/v1/game.proto:229</code>). The seated value wins.
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">4</span>The gommage — five acts</h2>
+      <p class="secsub">
+        Press a button. This is the real effect at the real speed. It reacts to the
+        <code>PlayerEliminated</code> broadcast the room already sends, so it needs no new protocol event, no
+        server-side timer and no new phase. The whole run is <b>7800 ms</b> inside an eight-second
+        <code>PHASE_RESOLVING</code>, and <b>5000 ms of that is the verdict holding at full opacity</b>.
+      </p>
+      <p class="secsub">
+        The anticipation is the pause, not the motion. Act 3 is nine hundred milliseconds in which almost
+        nothing happens, and it is the reason the burst lands. The cut is sized by the VERDICT, though, not
+        by the animation: the line has to be read, so it gets five whole seconds and everything before it was
+        compressed to pay for that. The held beat was the one thing not compressed. Switch the tempo to Quick
+        to see what the line looks like when it is not given the time.
+      </p>
+
+      <div class="cinbar">
+        <span class="kicker">Play</span>
+        <button data-play="imposter">Reveal · was an imposter</button>
+        <button data-play="innocent">Reveal · was not</button>
+        <button data-play="hidden">Hidden · no verdict</button>
+        <button data-play="two">Reveal · two-imposter match</button>
+        <button data-play="calm">Reduced motion</button>
+      </div>
+      <div class="cinbar">
+        <span class="kicker">Tempo</span>
+        <button data-k="built" class="on">Built up · 7800 ms</button>
+        <button data-k="quick">Quick · 3000 ms (verdict unreadable)</button>
+        <span class="kicker" style="margin-left:auto">Petals</span>
+        <button data-petals="24">24</button>
+        <button data-petals="36" class="on">36</button>
+        <button data-petals="44">44</button>
+      </div>
+
+      <div class="cinwrap" id="cinwrap">
+        <div class="fakeroom" aria-hidden="true">
+          <div class="bar" style="width:38%"></div>
+          <div class="paper">THE ROOM UNDERNEATH</div>
+          <div class="bar" style="width:62%"></div>
+        </div>
+        <div class="cin" id="cin" hidden>
+          <div class="cin-scrim"></div>
+          <div class="cin-motes" id="cinMotes"></div>
+          <div class="cin-stage">
+            <div class="cin-figure">
+              <div class="cin-ring"></div>
+              <div class="cin-ring cin-ring-2"></div>
+              <div class="cin-portrait" id="cinPortrait"></div>
+              <div class="cin-petals" id="cinPetals"></div>
+            </div>
+            <div class="cin-name" id="cinName">Ada</div>
+            <div class="cin-verdict" id="cinVerdict"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acts">
+        <div class="act"><div class="no">ACT 1</div><div class="ti">The room recedes</div><div class="ms">0 → 400 ms</div>
+          <div class="wh">A radial scrim closes from the edges. The room behind it scales to .945 and drops to half opacity. Paper motes start drifting up through the dark.</div></div>
+        <div class="act"><div class="no">ACT 2</div><div class="ti">They are brought forward</div><div class="ms">400 → 1000 ms</div>
+          <div class="wh">The portrait rises from below the fold, .80 to full, and settles. A ring pulses outward once as it lands. The name fades in under it at 620 ms.</div></div>
+        <div class="act"><div class="no">ACT 3</div><div class="ti">The held beat</div><div class="ms">1000 → 1900 ms</div>
+          <div class="wh">Nine hundred milliseconds of almost nothing, kept at full length while everything around it was cut. One slow breath at 1500 ms. This act is the whole effect.</div></div>
+        <div class="act"><div class="no">ACT 4</div><div class="ti">The petals</div><div class="ms">1900 → 3050 ms</div>
+          <div class="wh">A second ring pulse, the portrait gives by 7% and then goes, and thirty-six rose petals leave along thirty-six different lines and fall.</div></div>
+        <div class="act"><div class="no">ACT 5</div><div class="ti">The verdict, held</div><div class="ms">2100 → 7800 ms</div>
+          <div class="wh">In by 2500 ms, then <b>five full seconds at opacity 1</b>. It arrives while the last petals are still in the air, so the line rides out on them rather than waiting for an empty stage.</div></div>
+      </div>
+
+      <div class="tl">
+        <div class="tlrow"><div class="lb">Scrim and motes</div><div class="tltrack"><div class="tlbar" style="left:0%;width:100%;background:var(--ink);color:#fff">0 → 7800</div></div></div>
+        <div class="tlrow"><div class="lb">Room recedes</div><div class="tltrack"><div class="tlbar" style="left:0%;width:5.1%;background:var(--surface-2)">400</div></div></div>
+        <div class="tlrow"><div class="lb">Portrait rises</div><div class="tltrack"><div class="tlbar" style="left:5.1%;width:7.7%;background:var(--accent-sf)">400 → 1000</div></div></div>
+        <div class="tlrow"><div class="lb">Name</div><div class="tltrack"><div class="tlbar" style="left:7.9%;width:4.4%;background:var(--surface-2)">620</div></div></div>
+        <div class="tlrow"><div class="lb">The held beat</div><div class="tltrack"><div class="tlbar" style="left:12.8%;width:11.5%;background:var(--amber-sf)">1000 → 1900</div></div></div>
+        <div class="tlrow"><div class="lb">Petal burst</div><div class="tltrack"><div class="tlbar" style="left:24.4%;width:14.7%;background:var(--accent);color:#fff">1900 → 3050</div></div></div>
+        <div class="tlrow"><div class="lb">Verdict held</div><div class="tltrack"><div class="tlbar" style="left:26.9%;width:69.3%;background:var(--good-sf)">2100 → 7500</div></div></div>
+        <div class="tlrow"><div class="lb">Fade out</div><div class="tltrack"><div class="tlbar" style="left:96.2%;width:3.8%;background:var(--surface-2)">7800</div></div></div>
+        <div class="tlscale"><div></div><div class="tlticks"><span>0 ms</span><span>1950</span><span>3900</span><span>5850</span><span>7800 ms</span></div></div>
+      </div>
+
+      <div class="note warn">
+        <b>This overruns the plan on purpose, and the verdict is why.</b> AVATARS_AND_EJECTION_PLAN.md asks
+        for 1.2–1.5 s. A line that fades in and straight back out inside that is a line nobody finishes
+        reading. <code>ResolveDuration</code> is <b>8 s</b> (<code>internal/room/api.go:120</code>) and the
+        overlay opens at the top of it, so the real budget is 8000 ms and the cut spends 7800 of it. The
+        remaining 200 ms of margin only ever has the closing fade in it — an overlay at near-zero opacity that
+        never takes pointer events — so even a phase change arriving early costs nothing visible. The
+        constraint that actually matters is that <code>afterResolve</code> is never delayed, and it is not:
+        the cinematic reads the phase clock and never touches it.
+      </div>
+
+      <div class="two" style="margin-top:22px">
+        <div>
+          <div class="card">
+            <div class="kicker">Petal anatomy</div>
+            <div style="height:.7rem"></div>
+            <div id="petalspec" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap"></div>
+            <div style="height:.9rem"></div>
+            <table>
+              <tbody>
+                <tr><td>Petal count</td><td>36 fixed. Built once, reused on every replay.</td></tr>
+                <tr><td>Angle</td><td>Golden-ratio spread, so no two petals leave along the same line.</td></tr>
+                <tr><td>Distance</td><td>74 – 197 px, with downward bias — petals fall as well as scatter.</td></tr>
+                <tr><td>Spin</td><td>−189° to +189°, per petal.</td></tr>
+                <tr><td>Stagger</td><td>1900 – 2119 ms, the instant the held beat ends.</td></tr>
+                <tr><td>Duration</td><td>780 – 1149 ms each, longest for the nearest band.</td></tr>
+                <tr><td>Motes</td><td>12 ambient drifters, opacity .10 – .30, looping from 200 ms. They carry acts 1 to 3.</td></tr>
+                <tr><td>Size</td><td>8 – 21 px, tied to the depth band.</td></tr>
+                <tr><td>Peak opacity</td><td>.55 – 1.00, also tied to depth. A far petal never reaches full.</td></tr>
+                <tr><td>Tint</td><td>Four accent-family fills. No new colour token.</td></tr>
+                <tr><td>Properties</td><td><code>transform</code> and <code>opacity</code> only.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="note ok">
+            <b>Why 7.8 s and 36 petals still cannot cost a frame.</b> 48 absolutely-positioned spans — 36
+            petals and 12 motes — animated on <code>transform</code> and <code>opacity</code> and promoted with
+            <code>will-change</code>. No per-frame JavaScript, no canvas, no layout read, no networked
+            particle. The controller writes each element's custom properties once at build time and then only
+            adds and removes a class. A longer run and a bigger crowd are more compositor frames, not more
+            main-thread work — and 48 promoted layers is well inside what a phone composites without dropping
+            one, since they all appear and retire together.
+          </div>
+          <div class="note">
+            <b>One variable retimes everything.</b> Every duration and delay is
+            <code>calc(n * var(--k))</code>. The tempo switch above sets <code>--k</code>, and nothing else
+            changes. If 7.8 s turns out to be too long in a real match, it is one number.
+          </div>
+          <div class="note">
+            <b>Where it lives.</b> Mounted once beside the screen root from <code>web/src/main.ts</code>, never
+            inside <code>result.ts</code>. Screens mount and unmount underneath it — over 7.8 s the result
+            screen can be replaced by the final reveal while the petals are still falling, which is exactly
+            why the overlay cannot belong to a screen.
+          </div>
+          <div class="note warn">
+            <b>It must fire exactly once.</b> The controller keys on
+            <code>round : playerId : eliminated</code> and only accepts a value that arrived on the live
+            <code>playerEliminated</code> broadcast. A <code>Snapshot</code>, a resync, and the
+            <code>ERROR_CODE_KICKED</code> reset all carry elimination state and must all be refused.
+          </div>
+          <div class="note">
+            <b>After it ends</b> the overlay is emptied and hidden, so it cannot swallow a click on the screen
+            beneath it or re-appear on a routine store update.
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">5</span>What the overlay is allowed to say</h2>
+      <p class="secsub">
+        The wording is not rewritten for the cinematic. <code>verdict()</code> at
+        <code>web/src/ui/screens/result.ts:26</code> is extracted to a shared module and both callers read it,
+        so Hidden mode cannot disclose an alignment through a second copy of the copy.
+      </p>
+      <div class="card" style="padding:6px 20px">
+        <table>
+          <thead><tr><th style="width:150px">Setting</th><th style="width:120px">Imposters</th><th>Line under the name</th></tr></thead>
+          <tbody>
+            <tr><td>Reveal</td><td>1</td><td>They were the imposter. The group wins.</td></tr>
+            <tr><td>Reveal</td><td>1</td><td>They were not the imposter. Somebody here is still holding a different word.</td></tr>
+            <tr><td>Reveal</td><td>2</td><td>That was an imposter. The group only wins once all 2 are out.</td></tr>
+            <tr><td>Reveal</td><td>2</td><td>They were not an imposter. Two people here are still holding a different word.</td></tr>
+            <tr><td>Hidden</td><td>1</td><td>Which side they were on stays hidden — that is how this match is set up.</td></tr>
+            <tr><td>Hidden</td><td>2</td><td>Which side they were on stays hidden. Somebody here is still holding a different word.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <b>Reduced motion.</b> Under <code>prefers-reduced-motion</code> the run is 7.5 s and nothing
+        rises, drifts, spins or falls. The verdict still gets its full five seconds — a reader who cannot take
+        fast motion is the last person who should be given less time to read. No petal and no mote is created at all. The room dims, the portrait
+        cross-fades, and the same authorised line still arrives on its own later beat — the build-up survives
+        as <i>timing</i>, which is not motion. The result is announced once through the existing
+        <code>aria-live="polite"</code> region in the app chrome. Focus never moves.
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">6</span>The cue</h2>
+      <p class="secsub">
+        One quiet addition to <code>web/src/audio/cues.ts</code>, on the same C major pentatonic scale as
+        everything else. It is the descending answer to <code>resolve</code>, an octave down and half the level.
+      </p>
+      <div class="two">
+        <div>
+          <pre><span class="c">// web/src/audio/cues.ts</span>
+<span class="c">// The petal cue. Deliberately quiet: an ejection is already the</span>
+<span class="c">// loudest thing on screen, and this only has to land under it.</span>
+<span class="c">//</span>
+<span class="c">// The offsets are the whole trick. RESOLVING plays `resolve`</span>
+<span class="c">// (A5 -> E5, tail out at ~0.57 s) and PlayerEliminated lands in</span>
+<span class="c">// the very next frame. Acts 1 to 3 are therefore already spoken</span>
+<span class="c">// for, and this cue simply starts where they end. The synth's own</span>
+<span class="c">// audio clock spaces the notes, so no cue is dropped and no</span>
+<span class="c">// setTimeout is involved.</span>
+<span class="c">//</span>
+<span class="c">//   1.90 s  the petals leave      (act 4)</span>
+<span class="c">//   2.55 s  the verdict lands     (act 5)</span>
+ejection: {
+  level: <span class="k">0.32</span>,
+  notes: [
+    { freq: C5, at: <span class="k">1.90</span> },
+    { freq: G4, at: <span class="k">2.06</span>, dur: <span class="k">0.5</span> },
+    { freq: E5, at: <span class="k">2.55</span>, dur: <span class="k">0.6</span>, gain: <span class="k">0.7</span> },
+  ],
+},</pre>
+        </div>
+        <div>
+          <table class="card" style="display:table">
+            <thead><tr><th>Fires</th><th>Silent</th></tr></thead>
+            <tbody>
+              <tr><td class="yes">A live vote ejection, imposter or not</td><td class="no">A tie — <code>eliminated</code> is false</td></tr>
+              <tr><td class="yes">For every connected player, spectators included</td><td class="no">A <code>Snapshot</code> or resync</td></tr>
+              <tr><td></td><td class="no">A reconnect that replays the state</td></tr>
+              <tr><td></td><td class="no">A host kick in the lobby</td></tr>
+              <tr><td></td><td class="no">Sound switched off</td></tr>
+              <tr><td></td><td class="no">Audio not yet unlocked by a gesture</td></tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <b>One source of truth.</b> <code>web/src/audio/transitions.ts</code> derives the cue from the same
+            observed elimination the overlay uses, so the sound and the petals cannot disagree about whether
+            an ejection happened.
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">7</span>Protocol</h2>
+      <p class="secsub">
+        One new enum and four new fields. Every field is optional and additive, so a stale client keeps
+        working and <code>ProtocolVersion</code> does not move.
+      </p>
+      <div class="two">
+        <div>
+          <pre><span class="c">// proto/verso/v1/game.proto</span>
+<span class="c">// A fixed roster. Values are published the moment a build ships:</span>
+<span class="c">// never renumber one, never repurpose one, only append.</span>
+enum Avatar {
+  AVATAR_UNSPECIFIED  = <span class="k">0</span>;  <span class="c">// -> BEETLE</span>
+  AVATAR_BEETLE       = <span class="k">1</span>;
+  AVATAR_COURIER      = <span class="k">2</span>;
+  AVATAR_LANTERN      = <span class="k">3</span>;
+  AVATAR_GEARSMITH    = <span class="k">4</span>;
+  AVATAR_SCOUT        = <span class="k">5</span>;
+  AVATAR_MOTH         = <span class="k">6</span>;
+  AVATAR_MASON        = <span class="k">7</span>;
+  AVATAR_PIPER        = <span class="k">8</span>;
+  AVATAR_COOK         = <span class="k">9</span>;
+  AVATAR_CARTOGRAPHER = <span class="k">10</span>;
+}</pre>
+        </div>
+        <div>
+          <table class="card" style="display:table">
+            <thead><tr><th>Message</th><th>Field</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td><code>JoinRoom</code></td><td><code>Avatar avatar = 5</code></td><td>The fresh-seat choice. Ignored when a valid seat token is presented.</td></tr>
+              <tr><td><code>PlayerInfo</code></td><td><code>Avatar avatar = 8</code></td><td>The public roster value, and the only truth after entry.</td></tr>
+              <tr><td><code>SpectatorImposter</code></td><td><code>Avatar avatar = 3</code></td><td>The dossier duplicates id and name, so it must carry the portrait too.</td></tr>
+              <tr><td><code>PlayerReveal</code></td><td><code>Avatar avatar = 7</code></td><td>Same reason, for the final reveal.</td></tr>
+            </tbody>
+          </table>
+          <div class="note warn">
+            <b>Generated code is generated.</b> <code>internal/gen/verso/v1/game.pb.go</code> and
+            <code>web/gen/verso/v1/game_pb.ts</code> come from <code>make gen</code>. Neither is edited by hand.
+          </div>
+        </div>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">8</span>Server</h2>
+      <p class="secsub">
+        The avatar is seat state. It is set once when the seat is created and never again, which is what makes
+        it survive a reconnect for free.
+      </p>
+      <div class="card" style="padding:6px 20px">
+        <table>
+          <thead><tr><th style="width:330px">File</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td><code>internal/room/api.go:303</code></td><td>Add <code>Avatar genpb.Avatar</code> to <code>Player</code>, beside <code>Name</code>.</td></tr>
+            <tr><td><code>internal/room/api.go:372</code></td><td><code>Info()</code> returns it on <code>PlayerInfo</code>.</td></tr>
+            <tr><td><code>internal/room/api.go:997</code></td><td>Add <code>normalizeAvatar()</code> next to <code>truncateName()</code>. Unspecified and unknown both become <code>AVATAR_BEETLE</code>.</td></tr>
+            <tr><td><code>internal/room/api.go:559</code></td><td><code>New(code, hostName, avatar, opts)</code> — the host seat is minted here, before any socket exists.</td></tr>
+            <tr><td><code>internal/room/api.go:652</code></td><td><code>Seat(displayName, avatar, out)</code>.</td></tr>
+            <tr><td><code>internal/room/reconnect.go:40</code></td><td><code>seatOnActor</code> stores the normalized value on the fresh <code>Player</code>.</td></tr>
+            <tr><td><code>internal/room/reconnect.go:69</code></td><td><code>attachOnActor</code> — <b>no change</b>. Ignoring the incoming avatar is what keeps the seated one.</td></tr>
+            <tr><td><code>internal/room/end.go</code></td><td><code>PlayerReveal</code> and the spectator dossier carry <code>p.Avatar</code>.</td></tr>
+            <tr><td><code>internal/registry/registry.go:191</code></td><td><code>Create(hostName, avatar)</code>, passed straight to <code>room.New</code>.</td></tr>
+            <tr><td><code>internal/transport/conn.go:486</code></td><td>Read <code>j.GetAvatar()</code> beside <code>sanitizeName</code>. Pass to <code>createRoom</code> and <code>rm.Seat</code>. The <code>Attach</code> branch does not read it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note ok">
+        <b>The kick path is untouched.</b> <code>onKick</code> in <code>internal/room/reconnect.go:355</code>
+        stays lobby-only, still sends <code>ERROR_CODE_KICKED</code>, still removes the seat, and still
+        broadcasts no elimination. A kick must never reach the cinematic.
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">9</span>Client wiring</h2>
+      <div class="card" style="padding:6px 20px">
+        <table>
+          <thead><tr><th style="width:330px">File</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr><td><code>web/src/ui/avatars/catalog.ts</code></td><td><b>New.</b> Enum value → art builder, label, fallback. The ten creatures live here.</td></tr>
+            <tr><td><code>web/src/ui/avatar.ts:10</code></td><td><code>avatar(playerId, name, avatarValue, size)</code>. Paints catalog art on the paper disc, hue on the ring.</td></tr>
+            <tr><td><code>web/src/ui/screens/home.ts</code></td><td>The picker, plus remembered selection beside <code>rememberedName()</code>.</td></tr>
+            <tr><td><code>web/src/ui/context.ts:105</code></td><td><code>createRoom(name, avatar)</code> and <code>joinRoom(code, name, avatar)</code>.</td></tr>
+            <tr><td><code>web/src/main.ts:113</code></td><td>Both actions pass the avatar into <code>socket.connect</code>.</td></tr>
+            <tr><td><code>web/src/net/socket.ts:51</code></td><td><code>JoinIntent</code> gains <code>avatar</code>. It must survive the fresh-join retry at <code>:575</code> and the minted-code rewrite at <code>:468</code>.</td></tr>
+            <tr><td><code>web/src/net/commands.ts:55</code></td><td><code>joinRoom()</code> sets the field on <code>JoinRoom</code>.</td></tr>
+            <tr><td><code>web/src/ui/cinematic.ts</code></td><td><b>New.</b> The overlay controller. Mounted once from <code>main.ts</code>, subscribed to the store.</td></tr>
+            <tr><td><code>web/src/ui/verdict.ts</code></td><td><b>New.</b> <code>verdict()</code> moved out of <code>result.ts</code> so both callers share one wording.</td></tr>
+            <tr><td>Every <code>avatar()</code> caller</td><td><code>playerList.ts</code>, <code>votePicker.ts</code>, <code>result.ts</code>, <code>spectatorPanel.ts</code>, <code>final.ts</code>.</td></tr>
+            <tr><td><code>web/src/styles/tokens.css</code></td><td>The <code>--av-*</code> block. The one place a colour literal may appear.</td></tr>
+            <tr><td><code>web/src/styles/components.css</code></td><td>Chip, picker grid, overlay and petal keyframes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ================================================================ -->
+      <h2 class="secttl"><span class="n">10</span>Verification</h2>
+      <div class="two">
+        <div>
+          <div class="card">
+            <div class="kicker">Go tests</div>
+            <div style="height:.6rem"></div>
+            <table>
+              <tbody>
+                <tr><td>A fresh seat stores the avatar and publishes it on the roster.</td></tr>
+                <tr><td>Two seats may hold the same avatar.</td></tr>
+                <tr><td>Unspecified and out-of-range both become <code>AVATAR_BEETLE</code>.</td></tr>
+                <tr><td>A reconnect that presents a different avatar keeps the seated one.</td></tr>
+                <tr><td>A host kick still emits only <code>ERROR_CODE_KICKED</code> and no <code>PlayerEliminated</code>.</td></tr>
+                <tr><td>Harnesses and every direct <code>Seat</code> caller updated: <code>harness_test.go</code>, <code>api_test.go</code>, <code>reconnect_test.go</code>, <code>boundary_test.go</code>.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="kicker">By hand, in a 3–10 player room</div>
+            <div style="height:.6rem"></div>
+            <table>
+              <tbody>
+                <tr><td>The chosen creature appears on every screen that shows a player.</td></tr>
+                <tr><td>Duplicate choices stay distinguishable.</td></tr>
+                <tr><td>A reconnect keeps the portrait.</td></tr>
+                <tr><td>Reveal and Hidden each show only their permitted line.</td></tr>
+                <tr><td>The player who was just ejected sees their own dissolve.</td></tr>
+                <tr><td>A terminal ejection still runs into the final reveal.</td></tr>
+                <tr><td>A lobby kick is still immediate and silent.</td></tr>
+                <tr><td>The overlay intercepts no click once it has finished.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="note"><b>Then:</b> <code>make gen</code> · <code>make test</code> · <code>make build</code>, and one performance recording of the overlay to confirm it stays off the main thread.</div>
+        </div>
+      </div>
+
+      <h2 class="secttl"><span class="n">11</span>Out of scope</h2>
+      <p class="secsub">
+        Uploaded avatars, account persistence, unlockable cosmetics, avatar exclusivity, and editing a choice
+        from the lobby or mid-match. No change to any vote rule, ejection timing, phase timer, spectator
+        permission, or the host kick. No reproduction of Clair Obscur art, characters, terminology or audio.
+      </p>
+    </div>
+
+    <script>
+      // ====================================================================
+      // The catalog. In the app this is web/src/ui/avatars/catalog.ts and the
+      // art builders use svgEl() instead of a string, but the geometry below
+      // is the geometry that ships.
+      // ====================================================================
+      const SHOULDER = (c) => `<path class="${c}" d="M9 64c1.5-10 10-16 23-16s21.5 6 23 16z"/>`;
+
+      const AVATARS = [
+        {
+          key: "AVATAR_BEETLE", label: "Masked beetle",
+          sil: "Domed carapace, a plate mask, two feelers.",
+          art: SHOULDER("a-cloth") + `
+            <path class="a-none" d="M24 15C21 9 17 7 14 8"/>
+            <path class="a-none" d="M40 15C43 9 47 7 50 8"/>
+            <circle class="a-ink" cx="14" cy="8" r="2"/>
+            <circle class="a-ink" cx="50" cy="8" r="2"/>
+            <ellipse class="a-shell" cx="32" cy="30" rx="17" ry="16"/>
+            <path class="a-none" d="M32 15v9"/>
+            <rect class="a-stone" x="14" y="25" width="36" height="10" rx="5"/>
+            <circle class="a-ink" cx="24" cy="30" r="3"/>
+            <circle class="a-ink" cx="40" cy="30" r="3"/>
+            <circle class="a-paper ns" cx="25.3" cy="28.8" r="1"/>
+            <circle class="a-paper ns" cx="41.3" cy="28.8" r="1"/>
+            <path class="a-none" d="M26 41q6 5 12 0"/>`
+        },
+        {
+          key: "AVATAR_COURIER", label: "Long-eared courier",
+          sil: "One ear up, one folded, a flat cap and a strap.",
+          art: SHOULDER("a-rust") + `
+            <ellipse class="a-fur" cx="20" cy="13" rx="5" ry="12" transform="rotate(-12 20 13)"/>
+            <path class="a-fur" d="M42 23c-2-8 0-15 5-17 4-1 6 2 5 6-1 5-4 8-6 11z"/>
+            <ellipse class="a-fur" cx="32" cy="31" rx="15" ry="14"/>
+            <path class="a-cloth" d="M18 26a14 13 0 0 1 28 0z"/>
+            <path class="a-none" d="M15 26h34"/>
+            <circle class="a-ink" cx="26" cy="32" r="2.4"/>
+            <circle class="a-ink" cx="38" cy="32" r="2.4"/>
+            <path class="a-blush" d="M32 36.4l2.6 2.4h-5.2z"/>
+            <path class="a-none" d="M36 40q5 0 8-2"/>
+            <path class="a-none" d="M28 40q-5 0-8-2"/>
+            <path class="a-none" d="M21 51l12 13"/>`
+        },
+        {
+          key: "AVATAR_LANTERN", label: "Lantern carrier",
+          sil: "A deep hood, two warm eyes, a lamp held out.",
+          art: `
+            <path class="a-cloth" d="M32 9c12 0 20 10 20 23v18H12V32C12 19 20 9 32 9z"/>
+            <ellipse class="a-ink" cx="32" cy="32" rx="11.5" ry="11.5"/>
+            <circle class="a-brass ns" cx="27.6" cy="31" r="2.1"/>
+            <circle class="a-brass ns" cx="36.4" cy="31" r="2.1"/>
+            <circle class="a-brass ns" cx="53" cy="45" r="10" opacity=".26"/>
+            <path class="a-none" d="M49 38q4-6 8 0"/>
+            <rect class="a-brass" x="48" y="40" width="10" height="11" rx="2.5"/>
+            <circle class="a-paper ns" cx="53" cy="45.5" r="2.6"/>`
+        },
+        {
+          key: "AVATAR_GEARSMITH", label: "Tiny gearsmith",
+          sil: "Goggles pushed up, an apron, a cog on the shoulder.",
+          art: SHOULDER("a-leaf") + `
+            <circle class="a-brass" cx="53" cy="55" r="10"/>
+            <circle class="a-paper" cx="53" cy="55" r="3.6"/>
+            <path class="a-none" d="M53 45v3M63 55h-3M53 65v-3M43 55h3"/>
+            <path class="a-fur" d="M22 19q4-11 10-9 8 2 10 9z"/>
+            <circle class="a-skin" cx="32" cy="31" r="15"/>
+            <path class="a-none" d="M17 23h30"/>
+            <circle class="a-stone" cx="24" cy="21" r="5.5"/>
+            <circle class="a-stone" cx="40" cy="21" r="5.5"/>
+            <circle class="a-ink" cx="27" cy="33" r="2.2"/>
+            <circle class="a-ink" cx="38" cy="33" r="2.2"/>
+            <path class="a-none" d="M28 39q4 3.5 8 0"/>
+            <path class="a-none" d="M24 52v7M40 52v7"/>`
+        },
+        {
+          key: "AVATAR_SCOUT", label: "Mushroom-capped scout",
+          sil: "A wide spotted cap over a small face and a scarf.",
+          art: SHOULDER("a-leaf") + `
+            <ellipse class="a-skin" cx="32" cy="38" rx="12" ry="11"/>
+            <circle class="a-ink" cx="27" cy="38" r="2.2"/>
+            <circle class="a-ink" cx="37" cy="38" r="2.2"/>
+            <path class="a-none" d="M29 43.5q3 3 6 0"/>
+            <path class="a-rust" d="M6 29C6 16 17 8 32 8s26 8 26 21c-8 5-44 5-52 0z"/>
+            <ellipse class="a-paper ns" cx="20" cy="20" rx="4.6" ry="3.4"/>
+            <ellipse class="a-paper ns" cx="41" cy="16" rx="5.4" ry="3.9"/>
+            <ellipse class="a-paper ns" cx="49" cy="24" rx="3.4" ry="2.5"/>
+            <path class="a-cloth" d="M21 46q11 6 22 0l2 6q-13 7-26 0z"/>`
+        },
+        {
+          key: "AVATAR_MOTH", label: "Moth herald",
+          sil: "Feathered antennae, a fuzzy collar, wide dark eyes.",
+          art: `
+            <path class="a-cloth" d="M31 34C17 27 5 34 7 47c2 11 15 13 24 4z"/>
+            <path class="a-cloth" d="M33 34c14-7 26 0 24 13-2 11-15 13-24 4z"/>
+            <path class="a-none" d="M13 41q6 1 9 5M51 41q-6 1-9 5"/>
+            <path class="a-none" d="M25 17C21 9 16 6 12 7"/>
+            <path class="a-none" d="M39 17c4-8 9-11 13-10"/>
+            <path class="a-none" d="M20 11l-3-3M16 9l-2-4M44 11l3-3M48 9l2-4"/>
+            <circle class="a-fur" cx="32" cy="29" r="13"/>
+            <path class="a-none" d="M20 39q3 4.5 6 0 3 4.5 6 0 3 4.5 6 0 3 4.5 6 0"/>
+            <ellipse class="a-ink" cx="26.5" cy="29" rx="3.4" ry="4.2"/>
+            <ellipse class="a-ink" cx="37.5" cy="29" rx="3.4" ry="4.2"/>
+            <circle class="a-paper ns" cx="25.4" cy="27.3" r="1.1"/>
+            <circle class="a-paper ns" cx="36.4" cy="27.3" r="1.1"/>`
+        },
+        {
+          key: "AVATAR_MASON", label: "Pebble mason",
+          sil: "A blocky stone head, a heavy brow, a hammer behind.",
+          art: SHOULDER("a-cloth") + `
+            <path class="a-none" d="M45 62L57 41"/>
+            <rect class="a-stone" x="49" y="32" width="14" height="8" rx="2.4" transform="rotate(-28 56 36)"/>
+            <path class="a-stone" d="M16 25q0-9 9-10l14-1q9-1 10 8l1 12q1 9-8 10l-13 1q-9 1-10-8z"/>
+            <path class="a-none" d="M44 21l-3 5 3 3"/>
+            <path class="a-none" d="M21 28q6-4 12-1M37 27q5-2 8 1"/>
+            <circle class="a-ink" cx="26" cy="34" r="2.2"/>
+            <circle class="a-ink" cx="39" cy="33" r="2.2"/>
+            <path class="a-none" d="M26 42q7 3 12-1"/>`
+        },
+        {
+          key: "AVATAR_PIPER", label: "Reed piper",
+          sil: "A long neck, a small crest, three bound reeds.",
+          art: SHOULDER("a-cloth") + `
+            <rect class="a-fur" x="43" y="39" width="5" height="20" rx="2.5"/>
+            <rect class="a-fur" x="49" y="43" width="5" height="16" rx="2.5"/>
+            <rect class="a-fur" x="55" y="47" width="5" height="12" rx="2.5"/>
+            <path class="a-none" d="M42 52h19"/>
+            <rect class="a-leaf" x="26" y="32" width="11" height="18" rx="5.5"/>
+            <ellipse class="a-leaf" cx="30" cy="24" rx="12" ry="11"/>
+            <path class="a-leaf" d="M27 13q2-9 7-6.5 3 1.5 1 6.5z"/>
+            <path class="a-brass" d="M41 24l9 3.5-9 4z"/>
+            <circle class="a-ink" cx="34" cy="23" r="2.5"/>
+            <circle class="a-paper ns" cx="35" cy="22" r="1"/>`
+        },
+        {
+          key: "AVATAR_COOK", label: "Kettle cook",
+          sil: "An upturned pot for a hat, round cheeks, a ladle.",
+          art: SHOULDER("a-rust") + `
+            <path class="a-none" d="M48 62L57 40"/>
+            <circle class="a-stone" cx="58" cy="36" r="5.5"/>
+            <ellipse class="a-skin" cx="32" cy="38" rx="13" ry="12"/>
+            <circle class="a-blush ns" cx="22" cy="41" r="3.2"/>
+            <circle class="a-blush ns" cx="42" cy="41" r="3.2"/>
+            <path class="a-none" d="M25 37q3-3.5 6 0M35 37q3-3.5 6 0"/>
+            <path class="a-none" d="M28 43q4 4.5 8 0"/>
+            <path class="a-none" d="M22 14q10-10 20 0"/>
+            <rect class="a-stone" x="16" y="14" width="32" height="15" rx="3"/>
+            <path class="a-none" d="M13 29h38"/>`
+        },
+        {
+          key: "AVATAR_CARTOGRAPHER", label: "Snail cartographer",
+          sil: "A spiral shell, two eyestalks, a rolled map.",
+          art: `
+            <circle class="a-rust" cx="42" cy="28" r="16"/>
+            <path class="a-none" d="M42 28a4.5 4.5 0 1 1 4.5-4.5 9 9 0 1 1-9 9 13.5 13.5 0 1 1 13.5-13.5"/>
+            <path class="a-leaf" d="M6 51q0-17 16-20l9-1 2 23z"/>
+            <path class="a-leaf" d="M4 49h36q2 7-5 8H10q-6 0-6-8z"/>
+            <path class="a-none" d="M12 33V21M20 32V25"/>
+            <circle class="a-ink" cx="12" cy="19" r="2.4"/>
+            <circle class="a-ink" cx="20" cy="23" r="2.4"/>
+            <rect class="a-paper" x="5" y="42" width="21" height="7" rx="3.5"/>
+            <path class="a-none" d="M14 42v7"/>`
+        },
+      ];
+
+      const BY_KEY = Object.fromEntries(AVATARS.map((a) => [a.key, a]));
+      const FALLBACK = "AVATAR_BEETLE";
+
+      // Verbatim from web/src/ui/palette.ts — the hue is game data, not theme.
+      const AVATAR_HUES = ["#4f7cff","#ef4c4c","#2fbf71","#ff8a1f","#7a5cff",
+                           "#0fb5ba","#e05bc8","#d99b00","#5d6a8c","#3fae4a"];
+      function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+      function avatarColor(id){ return AVATAR_HUES[hash(id)%AVATAR_HUES.length]; }
+
+      function chip(key, size, playerId){
+        const a = BY_KEY[key] ?? BY_KEY[FALLBACK];
+        const ring = playerId ? avatarColor(playerId) : "var(--ink-3)";
+        return `<span class="chip chip-${size}" style="--ring:${ring}" aria-hidden="true">
+                  <svg class="av-art" viewBox="0 0 64 64" focusable="false">${a.art}</svg>
+                </span>`;
+      }
+
+      // ---- section 1 -----------------------------------------------------
+      document.getElementById("roster").innerHTML = AVATARS.map((a, i) => `
+        <div class="rcard">
+          ${chip(a.key, "lg", "seed-" + i)}
+          <div class="nm">${a.label}</div>
+          <div class="en">${a.key} = ${i + 1}</div>
+          <div class="sil">${a.sil}</div>
+        </div>`).join("");
+
+      // ---- section 2 -----------------------------------------------------
+      document.getElementById("sizes").innerHTML = [["sm","roster rail"],["md","vote and result"],["lg","cinematic"]]
+        .map(([s, use]) => `<div class="sizecol">${chip("AVATAR_COURIER", s, "size-" + s)}<div class="lb">${s} · ${use}</div></div>`).join("");
+
+      const SEATS = [
+        ["Ada","AVATAR_MOTH"], ["Bo","AVATAR_BEETLE"], ["Cyd","AVATAR_MOTH"],
+        ["Dev","AVATAR_LANTERN"], ["Eli","AVATAR_COOK"], ["Fay","AVATAR_MOTH"],
+        ["Gus","AVATAR_MASON"], ["Hana","AVATAR_SCOUT"], ["Ira","AVATAR_PIPER"],
+        ["Jo","AVATAR_CARTOGRAPHER"],
+      ];
+      document.getElementById("seatlist").innerHTML = SEATS.map(([n, k], i) => `
+        <div class="seatrow">
+          ${chip(k, "sm", "player-" + n)}
+          <span class="who">${n}</span>
+          ${k === "AVATAR_MOTH" ? '<span class="tag">duplicate</span>' : ""}
+        </div>`).join("");
+
+      // ---- section 3 -----------------------------------------------------
+      let selected = "AVATAR_BEETLE";
+      let faceIndex = Math.max(0, AVATARS.findIndex((a) => a.key === selected));
+      const faceChip = document.getElementById("faceChip");
+      const faceName = document.getElementById("faceName");
+      const faceDots = document.getElementById("faceDots");
+      faceDots.innerHTML = AVATARS.map(() => '<span class="face-dot"></span>').join("");
+
+      function showFace(to){
+        const n = AVATARS.length;
+        faceIndex = ((to % n) + n) % n;
+        const entry = AVATARS[faceIndex];
+        selected = entry.key;
+        faceChip.innerHTML = chip(entry.key, "lg", "");
+        faceName.textContent = entry.label;
+        [...faceDots.children].forEach((d, i) => d.classList.toggle("face-dot-on", i === faceIndex));
+        drawPortrait();
+      }
+      document.getElementById("facePrev").addEventListener("click", () => showFace(faceIndex - 1));
+      document.getElementById("faceNext").addEventListener("click", () => showFace(faceIndex + 1));
+      showFace(faceIndex);
+    </script>
+
+    <script>
+      // ====================================================================
+      // The gommage. In the app this is web/src/ui/cinematic.ts, driven by the
+      // store rather than by buttons. The geometry, the timing and the
+      // keyframes are the ones that ship.
+      // ====================================================================
+      const PETAL_D = "M12 22.5C2.6 16.4 2.6 6.2 8.4 2.4 10.8.8 13.2.8 15.6 2.4c5.8 3.8 5.8 14-3.6 20.1z";
+      const RUN_MS = 7800;
+
+      const wrap = document.getElementById("cinwrap");
+      const cin = document.getElementById("cin");
+      const petalHost = document.getElementById("cinPetals");
+      const moteHost = document.getElementById("cinMotes");
+      const portraitHost = document.getElementById("cinPortrait");
+      const nameEl = document.getElementById("cinName");
+      const verdictEl = document.getElementById("cinVerdict");
+
+      // Straight from verdict() at web/src/ui/screens/result.ts:26. One source
+      // of wording, so Hidden cannot leak an alignment through a second copy.
+      const VERDICTS = {
+        imposter: "They were the imposter. The group wins.",
+        innocent: "They were not the imposter. Somebody here is still holding a different word.",
+        hidden:   "Which side they were on stays hidden — that is how this match is set up.",
+        two:      "That was an imposter. The group only wins once all 2 are out.",
+        calm:     "They were not the imposter. Somebody here is still holding a different word.",
+      };
+
+      /**
+       * Builds the petals once. Every value a petal needs is written here as a
+       * custom property, so the animation itself reads nothing and computes
+       * nothing — the compositor runs it without waking the main thread.
+       *
+       * --pd and --pt are unitless on purpose. The stylesheet multiplies them
+       * by var(--k) and then by 1ms, which is what lets the tempo switch
+       * retime the burst without rebuilding a single element.
+       */
+      function buildPetals(n){
+        const GOLD = Math.PI * (3 - Math.sqrt(5));
+        let html = "";
+        for (let i = 0; i < n; i++) {
+          const angle = i * GOLD + 0.6;
+          // Seven depth bands. A far petal is small, dim, slow and does not
+          // travel; a near one is large, bright and thrown wide. That is what
+          // stops thirty-six of them reading as flat confetti.
+          const depth = (i % 7) / 6;
+          const dist  = 74 + depth * 104 + ((i * 13) % 19);   //  74 – 197 px
+          const x = Math.cos(angle) * dist;
+          const y = Math.sin(angle) * dist * 0.72 + 52;       // petals fall as well as scatter
+          const spin = (i % 2 ? 1 : -1) * (60 + ((i * 37) % 130));
+          const dur = 780 + Math.round(depth * 240) + ((i * 29) % 130);
+          const delay = 2400 + ((i * 17) % 220);              // act 4, after the held beat
+          const w = 8 + Math.round(depth * 11) + (i % 3);     //   8 – 21 px
+          const peak = (0.55 + depth * 0.45).toFixed(2);
+          html += `<span class="petal" style="
+                     --px:${x.toFixed(1)}px; --py:${y.toFixed(1)}px; --pr:${spin}deg;
+                     --pd:${dur}; --pt:${delay}; --po:${peak};
+                     --pw:${w}px; --ph:${Math.round(w * 1.4)}px">
+                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                       <path class="p${(i % 4) + 1}" d="${PETAL_D}"/>
+                     </svg>
+                   </span>`;
+        }
+        petalHost.innerHTML = html;
+      }
+
+      /**
+       * The ambient drift that carries acts 1 to 3. Twelve faint petals rising
+       * through the dark, on the same two properties as everything else. They
+       * exist so the held beat reads as a held breath rather than a stall.
+       */
+      function buildMotes(n){
+        let html = "";
+        for (let i = 0; i < n; i++) {
+          const w = 7 + (i % 4) * 3;
+          html += `<span class="mote" style="
+                     --ml:${(4 + (i * 8.3) % 92).toFixed(1)}%;
+                     --mdx:${(((i * 53) % 90) - 45)}px;
+                     --mr:${(i % 2 ? 1 : -1) * (120 + (i * 41) % 180)}deg;
+                     --md:${5200 + (i * 311) % 1900};
+                     --mt:${200 + (i * 227) % 2400};
+                     --mo:${(0.10 + (i % 5) * 0.05).toFixed(2)};
+                     --mw:${w}px">
+                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                       <path class="p${(i % 4) + 1}" d="${PETAL_D}"/>
+                     </svg>
+                   </span>`;
+        }
+        moteHost.innerHTML = html;
+      }
+
+      function drawPortrait(){ portraitHost.innerHTML = chip(selected, "xl", "player-Ada"); }
+
+      let quick = false;
+      let endTimer = 0;
+      function play(mode){
+        const calm = mode === "calm";
+        drawPortrait();
+        nameEl.textContent = "Ada";
+        verdictEl.textContent = VERDICTS[mode];
+        cin.hidden = false;
+        wrap.classList.remove("play", "calm");
+        void wrap.offsetWidth;                               // restart the run
+        wrap.classList.toggle("quick", quick && !calm);
+        wrap.classList.add(calm ? "calm" : "play");
+        clearTimeout(endTimer);
+        // Reset after the last frame so the overlay cannot intercept a click
+        // on the screen underneath it, or re-appear on a later store update.
+        const life = calm ? 7500 : RUN_MS * (quick ? 0.385 : 1) + 120;
+        endTimer = setTimeout(() => {
+          wrap.classList.remove("play", "calm");
+          cin.hidden = true;
+        }, life);
+      }
+
+      for (const b of document.querySelectorAll("[data-play]")) {
+        b.addEventListener("click", () => play(b.dataset.play));
+      }
+      for (const b of document.querySelectorAll("[data-k]")) {
+        b.addEventListener("click", () => {
+          for (const o of document.querySelectorAll("[data-k]")) o.classList.remove("on");
+          b.classList.add("on");
+          quick = b.dataset.k === "quick";
+          play("imposter");
+        });
+      }
+      for (const b of document.querySelectorAll("[data-petals]")) {
+        b.addEventListener("click", () => {
+          for (const o of document.querySelectorAll("[data-petals]")) o.classList.remove("on");
+          b.classList.add("on");
+          buildPetals(Number(b.dataset.petals));
+          play("imposter");
+        });
+      }
+
+      // ---- petal anatomy swatch -----------------------------------------
+      document.getElementById("petalspec").innerHTML =
+        [1, 2, 3, 4].map((n) => `
+          <svg viewBox="0 0 24 24" width="46" height="46" aria-hidden="true">
+            <path class="p${n}" d="${PETAL_D}"/>
+          </svg>`).join("") +
+        `<code style="max-width:34ch;line-height:1.5">${PETAL_D}</code>`;
+
+      buildPetals(36);
+      buildMotes(12);
+      drawPortrait();
+    </script>
+  </body>
+</html>

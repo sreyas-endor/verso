@@ -732,7 +732,7 @@ func TestEmptyRoomClosesItself(t *testing.T) {
 			t.Fatal("Run returned without closing done")
 		}
 		// Every entry point is safe after the actor is gone.
-		if _, _, err := h.r.Seat("late", newSmokeSock()); err != ErrClosed {
+		if _, _, err := h.r.Seat("late", genpb.Avatar_AVATAR_COURIER, newSmokeSock()); err != ErrClosed {
 			t.Fatalf("Seat on a closed room = %v, want ErrClosed", err)
 		}
 	})

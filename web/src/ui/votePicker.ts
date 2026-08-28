@@ -98,7 +98,7 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
           class: "votecard",
           "aria-pressed": String(armed),
         },
-        avatar(p.id, p.name),
+        avatar(p.id, p.avatar),
         el("span", { class: "grow", text: p.name }),
         p.id === s.selfId ? el("span", { class: "badge badge-you", text: "YOU" }) : null,
       ) as HTMLButtonElement;

@@ -85,6 +85,29 @@ enum EliminationResults {
   ELIMINATION_RESULTS_HIDDEN = 2;
 }
 
+// The fixed avatar roster. A player picks one before entering a room; it is
+// decorative reinforcement for the display name, never an identity of its own.
+//
+// These values are published the moment a build ships. Never renumber one,
+// never repurpose one, only append — a stale client that reads AVATAR_MOTH as
+// AVATAR_MASON shows the wrong face to a whole room.
+//
+// AVATAR_UNSPECIFIED is what an older client sends. The server substitutes the
+// designated fallback rather than storing a zero, so no seat is ever faceless.
+enum Avatar {
+  AVATAR_UNSPECIFIED = 0;
+  AVATAR_BEETLE = 1;
+  AVATAR_COURIER = 2;
+  AVATAR_LANTERN = 3;
+  AVATAR_GEARSMITH = 4;
+  AVATAR_SCOUT = 5;
+  AVATAR_MOTH = 6;
+  AVATAR_MASON = 7;
+  AVATAR_PIPER = 8;
+  AVATAR_COOK = 9;
+  AVATAR_CARTOGRAPHER = 10;
+}
+
 // Server-authoritative match phase (IMPLEMENTATION_PLAN.md §4.5).
 //
 // Discussion and voting share one combined timer (DESIGN.md:46), so they are a
@@ -204,6 +227,10 @@ message PlayerInfo {
   bool is_host = 6;
   // Eliminated players are silent spectators (DESIGN.md:66).
   bool eliminated = 7;
+  // The portrait this seat chose on the way in. Fixed for the life of the
+  // seat: it is set once when the seat is created and survives every
+  // reconnect, because JoinRoom.avatar is ignored on a seat-token reclaim.
+  Avatar avatar = 8;
 }
 
 // A committed stroke, replayed in Snapshot. Carries no artist id: the finished
@@ -231,6 +258,10 @@ message JoinRoom {
   string seat_token = 3;
   // Bumped whenever a change to this file is not backward compatible.
   int32 protocol_version = 4;
+  // The portrait for a FRESH seat. Ignored when seat_token is presented and
+  // valid, exactly as display_name is: the seated value wins. Unspecified and
+  // unknown both become the server's fallback avatar.
+  Avatar avatar = 5;
 }
 
 message SetReady {
@@ -515,6 +546,9 @@ message PlayerReveal {
   // round this player was not dealt into, which is every round after the one
   // that eliminated them.
   repeated string words = 6;
+  // Same reason as SpectatorImposter.avatar: the final reveal duplicates id
+  // and name, so it must carry the portrait too.
+  Avatar avatar = 7;
 }
 
 // Final reveal. This is the ONLY broadcast that carries assigned words, and it
@@ -645,6 +679,10 @@ message Snapshot {
 message SpectatorImposter {
   string player_id = 1;
   string name = 2;
+  // Carried because this message duplicates the roster's id and name. Without
+  // it the dossier would have to look the seat up in a roster it does not
+  // receive, and would render the wrong face for a player who has left.
+  Avatar avatar = 3;
 }
 
 // One seat's dealt word for one round. SPECTATOR-ONLY: this is another player's

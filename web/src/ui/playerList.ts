@@ -145,7 +145,7 @@ function row(seat: Seat, s: ViewState, opts: PlayerListOptions): HTMLElement {
     "li",
     { class: classes.join(" ") },
     seat.state === "offTrack" ? null : el("span", { class: "pnode", "aria-hidden": "true" }),
-    avatar(p.id, p.name),
+    avatar(p.id, p.avatar),
     el(
       "div",
       { class: "grow" },

@@ -145,11 +145,11 @@ func TestLiveRoomCapIsEnforced(t *testing.T) {
 	t.Cleanup(func() { _ = g.Close(context.Background()) })
 
 	for i := range 3 {
-		if _, err := g.Create("host"); err != nil {
+		if _, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
-	if _, err := g.Create("host"); err != ErrTooManyRooms {
+	if _, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE); err != ErrTooManyRooms {
 		t.Fatalf("the fourth create gave %v, want ErrTooManyRooms", err)
 	}
 	if n := g.Count(); n != 3 {
@@ -165,7 +165,7 @@ func TestCreateAfterCloseIsRefused(t *testing.T) {
 	if err := g.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.Create("host"); err != ErrClosed {
+	if _, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE); err != ErrClosed {
 		t.Fatalf("create after Close gave %v, want ErrClosed", err)
 	}
 	// Close is documented as safe to call more than once.
@@ -181,7 +181,7 @@ func TestHoldReleaseAndLookupAccounting(t *testing.T) {
 	g := New(ctx, testConfig(Config{}))
 	t.Cleanup(func() { _ = g.Close(context.Background()) })
 
-	c, err := g.Create("host")
+	c, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestGCCollectsAnEmptyRoomAndTheActorExits(t *testing.T) {
 
 		g := New(ctx, testConfig(Config{SweepInterval: time.Second}))
 
-		c, err := g.Create("host")
+		c, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -318,7 +318,7 @@ func TestGCCollectsARoomWhoseSeatsAllExpired(t *testing.T) {
 
 		g := New(ctx, testConfig(Config{SweepInterval: time.Second}))
 
-		c, err := g.Create("host")
+		c, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -359,7 +359,7 @@ func TestHardTTLCollectsEvenABusyRoom(t *testing.T) {
 			HardTTL:       2 * time.Minute,
 		}))
 
-		c, err := g.Create("host")
+		c, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -402,7 +402,7 @@ func TestCollectedRoomsLeaveNoGoroutines(t *testing.T) {
 
 	const rooms = 25
 	for i := range rooms {
-		if _, err := g.Create("host"); err != nil {
+		if _, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
@@ -443,7 +443,7 @@ func TestCloseStopsEveryRoom(t *testing.T) {
 
 	g := New(ctx, testConfig(Config{SweepInterval: time.Hour}))
 	for range 10 {
-		if _, err := g.Create("host"); err != nil {
+		if _, err := g.Create("host", genpb.Avatar_AVATAR_BEETLE); err != nil {
 			t.Fatal(err)
 		}
 	}

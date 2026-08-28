@@ -13,6 +13,7 @@
 // two players, and a shared seat would have them fight over one room seat.
 
 import { ErrorCode, Phase } from "../../gen/verso/v1/game_pb.js";
+import type { Avatar } from "../../gen/verso/v1/game_pb.js";
 import { buildCommand, decodeServerEvent, encodeCommand } from "./codec.js";
 import * as cmd from "./commands.js";
 import { isSequenced, narrowErrorCode, narrowPhase } from "./protocol.js";
@@ -51,6 +52,13 @@ export interface ConnectionState {
 export interface JoinIntent {
   readonly roomCode: string;
   readonly displayName: string;
+  /**
+   * The portrait for a fresh seat. It has to live on the intent rather than
+   * being passed once, because the intent is what a retry replays: the
+   * stale-seat path below drops the token and joins again as a new player, and
+   * that join is a fresh seat that needs a face.
+   */
+  readonly avatar: Avatar;
 }
 
 export interface SeatRecord {
@@ -371,6 +379,7 @@ export class VersoSocket {
         roomCode: seat?.roomCode ?? this.intent.roomCode,
         displayName: this.intent.displayName,
         seatToken: seat?.seatToken ?? "",
+        avatar: this.intent.avatar,
       }),
     );
   }
@@ -465,7 +474,7 @@ export class VersoSocket {
         this.saveSeat(this.seat);
         if (this.intent !== null && this.intent.roomCode !== j.roomCode) {
           // The server minted the code for us.
-          this.intent = { roomCode: j.roomCode, displayName: this.intent.displayName };
+          this.intent = { ...this.intent, roomCode: j.roomCode };
         }
         this.attempt = 0;
         this.failure = null;
@@ -580,7 +589,7 @@ export class VersoSocket {
       const roomCode = this.seat?.roomCode ?? this.intent.roomCode;
       this.clearSeat();
       this.resetSync();
-      this.intent = { roomCode, displayName: this.intent.displayName };
+      this.intent = { ...this.intent, roomCode };
       this.sendJoin();
       return true;
     }

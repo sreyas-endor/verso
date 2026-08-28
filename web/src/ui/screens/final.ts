@@ -262,7 +262,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
               el(
                 "p",
                 { class: "row" },
-                avatar(r.playerId, r.name),
+                avatar(r.playerId, r.avatar),
                 el(
                   "span",
                   {},
@@ -292,7 +292,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         el(
           "li",
           { class: r.wasImposter ? "reveal-row reveal-row-imposter" : "reveal-row" },
-          avatar(r.playerId, r.name),
+          avatar(r.playerId, r.avatar),
           el(
             "div",
             { class: "grow" },

@@ -1,7 +1,7 @@
 import { PenRule } from "../../../gen/verso/v1/game_pb.js";
 import type { ScreenCtx, ViewState } from "../context.js";
 import { Disposers, el, fill, setText } from "../dom.js";
-import { avatar } from "../avatar.js";
+import { NO_AVATAR, avatar } from "../avatar.js";
 import { paintress } from "../paintress.js";
 import { avatarColor } from "../palette.js";
 import { playerList } from "../playerList.js";
@@ -244,7 +244,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         setStatusTitle("Watching", chip);
         fill(
           statusBody,
-          el("p", { class: "row" }, avatar(s.artistId, artistName, "sm"), el("span", { text: `${artistName} is drawing.` })),
+          el("p", { class: "row" }, avatar(s.artistId, artist?.avatar ?? NO_AVATAR, "sm"), el("span", { text: `${artistName} is drawing.` })),
           away === 1
             ? el("p", { class: "badge badge-you", text: "YOUR TURN IS NEXT" })
             : away > 1

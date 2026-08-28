@@ -80,7 +80,7 @@ function impostersRow(info: SpectatorInfo): HTMLElement {
         el(
           "span",
           { class: "row dossier-who" },
-          avatar(im.playerId, im.name, "sm"),
+          avatar(im.playerId, im.avatar, "sm"),
           el("strong", { text: im.name }),
         ),
       ),

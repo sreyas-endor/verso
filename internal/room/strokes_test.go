@@ -178,7 +178,7 @@ func strkStartRule(t *testing.T, n int, rule genpb.PenRule) *strkMatch {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	r := New("STRK", "host", Options{
+	r := New("STRK", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck: strkDeck{},
 		Rand: mrand.New(mrand.NewPCG(5, 9)),
 		Settings: &genpb.MatchSettings{
@@ -195,7 +195,7 @@ func strkStartRule(t *testing.T, n int, rule genpb.PenRule) *strkMatch {
 	m := &strkMatch{r: r, ids: []string{hostID}, socks: []*strkSock{s0}, cancel: cancel}
 	for i := 1; i < n; i++ {
 		sk := newStrkSock()
-		id, _, err := r.seat("player", sk)
+		id, _, err := r.seat("player", genpb.Avatar_AVATAR_COURIER, sk)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -758,7 +758,7 @@ func TestStrokeCommandsOutsideTheDrawingPhaseAreRejected(t *testing.T) {
 		// PHASE_LOBBY, before any match exists.
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		r := New("PHZ", "host", Options{Deck: strkDeck{}, Rand: mrand.New(mrand.NewPCG(3, 4))})
+		r := New("PHZ", "host", genpb.Avatar_AVATAR_BEETLE, Options{Deck: strkDeck{}, Rand: mrand.New(mrand.NewPCG(3, 4))})
 		hostID, hostTok := r.HostSeat()
 		go r.run(ctx)
 		s0 := newStrkSock()

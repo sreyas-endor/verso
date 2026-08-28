@@ -210,10 +210,13 @@ export class GameStore {
 
       case "playerEliminated": {
         const v = body.value;
+        // A tie is still a result worth publishing, but nobody went, so it
+        // does not advance the watched-an-ejection counter.
         if (!v.eliminated) return { ...s, elimination: v };
         return {
           ...s,
           elimination: v,
+          eliminationSeq: s.eliminationSeq + 1,
           players: s.players.map((p) => (p.id === v.playerId ? { ...p, eliminated: true } : p)),
           youAreEliminated: s.youAreEliminated || v.playerId === s.selfId,
         };

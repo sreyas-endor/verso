@@ -28,16 +28,16 @@ import (
 
 // seat takes a new seat for a first-time player. See Seat in api.go for the
 // contract.
-func (r *Room) seat(displayName string, out Session) (string, string, error) {
+func (r *Room) seat(displayName string, avatar genpb.Avatar, out Session) (string, string, error) {
 	var id, token string
 	var serr error
-	if err := r.do(func() { id, token, serr = r.seatOnActor(displayName, out) }); err != nil {
+	if err := r.do(func() { id, token, serr = r.seatOnActor(displayName, avatar, out) }); err != nil {
 		return "", "", err
 	}
 	return id, token, serr
 }
 
-func (r *Room) seatOnActor(displayName string, out Session) (string, string, error) {
+func (r *Room) seatOnActor(displayName string, avatar genpb.Avatar, out Session) (string, string, error) {
 	if r.phase != genpb.Phase_PHASE_LOBBY {
 		return "", "", ErrMatchInProgress
 	}
@@ -48,6 +48,7 @@ func (r *Room) seatOnActor(displayName string, out Session) (string, string, err
 	p := &Player{
 		ID:        newID(),
 		Name:      truncateName(displayName),
+		Avatar:    normalizeAvatar(avatar),
 		SeatToken: newToken(),
 		Seat:      r.nextSeat,
 		Connected: true,
@@ -78,6 +79,9 @@ func (r *Room) attach(seatToken string, out Session) (string, error) {
 	return id, serr
 }
 
+// Nothing here reads the join frame's display name or its avatar: the seated
+// values win, because a reconnect returns to a seat the rest of the room is
+// already looking at, not a chance to become someone else.
 func (r *Room) attachOnActor(seatToken string, out Session) (string, error) {
 	p := r.bySeatToken[seatToken]
 	if p == nil {

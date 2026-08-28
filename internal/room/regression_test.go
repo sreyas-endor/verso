@@ -21,7 +21,7 @@ func regRoom(t *testing.T, n int, s *genpb.MatchSettings) (*Room, []string, []*s
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	r := New("REGR", "host", Options{
+	r := New("REGR", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck: smokeDeck{}, Rand: mrand.New(mrand.NewPCG(7, 9)), Settings: s,
 	})
 	hostID, hostTok := r.HostSeat()
@@ -34,7 +34,7 @@ func regRoom(t *testing.T, n int, s *genpb.MatchSettings) (*Room, []string, []*s
 	ids, socks := []string{hostID}, []*smokeSock{s0}
 	for i := 1; i < n; i++ {
 		sk := newSmokeSock()
-		id, _, err := r.seat("p", sk)
+		id, _, err := r.seat("p", genpb.Avatar_AVATAR_COURIER, sk)
 		if err != nil {
 			t.Fatal(err)
 		}

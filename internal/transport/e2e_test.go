@@ -84,6 +84,25 @@ func (c *client) awaitYourWord() string {
 	return ev.GetYourWord().GetWord()
 }
 
+// awaitRoster reads until a LobbyState carries an entry for id that satisfies
+// want, and returns it. The roster arrives repeatedly and says different things
+// each time, so a caller states which edition it is waiting for rather than
+// taking whichever one happens to be next out of the socket.
+func (c *client) awaitRoster(id string, want func(*genpb.PlayerInfo) bool) *genpb.PlayerInfo {
+	c.t.Helper()
+	var found *genpb.PlayerInfo
+	c.await("roster entry for "+id, func(e *genpb.ServerEvent) bool {
+		for _, pi := range e.GetLobbyState().GetPlayers() {
+			if pi.GetId() == id && want(pi) {
+				found = pi
+				return true
+			}
+		}
+		return false
+	})
+	return found
+}
+
 // TestMatchOverTheWire drives a real three-player match through the real
 // transport and asserts the one thing that must never break: no player's word
 // reaches another player's socket (IMPLEMENTATION_PLAN.md §1). This is the
@@ -235,5 +254,86 @@ func TestMatchOverTheWire(t *testing.T) {
 	}}})
 	if got := expectError(t, forger.ws).GetCode(); got != genpb.ErrorCode_ERROR_CODE_BAD_SEAT {
 		t.Fatalf("forged seat token gave %v, want BAD_SEAT", got)
+	}
+}
+
+// TestReclaimIgnoresTheAvatarOnTheWire is the wire-level half of
+// room.TestReconnectKeepsTheSeatedAvatar. That test can only show that
+// Room.Attach has nowhere to put a conflicting avatar; here the conflicting
+// value genuinely exists — a second JoinRoom frame, on a second socket, naming
+// a different portrait for a seat the server already painted.
+//
+// The regression it catches is a plausible one line: handleJoin reading
+// JoinRoom.avatar on the reclaim branch the way it does on the fresh-seat
+// branch. A client that lets a player re-pick on the reconnect screen, or one
+// that simply forgot what it chose and sent the field's zero value, would then
+// repaint a seat the rest of the table has been looking at all match.
+func TestReclaimIgnoresTheAvatarOnTheWire(t *testing.T) {
+	hs, _ := newTestServer(t)
+
+	host := newClient(t, hs)
+	host.send(&genpb.ClientCommand{Cid: "j1", Cmd: &genpb.ClientCommand_Join{Join: &genpb.JoinRoom{
+		DisplayName:     "ada",
+		Avatar:          genpb.Avatar_AVATAR_MASON,
+		ProtocolVersion: room.ProtocolVersion,
+	}}})
+	code := host.awaitJoined().GetRoomCode()
+
+	guest := newClient(t, hs)
+	guest.send(&genpb.ClientCommand{Cid: "j2", Cmd: &genpb.ClientCommand_Join{Join: &genpb.JoinRoom{
+		RoomCode:        code,
+		DisplayName:     "grace",
+		Avatar:          genpb.Avatar_AVATAR_SCOUT,
+		ProtocolVersion: room.ProtocolVersion,
+	}}})
+	guestJoin := guest.awaitJoined()
+	seat, token := guestJoin.GetPlayerId(), guestJoin.GetSeatToken()
+	if token == "" {
+		t.Fatal("no seat token issued")
+	}
+	if got := host.awaitRoster(seat, func(pi *genpb.PlayerInfo) bool {
+		return pi.GetConnected()
+	}).GetAvatar(); got != genpb.Avatar_AVATAR_SCOUT {
+		t.Fatalf("roster avatar on join = %v, want SCOUT", got)
+	}
+
+	// Drop the socket, and wait for the room to have noticed before reclaiming:
+	// otherwise the roster we assert on at the end could be the one published
+	// for the join, which proves nothing about the reclaim.
+	guest.ws.CloseNow()
+	host.awaitRoster(seat, func(pi *genpb.PlayerInfo) bool { return !pi.GetConnected() })
+
+	back := newClient(t, hs)
+	back.send(&genpb.ClientCommand{Cid: "j3", Cmd: &genpb.ClientCommand_Join{Join: &genpb.JoinRoom{
+		RoomCode:        code,
+		SeatToken:       token,
+		Avatar:          genpb.Avatar_AVATAR_COOK, // the conflicting value
+		ProtocolVersion: room.ProtocolVersion,
+	}}})
+	rejoin := back.awaitJoined()
+	if !rejoin.GetReconnected() {
+		t.Fatal("reclaiming a seat did not report reconnected")
+	}
+	if rejoin.GetPlayerId() != seat {
+		t.Fatalf("reconnected as %q, want %q", rejoin.GetPlayerId(), seat)
+	}
+
+	// Both views of the roster, because they are two different broadcasts and a
+	// leak into either one is the bug: what the returning player is shown, and
+	// what everyone who never went anywhere is shown.
+	for _, tc := range []struct {
+		who string
+		c   *client
+	}{
+		{"the returning player", back},
+		{"the host", host},
+	} {
+		got := tc.c.awaitRoster(seat, func(pi *genpb.PlayerInfo) bool {
+			return pi.GetConnected()
+		}).GetAvatar()
+		if got != genpb.Avatar_AVATAR_SCOUT {
+			t.Fatalf("roster avatar after the reclaim, seen by %s = %v, want the seated SCOUT",
+				tc.who, got)
+		}
 	}
 }

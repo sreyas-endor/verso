@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	r := room.New("TEST", "host", room.Options{})
+	r := room.New("TEST", "host", genpb.Avatar_AVATAR_BEETLE, room.Options{})
 
 	// The one this whole scheme exists for: a player's secret word.
 	r.Broadcast(room.EvYourWord{YourWord: &genpb.YourWord{Word: "SECRET_CANARY_ALPHA"}})

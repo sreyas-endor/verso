@@ -156,6 +156,7 @@ func (r *Room) buildSpectatorInfo() *genpb.SpectatorInfo {
 		imposters = append(imposters, &genpb.SpectatorImposter{
 			PlayerId: p.ID,
 			Name:     p.Name,
+			Avatar:   p.Avatar,
 		})
 	}
 
@@ -249,6 +250,7 @@ func (r *Room) buildReveals() []*genpb.PlayerReveal {
 		out = append(out, &genpb.PlayerReveal{
 			PlayerId:    p.ID,
 			Name:        p.Name,
+			Avatar:      p.Avatar,
 			Word:        last,
 			WasImposter: r.isImposter[p.ID],
 			Eliminated:  p.Eliminated,

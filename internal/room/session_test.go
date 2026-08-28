@@ -28,7 +28,7 @@ import (
 func sessRoom(t *testing.T) (*Room, string, string, *smokeSock) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	r := New("SESS", "host", Options{
+	r := New("SESS", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck:   pairDeck{"CAT", "DOG"},
 		Rand:   mrand.New(mrand.NewPCG(11, 13)),
 		Logger: discardLogger(),

@@ -1,7 +1,13 @@
 /* The only place a colour literal may appear.
    Exception, documented deliberately: web/src/ui/palette.ts holds the 12 pen
    inks and the 10 avatar hues. Those are game data read by JavaScript (canvas
-   ink, deterministic avatars), not theme surfaces, so they cannot live here. */
+   ink, deterministic avatars), not theme surfaces, so they cannot live here.
+
+   The --av-* block below is the avatar creatures' paint. It sits here rather
+   than beside the art in avatars/catalog.ts because it IS theme: ten portraits
+   sharing one muted palette is what stops a roster looking like ten stickers,
+   and a colour literal in a component stylesheet is exactly what this file
+   exists to prevent. */
 :root {
   --bg:         #f4eddf;
   --surface:    #fffdf7;
@@ -28,6 +34,21 @@
   --radius-sm:  11px;
   --shadow:     3px 4px 0 rgba(38,50,56,.12);
   --shadow-lg:  6px 8px 0 rgba(38,50,56,.16), 0 16px 35px rgba(88,65,37,.12);
+
+  /* Avatar paint. Muted on purpose: these sit at 30px next to a display name,
+     and a saturated creature competes with the name for the eye. */
+  --av-paper:   #f3ead9;
+  --av-ink:     #33302b;
+  --av-skin:    #e7c8a2;
+  --av-fur:     #c9a06a;
+  --av-shell:   #7b6b8f;
+  --av-leaf:    #6f8f6a;
+  --av-rust:    #c2705a;
+  --av-stone:   #8f9296;
+  --av-brass:   #c9a227;
+  --av-cloth:   #6f8497;
+  --av-blush:   #e0a3a0;
+
   --font:       "Nunito Variable", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
   --mono:       ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }

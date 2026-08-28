@@ -1,13 +1,42 @@
-/* ---- avatar ---- */
+/* ---- avatar ----
+   The chosen creature on paper, ringed in the player's deterministic hue. The
+   hue is inline on the element (avatar.ts sets --ring) because it is derived
+   from a player id, which is game data rather than theme.
+
+   The font rules are not vestigial: the vote picker's Skip card is an .avatar
+   holding a text glyph rather than a portrait, and it still needs them. */
 .avatar {
-  flex: none; border-radius: 999px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 900; color: var(--accent-ink);
+  flex: none; border-radius: 999px; overflow: hidden;
+  display: inline-grid; place-items: center;
   width: 2.1rem; height: 2.1rem; font-size: .8rem;
-  letter-spacing: .01em;
+  font-weight: 900; color: var(--accent-ink); letter-spacing: .01em;
+  background: var(--av-paper);
+  box-shadow: 0 0 0 var(--ring-w, 2.5px) var(--ring, var(--ink-3)) inset;
 }
-.avatar-lg { width: 3rem; height: 3rem; font-size: 1.05rem; }
-.avatar-sm { width: 1.6rem; height: 1.6rem; font-size: .62rem; }
+.avatar > svg { display: block; width: 100%; height: 100%; }
+.avatar-lg { width: 3rem; height: 3rem; font-size: 1.05rem; --ring-w: 3px; }
+.avatar-sm { width: 1.6rem; height: 1.6rem; font-size: .62rem; --ring-w: 2px; }
+
+/* The creature art. Every shape is stroked in the same two-pixel ink as the
+   rest of the app's drawing language, so the rule is universal and the handful
+   of decorative fills that must NOT be outlined carry .ns instead. */
+.av-art * {
+  stroke: var(--av-ink); stroke-width: 2.1;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.av-art .ns { stroke: none; }
+.a-paper { fill: var(--av-paper); }
+.a-ink   { fill: var(--av-ink); }
+.a-skin  { fill: var(--av-skin); }
+.a-fur   { fill: var(--av-fur); }
+.a-shell { fill: var(--av-shell); }
+.a-leaf  { fill: var(--av-leaf); }
+.a-rust  { fill: var(--av-rust); }
+.a-stone { fill: var(--av-stone); }
+.a-brass { fill: var(--av-brass); }
+.a-cloth { fill: var(--av-cloth); }
+.a-blush { fill: var(--av-blush); }
+.a-none  { fill: none; }
 
 /* ---- player list ---- */
 .plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
@@ -383,3 +412,148 @@
   .pt-mark { opacity: .75; }
   .swatch[aria-pressed="true"] { transform: translateY(-9px) rotate(-4deg); }
 }
+
+/* ---- avatar picker ----
+   Home screen only. There is no way to reach this from the lobby or from a
+   live match: the avatar belongs to a seat, and a seat's is fixed once it
+   exists.
+
+   One face at a time rather than a grid. Ten creatures at grid size are ten
+   smudges, and the dots carry what the grid used to: how many there are, and
+   where in them you currently stand. */
+.facepick { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.facepick-row { display: flex; align-items: center; gap: .9rem; }
+.face-chip { display: grid; place-items: center; }
+.face-chip .avatar {
+  width: 5.6rem; height: 5.6rem; --ring-w: 4px; --ring: var(--ink);
+  box-shadow: 0 0 0 var(--ring-w) var(--ring) inset, var(--shadow);
+}
+.face-arrow {
+  flex: none; width: 2.6rem; height: 2.6rem; cursor: pointer;
+  display: grid; place-items: center;
+  font: 900 1.5rem/1 var(--font); color: var(--ink);
+  background: var(--surface-2); border: 2px solid var(--ink); border-radius: 999px;
+  box-shadow: var(--shadow);
+}
+.face-arrow:hover { background: var(--accent-sf); }
+.face-arrow:active { transform: translateY(2px); box-shadow: none; }
+.face-arrow:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.face-name { font-weight: 800; font-size: .92rem; color: var(--ink-2); }
+.face-dots { display: flex; gap: .3rem; }
+.face-dot {
+  width: .42rem; height: .42rem; border-radius: 999px;
+  background: var(--border-str);
+}
+.face-dot-on { background: var(--ink); transform: scale(1.25); }
+
+/* ---- ejection cinematic ----
+   Five acts over 7800 ms, inside an eight-second PHASE_RESOLVING.
+
+   The verdict holds fully opaque for 5000 ms of that, which is the constraint
+   the rest of the cut is built around: it has to be READ, and a line that
+   fades in and straight back out is a line nobody finishes. Everything before
+   it was compressed to pay for it — except the held beat, which is the whole
+   effect and kept its full 900 ms.
+
+   Every duration and delay is calc(n * var(--k)). One variable retimes the
+   whole run, which is what the reduced-motion path uses and what makes the
+   length a single number to change if it ever drags in a real match.
+
+   transform and opacity only, everywhere. Forty-eight promoted spans appear
+   and retire together; nothing here reads layout, and no JavaScript runs per
+   frame. */
+.cin {
+  --k: 1;
+  position: fixed; inset: 0; z-index: 70;
+  display: grid; place-items: center;
+  /* Never interactive. It sits over a vote and a Rematch button. */
+  pointer-events: none;
+}
+.cin[hidden] { display: none; }
+/* Radial, not flat: the room does not merely darken, it closes in. */
+.cin-scrim {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(circle at 50% 44%, rgba(31,26,22,.70) 0%, rgba(22,19,16,.95) 64%);
+}
+.cin-motes { position: absolute; inset: 0; overflow: hidden; }
+.cin-stage { position: relative; display: grid; place-items: center; gap: .6rem; text-align: center; padding: 1rem; }
+.cin-figure { position: relative; display: grid; place-items: center; }
+.cin-portrait { position: relative; z-index: 1; will-change: transform, opacity; }
+.cin-portrait .avatar { width: 8.4rem; height: 8.4rem; --ring-w: 5px; }
+.cin-ring {
+  position: absolute; width: 8.4rem; height: 8.4rem; border-radius: 999px;
+  border: 3px solid var(--accent); opacity: 0; will-change: transform, opacity;
+}
+.cin-name { font-size: 1.5rem; font-weight: 900; color: var(--surface); opacity: 0; }
+.cin-verdict { max-width: 34ch; font-size: .95rem; line-height: 1.5; font-weight: 700; color: var(--surface-2); opacity: 0; }
+.cin-petals { position: absolute; inset: 0; display: grid; place-items: center; z-index: 2; }
+.petal { position: absolute; width: var(--pw); height: var(--ph); opacity: 0; will-change: transform, opacity; }
+.mote {
+  position: absolute; left: var(--ml); top: 104%;
+  width: var(--mw); height: calc(var(--mw) * 1.4); opacity: 0;
+  will-change: transform, opacity;
+}
+.petal > svg, .mote > svg { display: block; width: 100%; height: 100%; }
+.petal-ink-1 { fill: var(--accent); }
+.petal-ink-2 { fill: var(--accent-dk); }
+.petal-ink-3 { fill: var(--accent-sf); }
+.petal-ink-4 { fill: var(--av-blush); }
+
+@keyframes cin-scrim-in { 0% { opacity: 0 } 5% { opacity: 1 } 96% { opacity: 1 } 100% { opacity: 0 } }
+/* Act 2 brings them forward, act 3 holds for nine hundred milliseconds with
+   one breath in it, and act 4 lets go. The held beat is the whole effect. */
+@keyframes cin-rise {
+  0%   { transform: translateY(48px) scale(.80);  opacity: 0 }   /*    0  below the fold */
+  5%   { opacity: 1 }                                            /*  400  act 2 opens    */
+  13%  { transform: translateY(0)    scale(1);    opacity: 1 }   /* 1000  arrived        */
+  19%  { transform: translateY(-3px) scale(1.04); opacity: 1 }   /* 1500  one breath     */
+  24%  { transform: translateY(0)    scale(1);    opacity: 1 }   /* 1900  the beat ends  */
+  26%  { transform: translateY(-1px) scale(1.07); opacity: 1 }   /* 2000  it gives       */
+  31%  { transform: translateY(12px) scale(.86);  opacity: 0 }   /* 2450  gone           */
+  100% { transform: translateY(12px) scale(.86);  opacity: 0 }
+}
+@keyframes cin-ring-pulse { 0% { transform: scale(.78); opacity: 0 } 14% { opacity: .6 } 100% { transform: scale(1.85); opacity: 0 } }
+@keyframes cin-text-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+@keyframes cin-text-out { from { opacity: 1 } to { opacity: 0 } }
+@keyframes cin-petal-go {
+  0%   { transform: translate3d(0,0,0) rotate(0deg) scale(.5); opacity: 0 }
+  9%   { opacity: var(--po) }
+  70%  { opacity: calc(var(--po) * .82) }
+  100% { transform: translate3d(var(--px), var(--py), 0) rotate(var(--pr)) scale(1); opacity: 0 }
+}
+@keyframes cin-mote-drift {
+  0%   { transform: translate3d(0,0,0) rotate(0deg); opacity: 0 }
+  14%  { opacity: var(--mo) }
+  78%  { opacity: var(--mo) }
+  100% { transform: translate3d(var(--mdx), -640px, 0) rotate(var(--mr)); opacity: 0 }
+}
+
+.cin-play .cin-scrim    { animation: cin-scrim-in calc(7800ms * var(--k)) linear both; }
+.cin-play .mote         { animation: cin-mote-drift calc(var(--md) * var(--k) * 1ms) linear
+                                     calc(var(--mt) * var(--k) * 1ms) infinite both; }
+.cin-play .cin-portrait { animation: cin-rise calc(7800ms * var(--k)) cubic-bezier(.33,.05,.2,1) both; }
+.cin-play .cin-ring     { animation: cin-ring-pulse calc(900ms * var(--k)) ease-out calc(880ms * var(--k)) both; }
+.cin-play .cin-ring-2   { animation: cin-ring-pulse calc(760ms * var(--k)) ease-out calc(1900ms * var(--k)) both; }
+.cin-play .cin-name     { animation: cin-text-in calc(340ms * var(--k)) ease-out calc(620ms * var(--k)) both,
+                                     cin-text-out calc(300ms * var(--k)) ease-in calc(7500ms * var(--k)) forwards; }
+/* In by 2500 ms and out at 7500 ms: five full seconds at opacity 1. It arrives
+   while the last petals are still in the air, which reads as the line riding
+   out on them rather than waiting for an empty stage. */
+.cin-play .cin-verdict  { animation: cin-text-in calc(400ms * var(--k)) ease-out calc(2100ms * var(--k)) both,
+                                     cin-text-out calc(300ms * var(--k)) ease-in calc(7500ms * var(--k)) forwards; }
+.cin-play .petal        { animation: cin-petal-go calc(var(--pd) * var(--k) * 1ms)
+                                     cubic-bezier(.22,.61,.36,1) calc(var(--pt) * var(--k) * 1ms) both; }
+
+/* Reduced motion. Nothing rises, drifts, spins or falls, and no petal or mote
+   is animated at all. The build-up survives as TIMING, which is not motion:
+   the portrait still holds before it goes, and the verdict still gets its full
+   five seconds — a reader who cannot take fast motion is the last person who
+   should get less time to read. 7500 ms, matching CALM_MS in cinematic.ts. */
+.cin-calm .cin-scrim    { animation: cin-scrim-in 7500ms linear both; }
+.cin-calm .cin-portrait { animation: cin-text-in 400ms ease-out 200ms both,
+                                     cin-text-out 500ms ease-in 1500ms forwards; }
+.cin-calm .cin-name     { animation: cin-text-in 300ms ease-out 450ms both,
+                                     cin-text-out 300ms ease-in 7200ms forwards; }
+.cin-calm .cin-verdict  { animation: cin-text-in 400ms ease-out 1800ms both,
+                                     cin-text-out 300ms ease-in 7200ms forwards; }
+.cin-calm .petal, .cin-calm .mote, .cin-calm .cin-ring { display: none; }

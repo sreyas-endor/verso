@@ -23,7 +23,7 @@ func TestExportedSeatLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 
-	r := New("APIX", "host", Options{Deck: pairDeck{"CAT", "DOG"}, Logger: discardLogger()})
+	r := New("APIX", "host", genpb.Avatar_AVATAR_BEETLE, Options{Deck: pairDeck{"CAT", "DOG"}, Logger: discardLogger()})
 	hostID, hostTok := r.HostSeat()
 	done := make(chan struct{})
 	go func() { r.Run(ctx); close(done) }()
@@ -37,7 +37,7 @@ func TestExportedSeatLifecycle(t *testing.T) {
 	}
 
 	s1 := newSmokeSock()
-	p1, tok1, err := r.Seat("bee", s1)
+	p1, tok1, err := r.Seat("bee", genpb.Avatar_AVATAR_COURIER, s1)
 	if err != nil {
 		t.Fatalf("Seat: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestExportedSeatLifecycle(t *testing.T) {
 	// forever on a select nobody is servicing.
 	cancel()
 	<-done
-	if _, _, err := r.Seat("late", newSmokeSock()); !errors.Is(err, ErrClosed) {
+	if _, _, err := r.Seat("late", genpb.Avatar_AVATAR_COURIER, newSmokeSock()); !errors.Is(err, ErrClosed) {
 		t.Fatalf("Seat after close = %v, want ErrClosed", err)
 	}
 	if _, err := r.Attach(tok1, newSmokeSock()); !errors.Is(err, ErrClosed) {

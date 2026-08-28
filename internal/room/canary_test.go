@@ -259,7 +259,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := New("CNRY", "host", Options{
+		r := New("CNRY", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: canaryDeck{},
 			Rand: mrand.New(mrand.NewPCG(21, 22)),
 			Settings: &genpb.MatchSettings{
@@ -278,7 +278,7 @@ func TestCanaryCompleteMatch(t *testing.T) {
 		tokens := []string{hostTok}
 		for i := 1; i < players; i++ {
 			sk := newCnrySock()
-			id, tok, err := r.seat("player", sk)
+			id, tok, err := r.seat("player", genpb.Avatar_AVATAR_COURIER, sk)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -732,7 +732,7 @@ func TestCanaryImposterRevealOnlyOnAGroupWin(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := New("CNR2", "host", Options{
+		r := New("CNR2", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: canaryDeck{},
 			Rand: mrand.New(mrand.NewPCG(7, 8)),
 			Settings: &genpb.MatchSettings{
@@ -750,7 +750,7 @@ func TestCanaryImposterRevealOnlyOnAGroupWin(t *testing.T) {
 		socks := []*cnrySock{s0}
 		for i := 1; i < 5; i++ {
 			sk := newCnrySock()
-			id, _, err := r.seat("player", sk)
+			id, _, err := r.seat("player", genpb.Avatar_AVATAR_COURIER, sk)
 			if err != nil {
 				t.Fatal(err)
 			}

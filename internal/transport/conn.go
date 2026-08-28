@@ -484,11 +484,12 @@ func (c *conn) handleJoin(cid string, j *genpb.JoinRoom) {
 	}
 
 	name := sanitizeName(j.GetDisplayName())
+	avatar := j.GetAvatar()
 	code := registry.NormalizeCode(j.GetRoomCode())
 	token := j.GetSeatToken()
 
 	if code == "" {
-		c.createRoom(cid, name, token)
+		c.createRoom(cid, name, avatar, token)
 		return
 	}
 
@@ -509,6 +510,9 @@ func (c *conn) handleJoin(cid string, j *genpb.JoinRoom) {
 	if token != "" {
 		// The token is opaque and room-local. Transport passes it through
 		// byte for byte: it does not parse it, derive from it, or log it.
+		//
+		// The avatar in this frame goes nowhere: the seat already has one, and
+		// the room keeps it for the same reason it keeps the seated name.
 		playerID, err = rm.Attach(token, c)
 	} else {
 		if name == "" {
@@ -516,7 +520,7 @@ func (c *conn) handleJoin(cid string, j *genpb.JoinRoom) {
 			c.reject(cid, genpb.ErrorCode_ERROR_CODE_INVALID_COMMAND, "a display name is required")
 			return
 		}
-		playerID, _, err = rm.Seat(name, c)
+		playerID, _, err = rm.Seat(name, avatar, c)
 	}
 	if err != nil {
 		c.srv.reg.Release(code)
@@ -528,7 +532,7 @@ func (c *conn) handleJoin(cid string, j *genpb.JoinRoom) {
 }
 
 // createRoom mints a room for a client that sent no code and attaches its host.
-func (c *conn) createRoom(cid, name, token string) {
+func (c *conn) createRoom(cid, name string, avatar genpb.Avatar, token string) {
 	if token != "" {
 		c.reject(cid, genpb.ErrorCode_ERROR_CODE_ROOM_NOT_FOUND, "reconnecting needs a room code")
 		return
@@ -542,7 +546,7 @@ func (c *conn) createRoom(cid, name, token string) {
 		return
 	}
 
-	created, err := c.srv.reg.Create(name)
+	created, err := c.srv.reg.Create(name, avatar)
 	if err != nil {
 		switch {
 		case errors.Is(err, registry.ErrTooManyRooms), errors.Is(err, registry.ErrCodeExhausted):

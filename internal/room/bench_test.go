@@ -61,7 +61,7 @@ func (s *benchSink) drain() {
 // benchRoom builds a room with n seats parked in PHASE_DRAWING, with seat 0 as
 // the artist. The actor is never started: this goroutine is the owner.
 func benchRoom(n int) (*Room, []*benchSink) {
-	r := New("BNCH", "host", Options{
+	r := New("BNCH", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck:   pairDeck{"CAT", "DOG"},
 		Rand:   mrand.New(mrand.NewPCG(1, 2)),
 		Logger: slog.New(slog.DiscardHandler),
@@ -76,7 +76,7 @@ func benchRoom(n int) (*Room, []*benchSink) {
 
 	for i := 1; i < n; i++ {
 		sk := newBenchSink()
-		if _, _, err := r.seatOnActor("p", sk); err != nil {
+		if _, _, err := r.seatOnActor("p", genpb.Avatar_AVATAR_COURIER, sk); err != nil {
 			panic(err)
 		}
 		sinks = append(sinks, sk)

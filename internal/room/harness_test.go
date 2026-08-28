@@ -84,7 +84,7 @@ func newHarnessWithDeck(t *testing.T, n int, s *genpb.MatchSettings, seed uint64
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	r := New("TEST", "host", Options{
+	r := New("TEST", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 		Deck:     deck,
 		Rand:     mrand.New(mrand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 		Settings: s,
@@ -109,7 +109,7 @@ func newHarnessWithDeck(t *testing.T, n int, s *genpb.MatchSettings, seed uint64
 		// "longest connected" indistinguishable from "lowest seat number".
 		h.advance(time.Second)
 		sk := newSmokeSock()
-		id, tok, err := r.seat(fmt.Sprintf("p%d", i), sk)
+		id, tok, err := r.seat(fmt.Sprintf("p%d", i), genpb.Avatar_AVATAR_COURIER, sk)
 		if err != nil {
 			t.Fatalf("harness: seat %d: %v", i, err)
 		}

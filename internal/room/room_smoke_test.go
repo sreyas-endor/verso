@@ -194,7 +194,7 @@ func TestRoomFullMatch(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := New("ABCD", "host", Options{
+		r := New("ABCD", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: smokeDeck{},
 			Rand: mrand.New(mrand.NewPCG(1, 2)),
 			Settings: &genpb.MatchSettings{
@@ -209,11 +209,11 @@ func TestRoomFullMatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, err := r.seat("bee", s1)
+		p1, _, err := r.seat("bee", genpb.Avatar_AVATAR_COURIER, s1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p2, _, err := r.seat("cee", s2)
+		p2, _, err := r.seat("cee", genpb.Avatar_AVATAR_COURIER, s2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -396,7 +396,7 @@ func TestRoomImposterDisconnectEndsMatch(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := New("BCDE", "host", Options{
+		r := New("BCDE", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: smokeDeck{}, Rand: mrand.New(mrand.NewPCG(7, 9)),
 			Settings: &genpb.MatchSettings{MaxRounds: 2, DrawSeconds: 5, DiscussSeconds: 30},
 		})
@@ -408,8 +408,8 @@ func TestRoomImposterDisconnectEndsMatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, _ := r.seat("bee", s1)
-		p2, _, _ := r.seat("cee", s2)
+		p1, _, _ := r.seat("bee", genpb.Avatar_AVATAR_COURIER, s1)
+		p2, _, _ := r.seat("cee", genpb.Avatar_AVATAR_COURIER, s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
@@ -453,7 +453,7 @@ func TestRoomReconnectReplaysCanvas(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		r := New("CDEF", "host", Options{
+		r := New("CDEF", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: smokeDeck{}, Rand: mrand.New(mrand.NewPCG(3, 4)),
 			Settings: &genpb.MatchSettings{MaxRounds: 1, DrawSeconds: 20, DiscussSeconds: 30},
 		})
@@ -464,8 +464,8 @@ func TestRoomReconnectReplaysCanvas(t *testing.T) {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, tok1, _ := r.seat("bee", s1)
-		p2, _, _ := r.seat("cee", s2)
+		p1, tok1, _ := r.seat("bee", genpb.Avatar_AVATAR_COURIER, s1)
+		p2, _, _ := r.seat("cee", genpb.Avatar_AVATAR_COURIER, s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {
@@ -540,7 +540,7 @@ func TestRoomNoWordCrossesSockets(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		r := New("DEFG", "host", Options{
+		r := New("DEFG", "host", genpb.Avatar_AVATAR_BEETLE, Options{
 			Deck: smokeDeck{}, Rand: mrand.New(mrand.NewPCG(11, 13)),
 			Settings: &genpb.MatchSettings{MaxRounds: 1, DrawSeconds: 5, DiscussSeconds: 30},
 		})
@@ -551,8 +551,8 @@ func TestRoomNoWordCrossesSockets(t *testing.T) {
 			t.Fatal(err)
 		}
 		s1, s2 := newSmokeSock(), newSmokeSock()
-		p1, _, _ := r.seat("bee", s1)
-		p2, _, _ := r.seat("cee", s2)
+		p1, _, _ := r.seat("bee", genpb.Avatar_AVATAR_COURIER, s1)
+		p2, _, _ := r.seat("cee", genpb.Avatar_AVATAR_COURIER, s2)
 		ids := []string{hostID, p1, p2}
 		socks := []*smokeSock{s0, s1, s2}
 		for i, id := range ids {

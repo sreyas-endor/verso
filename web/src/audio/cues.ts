@@ -42,6 +42,8 @@ export type CueName =
   | "discussion"
   /** The tally is in. */
   | "resolve"
+  /** Somebody was voted out. Scored against the ejection cinematic. */
+  | "ejection"
   /** The match ended on your side. */
   | "win"
   /** The match ended on the other side. */
@@ -85,6 +87,29 @@ export const CUES: Record<CueName, Cue> = {
   handoff: {
     level: 0.26,
     notes: [{ freq: G4, at: 0, dur: 0.2 }],
+  },
+
+  // Scored against the ejection cinematic, which is why the offsets are so
+  // large. RESOLVING plays `resolve` and the PlayerEliminated that triggers the
+  // overlay lands in the very next frame, so the first two acts of the overlay
+  // are already spoken for and this cue starts where they end.
+  //
+  // Scheduling them inside one cue rather than with a timer is deliberate: the
+  // notes ride the audio clock the same way a countdown's ticks do, so nothing
+  // drifts and nothing has to be cancelled when the screen changes underneath.
+  //
+  //   1.90 s  the petals leave  (act 4)
+  //   2.55 s  the verdict lands (act 5)
+  //
+  // Quiet, and descending. An ejection is already the loudest thing on the
+  // screen, and the room mostly wants this to be a full stop rather than news.
+  ejection: {
+    level: 0.32,
+    notes: [
+      { freq: C5, at: 1.9 },
+      { freq: G4, at: 2.06, dur: 0.5 },
+      { freq: E5, at: 2.55, dur: 0.6, gain: 0.7 },
+    ],
   },
 
   // A chord rather than a sequence: the room stops and opens up.

@@ -39,7 +39,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     if (artist) {
       setText(badge, "NEXT UP");
       setText(title, `${artist.name} is drawing next`);
-      fill(detail, avatar(artist.id, artist.name, "lg"), el("span", { text: "Get ready for their clue." }));
+      fill(detail, avatar(artist.id, artist.avatar, "lg"), el("span", { text: "Get ready for their clue." }));
     } else {
       setText(badge, "ROUND COMPLETE");
       setText(title, "Voting opens next");
