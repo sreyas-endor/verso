@@ -231,6 +231,11 @@ message PlayerInfo {
   // seat: it is set once when the seat is created and survives every
   // reconnect, because JoinRoom.avatar is ignored on a seat-token reclaim.
   Avatar avatar = 8;
+  // Whether this seat has locked in a vote this round. Meaningless outside
+  // PHASE_DISCUSSION / PHASE_RESOLVING, where it reads false for everyone.
+  // Never says WHO or WHAT they voted for (DESIGN.md:65) — only that the
+  // ballot is in.
+  bool voted = 9;
 }
 
 // A committed stroke, replayed in Snapshot. Carries no artist id: the finished
@@ -580,8 +585,9 @@ message MatchEnded {
   repeated string imposter_player_ids = 9;
 }
 
-// A player's connection state or host flag changed. Also the host-migration
-// announcement: the promoted player arrives here with is_host set.
+// A player's connection state, host flag, or voted-this-round flag changed.
+// Also the host-migration announcement: the promoted player arrives here with
+// is_host set.
 message PlayerPresence {
   PlayerInfo player = 1;
   // Seconds left in the 60 s reconnect grace window. 0 when connected.

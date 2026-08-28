@@ -263,8 +263,9 @@ func (r *Room) joinedFor(p *Player, reconnected bool) EvJoined {
 
 // presence renders one player's connection state plus the grace countdown.
 func (r *Room) presence(p *Player) EvPlayerPresence {
+	_, voted := r.votes[p.ID]
 	return EvPlayerPresence{&genpb.PlayerPresence{
-		Player:                p.Info(),
+		Player:                p.Info(voted),
 		GraceSecondsRemaining: r.graceRemaining(p),
 	}}
 }

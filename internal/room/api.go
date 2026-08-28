@@ -376,7 +376,11 @@ type Player struct {
 func (p *Player) Active() bool { return p != nil && p.Connected && !p.Eliminated }
 
 // Info renders the public roster entry. It reads no secret.
-func (p *Player) Info() *genpb.PlayerInfo {
+//
+// voted says only THAT this seat has locked in a vote this round, never WHAT
+// they chose (DESIGN.md:65) — the caller is expected to pass r.votes'
+// membership, not its values.
+func (p *Player) Info(voted bool) *genpb.PlayerInfo {
 	return &genpb.PlayerInfo{
 		Id:         p.ID,
 		Name:       p.Name,
@@ -386,6 +390,7 @@ func (p *Player) Info() *genpb.PlayerInfo {
 		Ready:      p.Ready,
 		IsHost:     p.IsHost,
 		Eliminated: p.Eliminated,
+		Voted:      voted,
 	}
 }
 
@@ -830,7 +835,8 @@ func (r *Room) Players() []*Player { return r.players }
 func (r *Room) PlayerInfos() []*genpb.PlayerInfo {
 	out := make([]*genpb.PlayerInfo, 0, len(r.players))
 	for _, p := range r.players {
-		out = append(out, p.Info())
+		_, voted := r.votes[p.ID]
+		out = append(out, p.Info(voted))
 	}
 	return out
 }

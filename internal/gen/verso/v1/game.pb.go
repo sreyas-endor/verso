@@ -747,7 +747,12 @@ type PlayerInfo struct {
 	// The portrait this seat chose on the way in. Fixed for the life of the
 	// seat: it is set once when the seat is created and survives every
 	// reconnect, because JoinRoom.avatar is ignored on a seat-token reclaim.
-	Avatar        Avatar `protobuf:"varint,8,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
+	Avatar Avatar `protobuf:"varint,8,opt,name=avatar,proto3,enum=verso.v1.Avatar" json:"avatar,omitempty"`
+	// Whether this seat has locked in a vote this round. Meaningless outside
+	// PHASE_DISCUSSION / PHASE_RESOLVING, where it reads false for everyone.
+	// Never says WHO or WHAT they voted for (DESIGN.md:65) — only that the
+	// ballot is in.
+	Voted         bool `protobuf:"varint,9,opt,name=voted,proto3" json:"voted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -836,6 +841,13 @@ func (x *PlayerInfo) GetAvatar() Avatar {
 		return x.Avatar
 	}
 	return Avatar_AVATAR_UNSPECIFIED
+}
+
+func (x *PlayerInfo) GetVoted() bool {
+	if x != nil {
+		return x.Voted
+	}
+	return false
 }
 
 // A committed stroke, replayed in Snapshot. Carries no artist id: the finished
@@ -2873,8 +2885,9 @@ func (x *MatchEnded) GetImposterPlayerIds() []string {
 	return nil
 }
 
-// A player's connection state or host flag changed. Also the host-migration
-// announcement: the promoted player arrives here with is_host set.
+// A player's connection state, host flag, or voted-this-round flag changed.
+// Also the host-migration announcement: the promoted player arrives here with
+// is_host set.
 type PlayerPresence struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Player *PlayerInfo            `protobuf:"bytes,1,opt,name=player,proto3" json:"player,omitempty"`
@@ -4076,7 +4089,7 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\x14intermission_seconds\x18\x05 \x01(\x05R\x13intermissionSeconds\x12,\n" +
 	"\bpen_rule\x18\x06 \x01(\x0e2\x11.verso.v1.PenRuleR\apenRule\x12%\n" +
 	"\x0eimposter_count\x18\a \x01(\x05R\rimposterCount\x12M\n" +
-	"\x13elimination_results\x18\b \x01(\x0e2\x1c.verso.v1.EliminationResultsR\x12eliminationResults\"\xdb\x01\n" +
+	"\x13elimination_results\x18\b \x01(\x0e2\x1c.verso.v1.EliminationResultsR\x12eliminationResults\"\xf1\x01\n" +
 	"\n" +
 	"PlayerInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -4088,7 +4101,8 @@ const file_verso_v1_game_proto_rawDesc = "" +
 	"\n" +
 	"eliminated\x18\a \x01(\bR\n" +
 	"eliminated\x12(\n" +
-	"\x06avatar\x18\b \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\"t\n" +
+	"\x06avatar\x18\b \x01(\x0e2\x10.verso.v1.AvatarR\x06avatar\x12\x14\n" +
+	"\x05voted\x18\t \x01(\bR\x05voted\"t\n" +
 	"\x06Stroke\x12\x1b\n" +
 	"\tstroke_id\x18\x01 \x01(\x05R\bstrokeId\x12\x1f\n" +
 	"\vcolor_index\x18\x02 \x01(\x05R\n" +

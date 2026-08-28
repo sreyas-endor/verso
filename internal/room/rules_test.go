@@ -430,6 +430,89 @@ func TestTallyPublishesAggregatesAndNothingElse(t *testing.T) {
 	})
 }
 
+// TestVotedFlagIsPerSeatButNeverTheChoice — a roster entry may say THAT a seat
+// locked in a vote this round, never WHAT they chose (DESIGN.md:65). The
+// declared shape guards against a new field sneaking the choice onto
+// PlayerInfo; the raw bytes guard the frame that actually reaches a socket.
+func TestVotedFlagIsPerSeatButNeverTheChoice(t *testing.T) {
+	t.Parallel()
+
+	wantFields := []string{
+		"avatar", "connected", "eliminated", "id", "is_host", "name", "ready", "seat", "voted",
+	}
+	if got := fieldNames(&genpb.PlayerInfo{}); !sameStrings(got, wantFields) {
+		t.Fatalf("PlayerInfo fields = %v, want exactly %v", got, wantFields)
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		h := newHarness(t, 4, mkSettings(1, 5, 60), 3001)
+		defer h.stop()
+		h.discard()
+		h.start()
+		h.toDiscussion()
+
+		voter, candidate := 0, h.ids[1]
+		h.vote(voter, candidate)
+		synctest.Wait()
+
+		for sock := range h.socks {
+			var votedTrue, sawOtherVoted bool
+			var raw []byte
+			for _, e := range h.drain(sock) {
+				pp := e.GetPlayerPresence()
+				if pp == nil {
+					continue
+				}
+				isVoter := pp.GetPlayer().GetId() == h.ids[voter]
+				if isVoter && pp.GetPlayer().GetVoted() {
+					votedTrue = true
+					b, err := proto.Marshal(e)
+					if err != nil {
+						t.Fatal(err)
+					}
+					raw = b
+				}
+				if !isVoter && pp.GetPlayer().GetVoted() {
+					sawOtherVoted = true
+				}
+			}
+			if !votedTrue {
+				t.Fatalf("socket %d: never told the voter locked in", sock)
+			}
+			if sawOtherVoted {
+				t.Fatalf("socket %d: a non-voter was reported as voted", sock)
+			}
+			if bytes.Contains(raw, []byte(candidate)) {
+				t.Fatalf("socket %d: the presence frame names the candidate — the choice leaked", sock)
+			}
+		}
+
+		// Everybody else skips, which closes the window early. The resolve must
+		// reset the flag before the next round can begin (invariant: it can only
+		// climb from false to true mid-round, never the reverse).
+		for i := 1; i < len(h.ids); i++ {
+			h.voteSkip(i)
+		}
+		synctest.Wait()
+
+		for sock := range h.socks {
+			var latest *bool
+			for _, e := range h.drain(sock) {
+				if pp := e.GetPlayerPresence(); pp != nil && pp.GetPlayer().GetId() == h.ids[voter] {
+					v := pp.GetPlayer().GetVoted()
+					latest = &v
+				}
+			}
+			if latest == nil {
+				t.Fatalf("socket %d: never told the voter's ballot cleared", sock)
+			}
+			if *latest {
+				t.Fatalf("socket %d: voter still shows voted=true after the round resolved", sock)
+			}
+		}
+	})
+}
+
 // TestVoterConfirmationIsUnicastOnly — the one message that does pair a voter
 // with their candidate must be impossible to broadcast, and must in fact reach
 // only its subject.

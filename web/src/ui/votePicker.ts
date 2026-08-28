@@ -19,32 +19,24 @@ function sameChoice(a: VoteChoice | null, b: VoteChoice | null): boolean {
  * A vote is anonymous and irreversible (DESIGN.md:49), so a single mis-tap is
  * unrecoverable. Selecting a card only arms the vote; a separate confirm sends
  * it, and the warning is on screen before the confirming tap, not after.
+ * Arming a different card re-arms `pending` directly (no need to back out of
+ * one choice before making another), so the only way out of the confirm step
+ * is forward, into "Lock it in".
  */
 export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView {
   const d = new Disposers();
   let pending: VoteChoice | null = null;
-  let snapshot: ViewState | null = null;
 
   const grid = el("div", { class: "votegrid", role: "group", "aria-label": "Who is the imposter?" });
   const confirmText = el("p", {});
   const confirmBtn = el("button", { type: "button", class: "btn btn-danger btn-sm", text: "Lock it in" }) as HTMLButtonElement;
-  const cancelBtn = el("button", { type: "button", class: "btn btn-sm", text: "Change my mind" }) as HTMLButtonElement;
-  const confirmBox = el(
-    "div",
-    { class: "confirmbox" },
-    confirmText,
-    el("div", { class: "row" }, confirmBtn, cancelBtn),
-  );
+  const confirmBox = el("div", { class: "confirmbox" }, confirmText, el("div", { class: "row" }, confirmBtn));
   confirmBox.hidden = true;
 
   const lead = el("p", { class: "hint" });
   const locked = el("div", {});
   locked.hidden = true;
 
-  d.on(cancelBtn, "click", () => {
-    pending = null;
-    if (snapshot) paint(snapshot);
-  });
   d.on(confirmBtn, "click", () => {
     if (!pending) return;
     onCast(pending);
@@ -52,7 +44,6 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
   });
 
   function paint(s: ViewState): void {
-    snapshot = s;
     const done = s.youHaveVoted;
     // The ballot is in this round's drawing order, not seat order
     // (DESIGN.md:60). A voter is picking one of the drawings they have just

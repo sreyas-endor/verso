@@ -5,8 +5,9 @@ package room
 //
 // Four invariants hold everywhere in this file:
 //
-//  1. r.votes maps voter -> candidate. It NEVER goes on the wire and is never
-//     logged. Only aggregates are published (DESIGN.md:56).
+//  1. r.votes maps voter -> candidate. The candidate NEVER goes on the wire
+//     and is never logged. Only aggregates, plus THAT a seat is a key of this
+//     map (PlayerInfo.voted), are published (DESIGN.md:56, DESIGN.md:65).
 //  2. A disconnected voter is excluded from the tally.
 //  3. Skip is on the ballot, not a residue. It competes for first place against
 //     the named candidates, so a 3-3 split between one player and Skip is a tie
@@ -67,6 +68,9 @@ func (r *Room) onCastVote(p *Player, cid string, cv *genpb.CastVote) {
 		CandidateId: candidate,
 		Skip:        candidate == "",
 	}})
+	// Tells the room THAT this seat locked in, never WHAT they chose
+	// (DESIGN.md:65) — the broadcast frame carries only PlayerInfo.voted.
+	r.Broadcast(r.presence(p))
 	r.broadcastVoteCount()
 	r.maybeResolve()
 }
@@ -100,6 +104,23 @@ func (r *Room) maybeResolve() {
 	}
 	if r.votesFromActive() >= r.ActiveCount() {
 		r.resolveRound()
+	}
+}
+
+// clearVotes empties r.votes and republishes presence for every seat that had
+// a vote recorded, so PlayerInfo.voted resets to false on every client before
+// the map goes empty. A round boundary (or the match ending) is the only
+// place a seat's voted flag may fall from true back to false — mid-round it
+// can only turn on, cast once (invariant, api.go's ErrAlreadyVoted) — so
+// every site that empties r.votes goes through here rather than a bare
+// clear(r.votes), even the ones that are defensively clearing an already-
+// empty map.
+func (r *Room) clearVotes() {
+	for voter := range r.votes {
+		delete(r.votes, voter)
+		if p := r.byID[voter]; p != nil {
+			r.Broadcast(r.presence(p))
+		}
 	}
 }
 
@@ -187,7 +208,7 @@ func (r *Room) resolveRound() {
 	tally, eliminatedID := r.tally()
 	// The vote map has done its work. Drop it here so nothing downstream can
 	// reach for it.
-	clear(r.votes)
+	r.clearVotes()
 
 	r.armPhase(ResolveDuration)
 	r.Broadcast(r.phaseChanged(ResolveDuration))

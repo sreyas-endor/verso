@@ -105,6 +105,12 @@ function marks(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): HTMLElemen
   if (opts.showReady && p.ready && !p.isHost) {
     out.push(el("span", { class: "badge badge-ready", text: "READY" }));
   }
+  // Says only THAT this seat locked in a vote this round, never what they
+  // chose (DESIGN.md:65) — p.voted is false outside PHASE_DISCUSSION and
+  // PHASE_RESOLVING, so no extra phase check is needed here.
+  if (p.voted && !p.eliminated) {
+    out.push(el("span", { class: "badge badge-ready", text: "VOTED" }));
+  }
   if (p.eliminated) out.push(el("span", { class: "badge badge-out", text: "OUT" }));
   return out;
 }

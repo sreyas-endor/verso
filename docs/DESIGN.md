@@ -62,7 +62,7 @@ After all active players have drawn:
 ### 4. Vote Result
 
 - Reveal only aggregate vote totals per candidate and `Skip`.
-- Never reveal who voted for whom, or who submitted early.
+- Never reveal who voted for whom. The roster may show that a seat has locked in a vote this round, so the room can see voting is live, but never which candidate (or `Skip`) they chose.
 - Elimination is a **plurality with `Skip` on the ballot**. A candidate is eliminated only when their total is strictly greater than every other candidate's total **and** strictly greater than the `Skip` total.
 - Any tie for first place eliminates nobody, including a tie with `Skip`. Three votes for Bob against three `Skip`s is a tie; four against three eliminates Bob.
 - When nobody wins outright, nobody is eliminated and the next round begins.

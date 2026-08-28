@@ -147,7 +147,7 @@ func (r *Room) openWordReveal() {
 	r.turnGrace = false
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
-	clear(r.votes)
+	r.clearVotes()
 
 	r.assignWords()
 
@@ -178,7 +178,7 @@ func (r *Room) openWordReveal() {
 // and start the first playable turn.
 func (r *Room) beginRound(n int32) {
 	r.round = n
-	clear(r.votes)
+	r.clearVotes()
 
 	active := r.ActivePlayers()
 	order := make([]string, 0, len(active))
@@ -336,7 +336,7 @@ func (r *Room) beginVotingIntermission() {
 	//
 	// turnIndex is left where beginTurnAt ran it off the end of the order, which
 	// is the honest reading of "every turn is done".
-	clear(r.votes)
+	r.clearVotes()
 
 	r.nextArtistID = ""
 	r.beginIntermission()
@@ -409,7 +409,7 @@ func (r *Room) resetToLobby() {
 	r.turnGrace = false
 	r.pointsThisTurn = 0
 	r.strokesThisTurn = 0
-	clear(r.votes)
+	r.clearVotes()
 	r.commonWord = ""
 	r.imposterWord = ""
 	r.imposterIDs = nil

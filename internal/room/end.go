@@ -192,7 +192,7 @@ func (r *Room) finishMatch() {
 	r.artistID = ""
 	r.turnOrder = nil
 	r.turnIndex = 0
-	clear(r.votes)
+	r.clearVotes()
 	r.phase = genpb.Phase_PHASE_ENDED
 
 	r.Broadcast(r.phaseChanged(0))
