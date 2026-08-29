@@ -129,7 +129,7 @@
   cursor: pointer; font: inherit; color: inherit;
 }
 .filmstrip-thumb .stage {
-  display: block; border-width: 2.5px; border-radius: var(--radius-sm);
+  display: block; --stage-frame: 2.5px; border-radius: var(--radius-sm);
   box-shadow: 2px 3px 0 rgba(38,50,56,.14);
 }
 .filmstrip-thumb canvas { display: block; width: 100%; height: 100%; }
@@ -160,3 +160,17 @@
 .handoff-clock { margin-top: 1.25rem; min-width: min(100%, 220px); padding: .6rem; background: rgba(255,253,247,.9); border-radius: var(--radius-sm); }
 @keyframes handoff-pop { from { opacity: 0; transform: translateY(.75rem) rotate(-5deg) scale(.9); } to { opacity: 1; transform: translateY(0) rotate(-2deg) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .handoff-canvas .stage { transition: none; } .handoff-badge { animation: none; } }
+
+/* The overlay is inset:0 over the stage, so on a phone it gets the stage's
+   246–268px and its children want ~289px: the badge escaped upward over the
+   phase header and the clock — the one thing the handoff screen exists to
+   show — escaped downward over the roster. Cut the three fixed costs to fit
+   in ~200px, and clip rather than spill if a name is pathological. What gets
+   cut is then the last thing in the flow, not the countdown. */
+@media (max-width: 640px) {
+  .handoff-overlay { padding: .6rem; overflow: hidden; }
+  .handoff-title   { margin: .5rem 0 .4rem; font-size: clamp(1.2rem, 6vw, 1.65rem); max-width: 18ch; }
+  .handoff-detail  { gap: .45rem; padding: .3rem .5rem; }
+  .handoff-detail .avatar-lg { width: 2.1rem; height: 2.1rem; font-size: .8rem; }
+  .handoff-clock   { margin-top: .55rem; padding: .4rem; }
+}

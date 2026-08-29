@@ -5,6 +5,13 @@
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: .8rem;
   padding: .5rem clamp(.7rem, 3vw, 1.5rem);
+  /* With viewport-fit=cover the bar's translucent background finally reaches
+     the physical screen edge; these keep its contents out from under the notch
+     and the rounded corners. env() is 0px wherever there are no insets, which
+     is every desktop browser, so the computed padding there is unchanged. */
+  padding-top:   calc(.5rem + env(safe-area-inset-top));
+  padding-left:  calc(clamp(.7rem, 3vw, 1.5rem) + env(safe-area-inset-left));
+  padding-right: calc(clamp(.7rem, 3vw, 1.5rem) + env(safe-area-inset-right));
   background: rgba(255,253,247,.94);
   border-bottom: 2px solid var(--ink);
   box-shadow: 0 3px 0 rgba(38,50,56,.08);
@@ -31,7 +38,7 @@
   cursor: pointer;
 }
 .appbar-sound-glyph { font-size: 1.05rem; transform: translateY(-.03em); }
-.appbar-sound:hover { background: var(--amber-sf); }
+@media (hover: hover) { .appbar-sound:hover { background: var(--amber-sf); } }
 .appbar-sound-off { color: var(--ink-3); background: var(--surface-2); border-color: var(--border-str); }
 /* A struck-through note, so the state survives being read in greyscale. */
 .appbar-sound-off::after {
@@ -52,13 +59,21 @@
 .banner {
   display: flex; align-items: center; gap: .6rem;
   padding: .55rem clamp(.7rem, 3vw, 1.5rem);
+  padding-left:  calc(clamp(.7rem, 3vw, 1.5rem) + env(safe-area-inset-left));
+  padding-right: calc(clamp(.7rem, 3vw, 1.5rem) + env(safe-area-inset-right));
   font-weight: 700; font-size: .9rem;
   background: var(--amber-sf); color: var(--amber-dk);
   border-bottom: 1px solid var(--border);
 }
 .banner-bad { background: var(--bad-sf); color: var(--bad-dk); }
 
-.screen { flex: 1 1 auto; padding: clamp(1rem, 3vw, 1.8rem); }
+.screen {
+  flex: 1 1 auto;
+  padding: clamp(1rem, 3vw, 1.8rem);
+  padding-left:   calc(clamp(1rem, 3vw, 1.8rem) + env(safe-area-inset-left));
+  padding-right:  calc(clamp(1rem, 3vw, 1.8rem) + env(safe-area-inset-right));
+  padding-bottom: calc(clamp(1rem, 3vw, 1.8rem) + env(safe-area-inset-bottom));
+}
 .screen-narrow { max-width: 720px; margin: 0 auto; width: 100%; }
 
 /* 3 columns on desktop: players | canvas | phase panel. */
@@ -83,9 +98,21 @@
   .col-left  { order: 3; }
   .appbar-brand { display: none; }
 }
+/* A full room, a reconnect and a 360px phone together overrun the bar by a few
+   pixels, and the failure mode — the whole document gains a horizontal scroll
+   and the sticky header slides out from under the content — is out of all
+   proportion to the cause. It wraps to a second row instead. Truncating the
+   connection label was the alternative and is the wrong one: "Reconnecting"
+   and "Disconnected" are the two states a player most needs to read whole. */
+@media (max-width: 640px) {
+  .appbar      { flex-wrap: wrap; row-gap: .35rem; gap: .55rem; }
+  .appbar-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conn        { flex: none; }
+}
 
 .toasts {
-  position: fixed; z-index: 60; left: 50%; bottom: 1.2rem;
+  position: fixed; z-index: 60; left: 50%;
+  bottom: calc(1.2rem + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   display: flex; flex-direction: column; gap: .5rem; align-items: center;
   width: min(92vw, 460px); pointer-events: none;

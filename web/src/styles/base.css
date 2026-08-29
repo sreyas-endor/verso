@@ -56,7 +56,13 @@ p:last-child { margin-bottom: 0; }
   cursor: pointer;
   transition: background .12s ease, transform .06s ease, box-shadow .06s ease;
 }
-.btn:hover:not(:disabled) { background: var(--surface-2); }
+/* A tapped element keeps :hover until something else is tapped on iOS and
+   Android, so an ungated hover style is a lie about which control is live.
+   (hover: hover) is true for every mouse and trackpad, so desktop keeps every
+   one of these exactly as it was. */
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { background: var(--surface-2); }
+}
 .btn:disabled, .btn[aria-disabled="true"] {
   cursor: not-allowed; opacity: .55; background: var(--surface-2);
 }
@@ -69,9 +75,11 @@ p:last-child { margin-bottom: 0; }
 .btn-primary { background: var(--accent); box-shadow: 0 4px 0 var(--accent-dk); }
 .btn-good    { background: var(--good);   box-shadow: 0 4px 0 var(--good-dk); }
 .btn-danger  { background: var(--bad);    box-shadow: 0 4px 0 var(--bad-dk); }
-.btn-primary:hover:not(:disabled) { background: var(--accent-dk); }
-.btn-good:hover:not(:disabled)    { background: var(--good-dk); }
-.btn-danger:hover:not(:disabled)  { background: var(--bad-dk); }
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) { background: var(--accent-dk); }
+  .btn-good:hover:not(:disabled)    { background: var(--good-dk); }
+  .btn-danger:hover:not(:disabled)  { background: var(--bad-dk); }
+}
 .btn-primary:active:not(:disabled),
 .btn-good:active:not(:disabled),
 .btn-danger:active:not(:disabled) {

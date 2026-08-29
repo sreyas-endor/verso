@@ -136,6 +136,22 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
   root.appendChild(view);
   dd.add(() => view.remove());
 
+  // On a phone the columns stack, and the right rail lands below a ~270px
+  // canvas plus the paintress strip — roughly 760px down a ~734px viewport.
+  // The artist would have to scroll away from their own drawing to change
+  // pen. Above the breakpoint the node is never moved, so the desktop rail
+  // is exactly what it was.
+  const narrow = window.matchMedia("(max-width: 640px)");
+  const placePens = () => {
+    const host = narrow.matches ? main : right;
+    if (pens.root.parentNode === host) return;
+    if (host === main) main.insertBefore(pens.root, paint.root);
+    else right.insertBefore(pens.root, word.root);
+  };
+  placePens();
+  narrow.addEventListener("change", placePens);
+  dd.add(() => narrow.removeEventListener("change", placePens));
+
   let lastArtist = "";
   let lastRound = -1;
   // What the frame loop needs to know to poll the budget without re-reading the
@@ -215,7 +231,12 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
     const wantsRuleCard = Boolean(chip) && !iAmArtist && !s.youAreEliminated;
     if (wantsRuleCard) {
       fillRuleCard(rule);
-      if (ruleCard.parentNode !== right) right.insertBefore(ruleCard, pens.root);
+      // The rack sits above the word panel in the rail — except on a phone,
+      // where placePens() has moved it out of this column entirely and the
+      // word panel is the next fixed landmark to sit in front of.
+      if (ruleCard.parentNode !== right) {
+        right.insertBefore(ruleCard, pens.root.parentNode === right ? pens.root : word.root);
+      }
     } else {
       ruleCard.remove();
     }

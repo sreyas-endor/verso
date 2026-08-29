@@ -70,13 +70,26 @@ const STYLE_ID = "verso-canvas-style";
 // white in both themes, and the PNG export composites onto the same white.
 export const PAPER = "#ffffff";
 
+// The pad's own hairline is an inset shadow rather than a border: a border
+// takes layout space, which would make the pad's aspect ratio unachievable
+// inside a stage that is already exactly 4:3 and force `max-height` to clamp
+// it. The rule is decorative and mostly hidden under the stage's ink frame.
+//
+// `touch-action` defaults to `pan-y` and only becomes `none` while this client
+// may actually put ink down (`data-drawing`, written by setDrawingAffordance).
+// For everyone who is not the artist — most players, most of the match — the
+// canvas is a band across the middle of a phone that used to swallow every
+// vertical swipe.
+const PAD_RULE = "inset 0 0 0 2px var(--border-str,#c6cee0)";
 const CSS = `
 .verso-stage{position:relative;display:grid;place-items:center;width:100%;height:100%;min-width:0;min-height:0;}
 .verso-pad{position:relative;width:100%;max-width:100%;max-height:100%;aspect-ratio:${LOGICAL_W}/${LOGICAL_H};
-  background:${PAPER};border:2px solid var(--border-str,#c6cee0);border-radius:var(--radius,14px);
-  overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
-.verso-pad canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
-.verso-pad[data-drawing="true"]{cursor:var(--verso-pen-cursor,crosshair);box-shadow:0 0 0 3px var(--accent-sf,#e8eeff);}
+  background:${PAPER};box-shadow:${PAD_RULE};border-radius:var(--radius,14px);
+  overflow:hidden;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.verso-pad canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y;}
+.verso-pad[data-drawing="true"],
+.verso-pad[data-drawing="true"] canvas{touch-action:none;}
+.verso-pad[data-drawing="true"]{cursor:var(--verso-pen-cursor,crosshair);box-shadow:${PAD_RULE},0 0 0 3px var(--accent-sf,#e8eeff);}
 .verso-pad:focus-visible{outline:2px solid var(--accent,#4f7cff);outline-offset:2px;}
 @media (prefers-reduced-motion: reduce){.verso-pad{transition:none;}}
 `;
