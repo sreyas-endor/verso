@@ -90,6 +90,17 @@ interface Live {
    * drawn from the pointer and never queued.
    */
   queue: number[];
+  /**
+   * Remote strokes only: true from the moment `pen` has drawn nothing but its
+   * first-point dot. A one-point stroke resolves no curve segment
+   * (geometry.ts), so without this the dot would sit under later real
+   * geometry rather than being replaced by it, or a rebuild would clear it
+   * before a replacement exists to show — see `resolveDotOnly`
+   * (docs/REMOTE_DOT_LATENCY_PLAN.md, addendum C7). Always false for a local
+   * stroke: its commit path (`finishLive`'s non-fast-path branch) always
+   * renders through a fresh `renderStroke()` call, never through `live.pen`.
+   */
+  dotOnly: boolean;
 }
 
 /** Id held by a local stroke until the server's echo names it. */
@@ -317,6 +328,7 @@ export class CanvasEngine implements PointerSink {
       auth: [],
       ended: false,
       queue: [],
+      dotOnly: false,
     };
     this.live = live;
     this.pointsThisTurn++;
@@ -427,7 +439,19 @@ export class CanvasEngine implements PointerSink {
     };
     const pen = new StrokePen(this.surface.overlayCtx, rec.colorIndex, rec.width, false);
     pen.flush(rec.pts);
-    this.live = { rec, pen, local: false, adopted: true, auth: [], ended: false, queue: [] };
+    // StrokeBegan always carries exactly one point, but derive dotOnly from
+    // the actual count rather than hardcoding true, so this stays correct if
+    // that ever changes.
+    this.live = {
+      rec,
+      pen,
+      local: false,
+      adopted: true,
+      auth: [],
+      ended: false,
+      queue: [],
+      dotOnly: rec.pts.length >> 1 === 1,
+    };
     // A remote stroke needs the frame loop too, to drain its playback buffer.
     // The local path starts it in begin().
     this.startRaf();
@@ -582,7 +606,12 @@ export class CanvasEngine implements PointerSink {
 
     if (gridPoints.length === 0 && !live.local) {
       // The streamed points stand and the overlay already holds exactly them:
-      // one bitmap copy, no geometry re-run.
+      // one bitmap copy, no geometry re-run. But if `pen` never got past its
+      // first-point dot, closing it here would render the final segment on
+      // top of that nominal-width dot rather than in place of it — end()
+      // renders correctly for two or more points, unlike bare flush(), so
+      // two is enough of a threshold to rebuild against.
+      this.resolveDotOnly(live, 2);
       live.pen.end(live.rec.pts);
       this.surface.compositeOverlay();
       this.commitRec(live.rec);
@@ -634,7 +663,12 @@ export class CanvasEngine implements PointerSink {
     const live = this.live;
     if (live) {
       live.pen = new StrokePen(this.surface.overlayCtx, live.rec.colorIndex, live.rec.width, live.local);
-      live.pen.flush(live.rec.pts);
+      // A dot-only remote stroke below resolveDotOnly's own threshold has to
+      // stay a dot here too: flushing all of its accumulated points to a
+      // fresh pen renders nothing below three points (geometry.ts), which
+      // would erase the dot into a blank overlay for no replacement.
+      const belowThreshold = live.dotOnly && live.rec.pts.length >> 1 < 3;
+      live.pen.flush(belowThreshold ? live.rec.pts.slice(0, 2) : live.rec.pts);
     }
   }
 
@@ -725,6 +759,12 @@ export class CanvasEngine implements PointerSink {
         : Math.min(queued, Math.max(1, Math.ceil((queued * dt) / REMOTE_PLAYBACK_MS)));
 
     appendAll(live.rec.pts, live.queue.splice(0, pairs * 2));
+    // A dot-only pen can't just keep flushing: bare flush() renders nothing
+    // at exactly two points (geometry.ts needs three to resolve a segment),
+    // so rebuilding before three points exist would blank the stroke for up
+    // to a batch. Wait for three, so the dot is replaced by a real segment in
+    // the same call that clears it, never by nothing.
+    this.resolveDotOnly(live, 3);
     live.pen.flush(live.rec.pts);
   }
 
@@ -737,6 +777,32 @@ export class CanvasEngine implements PointerSink {
     if (live.queue.length === 0) return;
     appendAll(live.rec.pts, live.queue);
     live.queue.length = 0;
+  }
+
+  /**
+   * If `live` is a remote stroke still showing only its first-point dot, and
+   * enough points now exist to render real geometry in its place, replace the
+   * dot with a fresh pen fed the whole point list — the same rebuild
+   * `redrawAll()` already uses after a resize. A fresh pen's first `flush()`
+   * or `end()` call, given every point the stroke has so far, renders exactly
+   * what an incrementally-fed pen would have, so this is not new geometry
+   * logic, only a new trigger for an existing one.
+   *
+   * Below `minPoints` this is a no-op: the dot stays exactly where it is
+   * rather than being cleared before a replacement exists to show in its
+   * place (docs/REMOTE_DOT_LATENCY_PLAN.md, addendum C7).
+   *
+   * @param minPoints the caller decides how many points justify clearing the
+   *   dot: `drainPlayback` needs 3, because bare `flush()` renders nothing at
+   *   2; `finishLive`'s fast path only needs 2, because `end()` renders a
+   *   real final segment even for exactly two points.
+   */
+  private resolveDotOnly(live: Live, minPoints: number): void {
+    if (!live.dotOnly) return;
+    if (live.rec.pts.length >> 1 < minPoints) return;
+    this.surface.clearOverlay();
+    live.pen = new StrokePen(this.surface.overlayCtx, live.rec.colorIndex, live.rec.width, false);
+    live.dotOnly = false;
   }
 
   private stopRaf(): void {

@@ -60,14 +60,20 @@ export class StrokePen {
   private dotted = false;
 
   /**
-   * @param provisional draw a straight tail to the newest point on every flush,
-   *   and put a dot down for the very first one. The midpoint scheme otherwise
-   *   lags one sample, which is invisible for a viewer receiving 50 ms batches
-   *   but not for the artist's own hand; and a stroke of one point resolves no
-   *   segment at all, so a tap would have nothing on screen until the server
-   *   echoed StrokeEnded back. Both marks are overdrawn by real geometry on the
-   *   next flush, so this is only ever enabled on the overlay layer, which is
-   *   discarded rather than composited.
+   * @param provisional draw a straight tail to the newest point on every
+   *   flush. The midpoint scheme otherwise lags one sample, which is
+   *   invisible for a viewer receiving 50 ms batches but not for the artist's
+   *   own hand. The tail is overdrawn by real geometry on the next flush, so
+   *   it is only ever enabled on the overlay layer, which is discarded rather
+   *   than composited.
+   *
+   *   A one-point stroke's dot (see `flush()` and `end()`) is drawn
+   *   regardless of this flag: it is not a prediction, only the first point
+   *   any stroke resolves to before a second one arrives, local or
+   *   server-authoritative alike. The caller is responsible for not leaving a
+   *   dot-only pen's mark on screen once real geometry supersedes it — see
+   *   `CanvasEngine`'s `resolveDotOnly` (PERFORMANCE_OPTIMIZATION_PLAN
+   *   addendum, docs/REMOTE_DOT_LATENCY_PLAN.md).
    */
   constructor(ctx: AnyCtx, colorIndex: number, width: number, provisional = false) {
     this.ctx = ctx;
@@ -88,12 +94,14 @@ export class StrokePen {
       this.consumed = 1;
     }
 
-    // One point resolves no curve segment: the midpoint scheme needs two. For
-    // the artist that would mean a tap stays invisible until StrokeEnded comes
-    // back off the network, so put down the same dot `end` would commit for a
-    // one-point stroke. Guarded, because a repeated flush would re-fill the
-    // same disc and darken its antialiased rim.
-    if (this.provisional && n === 1) {
+    // One point resolves no curve segment: the midpoint scheme needs two. A
+    // stroke that stays at one point (a tap) would otherwise show nothing
+    // until StrokeEnded closes it, so put down the same dot `end` would
+    // commit for a one-point stroke — for every pen, not only a provisional
+    // one, since a single point is never a prediction: it is exactly what
+    // the caller has, local or authoritative. Guarded, because a repeated
+    // flush would re-fill the same disc and darken its antialiased rim.
+    if (n === 1) {
       if (!this.dotted) {
         this.dot(at(pts, 0), at(pts, 1));
         this.dotted = true;
@@ -132,7 +140,12 @@ export class StrokePen {
     const n = pts.length >> 1;
     if (n === 0) return;
     if (n === 1) {
-      this.dot(at(pts, 0), at(pts, 1));
+      // Guarded the same way as flush(): if flush() already placed this dot,
+      // do not fill the same disc twice and darken its antialiased rim.
+      if (!this.dotted) {
+        this.dot(at(pts, 0), at(pts, 1));
+        this.dotted = true;
+      }
       return;
     }
     this.flush(pts);
