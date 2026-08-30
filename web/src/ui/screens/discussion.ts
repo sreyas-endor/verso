@@ -1,4 +1,5 @@
 import type { ScreenCtx, ViewState } from "../context.js";
+import { ballotRoster } from "../ballot.js";
 import { Disposers, el, fill, setText } from "../dom.js";
 import { playerList } from "../playerList.js";
 import { spectatorPanel } from "../spectatorPanel.js";
@@ -61,7 +62,7 @@ export function mount(root: HTMLElement, ctx: ScreenCtx): void {
         spectator,
         el("div", { class: "card-title", text: "Spectating" }),
         el("p", { text: "You were eliminated, so you no longer vote. The others are deciding." }),
-        el("p", { class: "hint", text: `${s.votesCast} of ${s.activeCount} votes in.` }),
+        ballotRoster(s),
       );
     } else {
       spectator.hidden = true;

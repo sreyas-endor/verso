@@ -109,7 +109,12 @@ function marks(p: PlayerInfo, s: ViewState, opts: PlayerListOptions): HTMLElemen
   // chose (DESIGN.md:65) — p.voted is false outside PHASE_DISCUSSION and
   // PHASE_RESOLVING, so no extra phase check is needed here.
   if (p.voted && !p.eliminated) {
-    out.push(el("span", { class: "badge badge-ready", text: "VOTED" }));
+    out.push(el(
+      "span",
+      { class: "badge badge-ready" },
+      el("span", { "aria-hidden": "true", text: "\u2713" }),
+      "VOTED",
+    ));
   }
   if (p.eliminated) out.push(el("span", { class: "badge badge-out", text: "OUT" }));
   return out;

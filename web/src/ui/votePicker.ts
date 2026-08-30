@@ -1,7 +1,7 @@
 import type { VoteChoice, ViewState } from "./context.js";
 import { avatar } from "./avatar.js";
+import { ballotRoster, ballotSeats } from "./ballot.js";
 import { Disposers, el, fill, setText } from "./dom.js";
-import { inTurnOrder } from "./turnOrder.js";
 
 export interface VotePickerView {
   root: HTMLElement;
@@ -50,9 +50,7 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
     // watched appear, and the thing they remember about it is when it appeared;
     // the roster beside them is in the same order, so a card and a row can be
     // matched up by eye.
-    const candidates = inTurnOrder(s.players, s.turnOrder).filter(
-      (p) => p.connected && !p.eliminated,
-    );
+    const candidates = ballotSeats(s);
 
     grid.hidden = done;
     confirmBox.hidden = done || pending === null;
@@ -70,9 +68,10 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
         locked,
         el("p", {}, el("span", { class: "badge badge-ready", text: "VOTE LOCKED" })),
         el("p", { text: mine === null ? "Your vote is in." : `You voted for ${who}. That cannot be changed.` }),
+        ballotRoster(s),
         el("p", {
           class: "hint",
-          text: `${s.votesCast} of ${s.activeCount} players have voted. Nobody will ever be told who voted for whom.`,
+          text: "Nobody will ever be told who voted for whom.",
         }),
       );
       return;
@@ -82,16 +81,23 @@ export function votePicker(onCast: (choice: VoteChoice) => void): VotePickerView
 
     const cards = candidates.map((p) => {
       const armed = sameChoice(pending, { case: "candidateId", value: p.id });
+      // The tick says only THAT this seat has locked in (DESIGN.md:65). It sits
+      // on the card rather than only in the roster so the two questions a voter
+      // is holding at once — who to vote for, and who the room is still waiting
+      // on — are answered in the same place. It never disables the card: having
+      // voted has no bearing on being a candidate.
       const b = el(
         "button",
         {
           type: "button",
-          class: "votecard",
+          class: p.voted ? "votecard votecard-in" : "votecard",
           "aria-pressed": String(armed),
+          "aria-label": `${p.name}${p.id === s.selfId ? ", you" : ""}, ${p.voted ? "voted" : "still to vote"}`,
         },
         avatar(p.id, p.avatar),
         el("span", { class: "grow", text: p.name }),
         p.id === s.selfId ? el("span", { class: "badge badge-you", text: "YOU" }) : null,
+        el("span", { class: "ballotmark", "aria-hidden": "true", text: "✓" }),
       ) as HTMLButtonElement;
       b.addEventListener("click", () => {
         pending = { case: "candidateId", value: p.id };
